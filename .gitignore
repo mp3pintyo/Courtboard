@@ -1,0 +1,19 @@
+# Generated files
+.dart_tool/
+build/
+dist/
+.pub/
+.packages
+.flutter-plugins
+.flutter-plugins-dependencies
+.venv/
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# Windows build output
+windows/flutter/ephemeral/
+windows/runner/Debug/
+windows/runner/Release/
