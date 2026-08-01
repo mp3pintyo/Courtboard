@@ -78,10 +78,11 @@ Az appban elmentett kulcsok a helyi `%APPDATA%\courtboard_state.json` fájlba ke
 
 | Adatforrás | Sport | Mi jelenik meg az appban? | Kulcs | Cache / korlát |
 |---|---|---|---|---|
-| API-Sports | NBA, NFL, foci | NBA profilmezők; befejezett focimeccsek; NFL-válasz alapintegráció | saját | Free 100/nap, 10/perc |
+| API-Sports | NBA, NFL, foci | NBA profilmezők; befejezett focimeccsek; elérhető friss szezonoknál focista-összesítő; NFL-válasz alapintegráció | saját | Free 100/nap, 10/perc |
 | BALLDONTLIE | NBA | közös NBA-profil kiegészítő mezői | saját | Free 5/perc |
 | TheSportsDB | több sport, darts | új sportoló képe; NBA-alapadatok; darts profil és utolsó 5 eredmény | publikus `123` | Free legfeljebb 30/perc |
 | football-data.org | foci | utolsó 5 befejezett meccs; jelenleg Liverpool névfeloldással | saját | Free 10/perc |
+| FotMob | férfi és női foci | aktuális vagy előző szezon: csapat, versenysorozat, értékelés, meccs, gól, gólpassz, sárga és piros lap | nem kell | 6 órás memóriacache; nem hivatalos webes feed |
 | SportsDataverse wehoop | WNBA | szezonösszesítés, forma, játékos box score és utolsó meccsek | nem kell | szezonfájl tartós helyi cache-ben |
 | Basketball Reference | NBA, WNBA | NBA alapszakasz + playoff, illetve WNBA utolsó 5 meccs | nem kell | 6 óra; nem hivatalos webes forrás |
 | ESPN `esp.w.1` | női foci | Aitana Bonmatí / Barcelona Femení utolsó 5 befejezett meccse | nem kell | nincs publikált kvóta |
@@ -102,7 +103,9 @@ A wehoop adja a szezon box score-okat, formaadatot, meccseket és az ESPN játé
 
 ### Foci és női foci
 
-Az API-Sports Free kompatibilis, `season` alapú mérkőzéslekérést használ. Nem küld `last` paramétert, mert az a Free csomagban hibát okoz. A football-data.org jelenleg a Liverpool utolsó befejezett meccseit egészíti ki. Aitana Bonmatí esetén külön ESPN Liga F (`esp.w.1`) adapter szűri a Barcelona Femení meccseit; férfi Barcelona-eredményt nem kever a profilba.
+Az API-Sports Free kompatibilis, `season` alapú mérkőzéslekérést használ. Nem küld `last` paramétert, mert az a Free csomagban hibát okoz. A focisták **Szezon összesítő** kártyájához az app megpróbálja az API-Sports játékosstatisztikáját is felhasználni. Mivel a Free csomag jelenleg csak régebbi szezonokat enged, a friss adatokat a kulcs nélküli FotMob feed egészíti ki. Csak a naptári év szerinti aktuális vagy előző szezon fogadható el; régebbi adat nem jelenik meg frissként. Azonos csapat és versenysorozat esetén a két forrás mezői összeolvadnak.
+
+A szezonkártyán a csapat, versenysorozat, értékelésátlag, játszott mérkőzések, gólok, gólpasszok, sárga és piros lapok látszanak. A névfeloldás az ékezeteket és a keresztnév–vezetéknév sorrendet is kezeli. A football-data.org jelenleg a Liverpool utolsó befejezett meccseit egészíti ki. Aitana Bonmatí esetén külön ESPN Liga F (`esp.w.1`) adapter szűri a Barcelona Femení meccseit; férfi Barcelona-eredményt nem kever a profilba.
 
 ### Darts
 

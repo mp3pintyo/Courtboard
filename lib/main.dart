@@ -8,6 +8,8 @@ import 'data/basketball_reference.dart';
 import 'data/darts.dart';
 import 'data/espn_liga_f.dart';
 import 'data/football_data.dart';
+import 'data/football_season.dart';
+import 'data/football_season_repository.dart';
 import 'data/local_state.dart';
 import 'data/multi_provider.dart';
 import 'data/provider_catalog.dart';
@@ -1004,7 +1006,15 @@ class _ProfilePage extends StatelessWidget {
                 accent: athlete.accent,
                 config: apiConfig),
           ],
-          if (athlete.sport != 'WNBA') ...[
+          if (athlete.sport == 'Foci') ...[
+            const SizedBox(height: 22),
+            _FootballSeasonSummaryCard(
+                athleteName: athlete.name,
+                teamName: athlete.team,
+                accent: athlete.accent,
+                config: apiConfig),
+            const SizedBox(height: 28),
+          ] else if (athlete.sport != 'WNBA') ...[
             const SizedBox(height: 22),
             const Text('Szezon összesítő',
                 style: TextStyle(
@@ -1166,6 +1176,188 @@ class _ApiSportsCardState extends State<_ApiSportsCard> {
               Text(
                   '${widget.athleteName}: a szolgáltató nem adott megjeleníthető adatot.')
           ])));
+}
+
+class _FootballSeasonSummaryCard extends StatefulWidget {
+  const _FootballSeasonSummaryCard({
+    required this.athleteName,
+    required this.teamName,
+    required this.accent,
+    required this.config,
+  });
+
+  final String athleteName;
+  final String teamName;
+  final Color accent;
+  final SportsApiConfig config;
+
+  @override
+  State<_FootballSeasonSummaryCard> createState() =>
+      _FootballSeasonSummaryCardState();
+}
+
+class _FootballSeasonSummaryCardState
+    extends State<_FootballSeasonSummaryCard> {
+  late Future<List<FootballSeasonStat>> _stats;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  void _load() {
+    _stats = FootballSeasonRepository(widget.config)
+        .fetch(widget.athleteName, widget.teamName);
+  }
+
+  @override
+  void didUpdateWidget(covariant _FootballSeasonSummaryCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.athleteName != widget.athleteName ||
+        oldWidget.teamName != widget.teamName ||
+        oldWidget.config.apiSportsKey != widget.config.apiSportsKey) {
+      _load();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(children: [
+            const Text('Szezon összesítő',
+                style: TextStyle(
+                    fontSize: 27,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: -1.2)),
+            const Spacer(),
+            IconButton(
+                tooltip: 'Szezonadatok frissítése',
+                onPressed: () => setState(_load),
+                icon: const Icon(Icons.refresh)),
+          ]),
+          const SizedBox(height: 12),
+          FutureBuilder<List<FootballSeasonStat>>(
+              future: _stats,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState != ConnectionState.done) {
+                  return const Padding(
+                      padding: EdgeInsets.all(18),
+                      child: CircularProgressIndicator());
+                }
+                if (snapshot.hasError) {
+                  return _FootballSeasonMessage(
+                      message:
+                          'Nem érkezett friss szezonadat: ${snapshot.error}',
+                      accent: widget.accent);
+                }
+                final stats = snapshot.data ?? const [];
+                if (stats.isEmpty) {
+                  return _FootballSeasonMessage(
+                      message:
+                          'Az aktuális vagy előző szezonhoz nincs elérhető adat.',
+                      accent: widget.accent);
+                }
+                return Column(
+                    children: stats
+                        .map((item) => Padding(
+                            padding: const EdgeInsets.only(bottom: 12),
+                            child: _FootballSeasonStatCard(
+                                stat: item, accent: widget.accent)))
+                        .toList());
+              }),
+        ],
+      );
+}
+
+class _FootballSeasonMessage extends StatelessWidget {
+  const _FootballSeasonMessage({required this.message, required this.accent});
+  final String message;
+  final Color accent;
+
+  @override
+  Widget build(BuildContext context) => Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+          color: _paper,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: accent.withValues(alpha: .35))),
+      child: Text(message, style: const TextStyle(color: _muted)));
+}
+
+class _FootballSeasonStatCard extends StatelessWidget {
+  const _FootballSeasonStatCard({required this.stat, required this.accent});
+  final FootballSeasonStat stat;
+  final Color accent;
+
+  @override
+  Widget build(BuildContext context) {
+    final metrics = [
+      ('ÉRTÉKELÉS ÁTLAG', stat.rating?.toStringAsFixed(2) ?? '—'),
+      ('MÉRKŐZÉS', _format(stat.appearances)),
+      ('GÓL', _format(stat.goals)),
+      ('GÓLPASSZ', _format(stat.assists)),
+      ('SÁRGA LAP', _format(stat.yellowCards)),
+      ('PIROS LAP', _format(stat.redCards)),
+    ];
+    return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+            color: _paper,
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(color: accent.withValues(alpha: .42))),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Expanded(
+                child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                  Text(stat.team,
+                      style: const TextStyle(
+                          fontSize: 20, fontWeight: FontWeight.w900)),
+                  const SizedBox(height: 3),
+                  Text('${stat.competition} · ${stat.season}',
+                      style: const TextStyle(color: _muted)),
+                ])),
+            _Pill(text: stat.source.toUpperCase(), color: accent),
+          ]),
+          const SizedBox(height: 18),
+          LayoutBuilder(builder: (context, constraints) {
+            final columns = constraints.maxWidth >= 900 ? 6 : 3;
+            final width = (constraints.maxWidth - (columns - 1) * 10) / columns;
+            return Wrap(
+                spacing: 10,
+                runSpacing: 10,
+                children: metrics
+                    .map((metric) => Container(
+                        width: width,
+                        padding: const EdgeInsets.all(13),
+                        decoration: BoxDecoration(
+                            color: accent.withValues(alpha: .16),
+                            borderRadius: BorderRadius.circular(14)),
+                        child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(metric.$1,
+                                  style: const TextStyle(
+                                      color: _muted,
+                                      fontSize: 9,
+                                      fontWeight: FontWeight.w900)),
+                              const SizedBox(height: 7),
+                              Text(metric.$2,
+                                  style: const TextStyle(
+                                      fontSize: 22,
+                                      fontWeight: FontWeight.w900)),
+                            ])))
+                    .toList());
+          }),
+        ]));
+  }
+
+  static String _format(int? value) => value?.toString() ?? '—';
 }
 
 class UnifiedAthleteFacts extends StatelessWidget {

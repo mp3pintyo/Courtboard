@@ -73,6 +73,7 @@ const providerCatalog = <ProviderCatalogEntry>[
     visibleOutput: [
       'NBA-játékosprofil mezői a közös profilkártyán',
       'Focinál legutóbbi befejezett mérkőzések',
+      'Fizetős szezonhozzáférésnél focista szezonstatisztikák',
       'NFL-válasz elérhetősége; a részletes megjelenítés még korlátozott',
     ],
     capabilities: [
@@ -150,6 +151,30 @@ const providerCatalog = <ProviderCatalogEntry>[
     fallback: 'API-Sports vagy a helyi sportolói alapadatok maradnak.',
     docsUrl: 'https://www.football-data.org/client/register',
     key: ProviderKey.footballData,
+  ),
+  ProviderCatalogEntry(
+    name: 'FotMob',
+    sports: ['Foci', 'Női foci'],
+    role:
+        'Aktuális vagy előző szezon játékos-összesítője, ha az API-Sports nem fér hozzá a friss idényhez.',
+    visibleOutput: [
+      'Csapat és versenysorozat',
+      'Értékelésátlag, mérkőzések, gólok és gólpasszok',
+      'Sárga és piros lapok',
+    ],
+    capabilities: [
+      'Névkeresés ékezet- és névsorrend-független egyeztetéssel',
+      'Férfi és női bajnokságok, köztük a Liga F',
+      'Az API-Sports adataival azonos csapat és versenysorozat alapján összevonható',
+    ],
+    authentication: 'Nem kell API-kulcs; nyilvános, nem hivatalos webes feed.',
+    limit:
+        'Nincs publikált alkalmazási kvóta; best effort forrás, kímélő lekéréssel.',
+    cache: 'Játékosonként 6 órás memóriacache.',
+    setup: 'Nincs teendő.',
+    fallback:
+        'Ha nem érhető el, az API-Sports friss szezonadata marad; régi szezont az app nem címkéz aktuálisnak.',
+    docsUrl: 'https://www.fotmob.com/',
   ),
   ProviderCatalogEntry(
     name: 'SportsDataverse · wehoop',
