@@ -71,4 +71,32 @@ void main() {
     expect(footballTeamSearchTerm('FC Barcelona'), 'Barcelona');
     expect(normalizeFootballTeamName('Liverpool FC'), 'liverpool');
   });
+
+  test('football player parser reads every requested season field', () {
+    final stats = ApiSportsRepository.parseFootballPlayerStats({
+      'response': [
+        {
+          'player': {'id': 1, 'name': 'Dominik Szoboszlai'},
+          'statistics': [
+            {
+              'team': {'name': 'Liverpool'},
+              'league': {'name': 'Premier League', 'season': 2025},
+              'games': {'appearences': 36, 'rating': '7.50'},
+              'goals': {'total': 6, 'assists': 7},
+              'cards': {'yellow': 8, 'red': 1},
+            }
+          ]
+        }
+      ]
+    }, 'Szoboszlai Dominik');
+
+    expect(stats.single.team, 'Liverpool');
+    expect(stats.single.competition, 'Premier League');
+    expect(stats.single.rating, 7.5);
+    expect(stats.single.appearances, 36);
+    expect(stats.single.goals, 6);
+    expect(stats.single.assists, 7);
+    expect(stats.single.yellowCards, 8);
+    expect(stats.single.redCards, 1);
+  });
 }

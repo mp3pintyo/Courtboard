@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'football_season.dart';
+
 class ApiSportsQuota {
   const ApiSportsQuota({required this.used, required this.limit});
   final int used;
@@ -147,6 +149,69 @@ class ApiSportsRepository {
     return games.take(5).toList();
   }
 
+  Future<List<FootballSeasonStat>> footballSeasonStats(String playerName,
+      {DateTime? now}) async {
+    const host = 'v3.football.api-sports.io';
+    if (await _usesFreePlan(host)) {
+      throw StateError(
+          'Az API-Sports Free csomag nem ad aktuális szezonstatisztikát.');
+    }
+    final clock = now ?? DateTime.now();
+    final searchParts = normalizeAthleteName(playerName)
+        .split(' ')
+        .where((part) => part.isNotEmpty)
+        .toList();
+    final search = searchParts.isEmpty ? playerName : searchParts.last;
+    for (final season in [clock.year, clock.year - 1]) {
+      final payload =
+          await get(host, '/players', {'search': search, 'season': '$season'});
+      final parsed = parseFootballPlayerStats(payload, playerName);
+      if (parsed.isNotEmpty) return parsed;
+    }
+    return const [];
+  }
+
+  static List<FootballSeasonStat> parseFootballPlayerStats(
+      Map<String, dynamic> payload, String playerName) {
+    final response = payload['response'];
+    if (response is! List) return const [];
+    final normalized = normalizeAthleteName(playerName);
+    final entries = response.whereType<Map>().toList();
+    if (entries.isEmpty) return const [];
+    final entry = entries.cast<Map?>().firstWhere((candidate) {
+          final player = candidate?['player'];
+          return player is Map &&
+              athleteNamesMatch('${player['name'] ?? ''}', normalized);
+        }, orElse: () => entries.first) ??
+        entries.first;
+    final statistics = entry['statistics'];
+    if (statistics is! List) return const [];
+    return statistics
+        .whereType<Map>()
+        .map((raw) {
+          final team = raw['team'] is Map ? raw['team'] as Map : const {};
+          final league = raw['league'] is Map ? raw['league'] as Map : const {};
+          final games = raw['games'] is Map ? raw['games'] as Map : const {};
+          final goals = raw['goals'] is Map ? raw['goals'] as Map : const {};
+          final cards = raw['cards'] is Map ? raw['cards'] as Map : const {};
+          final rating = double.tryParse('${games['rating'] ?? ''}');
+          return FootballSeasonStat(
+            season: '${league['season'] ?? ''}',
+            team: '${team['name'] ?? ''}',
+            competition: '${league['name'] ?? ''}',
+            source: 'API-Sports',
+            rating: rating,
+            appearances: _asNullableInt(games['appearences']),
+            goals: _asNullableInt(goals['total']),
+            assists: _asNullableInt(goals['assists']),
+            yellowCards: _asNullableInt(cards['yellow']),
+            redCards: _asNullableInt(cards['red']),
+          );
+        })
+        .where((item) => item.hasUsefulData())
+        .toList(growable: false);
+  }
+
   static Map<String, String> footballFixtureQuery({
     required int teamId,
     required DateTime now,
@@ -185,7 +250,7 @@ class ApiSportsRepository {
         .toList();
     if (players.isEmpty) return null;
     return players.cast<ApiSportsPlayer?>().firstWhere(
-        (player) => normalizeAthleteName(player!.name) == normalizedName,
+        (player) => athleteNamesMatch(player!.name, normalizedName),
         orElse: () => players.first);
   }
 
@@ -300,6 +365,17 @@ String normalizeAthleteName(String value) {
       .trim();
 }
 
+bool athleteNamesMatch(String first, String second) {
+  final firstName = normalizeAthleteName(first);
+  final secondName = normalizeAthleteName(second);
+  if (firstName == secondName) return true;
+  final firstParts = firstName.split(' ')..sort();
+  final secondParts = secondName.split(' ')..sort();
+  return firstParts.length == secondParts.length &&
+      List.generate(firstParts.length, (index) => index)
+          .every((index) => firstParts[index] == secondParts[index]);
+}
+
 String? _nonEmpty(dynamic value) {
   final text = '${value ?? ''}'.trim();
   return text.isEmpty || text == 'null' ? null : text;
@@ -312,3 +388,6 @@ String? _withUnit(dynamic value, String unit) {
 
 int _asInt(dynamic value, {int fallback = 0}) =>
     value is int ? value : int.tryParse('$value') ?? fallback;
+
+int? _asNullableInt(dynamic value) =>
+    value == null ? null : (value is int ? value : int.tryParse('$value'));
