@@ -3,9 +3,11 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:courtboard/data/multi_provider.dart';
 import 'package:courtboard/data/basketball_reference.dart';
+import 'package:courtboard/data/basketball_season.dart';
 import 'package:courtboard/data/darts.dart';
 import 'package:courtboard/data/espn_liga_f.dart';
 import 'package:courtboard/data/rapidapi_wnba.dart';
+import 'package:courtboard/data/wehoop_wnba.dart';
 import 'package:courtboard/main.dart';
 
 void main() {
@@ -115,6 +117,86 @@ void main() {
         findsOneWidget);
     expect(find.text('San Antonio Spurs'), findsOneWidget);
     expect(find.text('23 PTS · 8 REB · 1 AST · 18 MIN'), findsOneWidget);
+  });
+
+  testWidgets('NBA season summary shows every requested metric',
+      (tester) async {
+    const summary = BasketballSeasonStat(
+      league: 'NBA',
+      season: '2025/2026',
+      team: 'Denver Nuggets',
+      source: 'Basketball Reference',
+      games: 65,
+      minutesPerGame: 34.8,
+      pointsPerGame: 27.7,
+      reboundsPerGame: 12.9,
+      assistsPerGame: 10.7,
+      stealsPerGame: 1.4,
+      turnoversPerGame: 3.7,
+      fieldGoalPercentage: 56.9,
+    );
+
+    await tester.pumpWidget(const MaterialApp(
+        home: Scaffold(
+            body: BasketballSeasonSummaryFacts(
+                summary: summary, accent: Colors.amber))));
+
+    for (final label in const [
+      'MÉRKŐZÉS',
+      'PERC / MECCS',
+      'PONT / MECCS',
+      'LEPATTANÓ / MECCS',
+      'ASSZISZT / MECCS',
+      'LABDASZERZÉS / MECCS',
+      'ELADOTT LABDA / MECCS',
+      'FG%',
+    ]) {
+      expect(find.text(label), findsOneWidget);
+    }
+    expect(find.text('56.9%'), findsOneWidget);
+    expect(find.text('Denver Nuggets'), findsOneWidget);
+    expect(find.text('NBA · 2025/2026'), findsOneWidget);
+  });
+
+  testWidgets('WNBA season summary shows every requested metric',
+      (tester) async {
+    final games = [
+      WnbaGameLog(
+        gameId: '1',
+        date: DateTime(2026, 7, 30),
+        team: 'Minnesota Lynx',
+        opponent: 'Toronto Tempo',
+        points: 12,
+        rebounds: 5,
+        assists: 2,
+        steals: 1,
+        blocks: 0,
+        minutes: 22,
+        headshotUrl: '',
+        turnovers: 1,
+        fieldGoalsMade: 4,
+        fieldGoalsAttempted: 8,
+        seasonType: '2',
+      ),
+    ];
+
+    await tester.pumpWidget(MaterialApp(
+        home: Scaffold(body: WnbaSeasonSummaryFacts(games: games))));
+
+    for (final label in const [
+      'MECCS',
+      'PERC / MECCS',
+      'PONT / MECCS',
+      'LEPATTANÓ / MECCS',
+      'ASSZISZT / MECCS',
+      'LABDASZERZÉS / MECCS',
+      'ELADOTT LABDA / MECCS',
+      'FG%',
+    ]) {
+      expect(find.text(label), findsOneWidget);
+    }
+    expect(find.text('50.0%'), findsOneWidget);
+    expect(find.textContaining('Minnesota Lynx · WNBA 2026'), findsOneWidget);
   });
 
   testWidgets('Basketball Reference WNBA games show score and box score',

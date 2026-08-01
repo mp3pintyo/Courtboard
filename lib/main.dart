@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 
 import 'data/api_sports.dart';
 import 'data/basketball_reference.dart';
+import 'data/basketball_season.dart';
 import 'data/darts.dart';
 import 'data/espn_liga_f.dart';
 import 'data/football_data.dart';
@@ -999,6 +1000,11 @@ class _ProfilePage extends StatelessWidget {
                 accent: athlete.accent,
                 config: apiConfig),
           ],
+          if (athlete.sport == 'NBA') ...[
+            const SizedBox(height: 22),
+            _NbaSeasonSummaryCard(
+                athleteName: athlete.name, accent: athlete.accent),
+          ],
           if (athlete.sport == 'Darts') ...[
             const SizedBox(height: 18),
             _DartsDataCard(
@@ -1014,7 +1020,7 @@ class _ProfilePage extends StatelessWidget {
                 accent: athlete.accent,
                 config: apiConfig),
             const SizedBox(height: 28),
-          ] else if (athlete.sport != 'WNBA') ...[
+          ] else if (athlete.sport != 'WNBA' && athlete.sport != 'NBA') ...[
             const SizedBox(height: 22),
             const Text('Szezon összesítő',
                 style: TextStyle(
@@ -1176,6 +1182,216 @@ class _ApiSportsCardState extends State<_ApiSportsCard> {
               Text(
                   '${widget.athleteName}: a szolgáltató nem adott megjeleníthető adatot.')
           ])));
+}
+
+class _NbaSeasonSummaryCard extends StatefulWidget {
+  const _NbaSeasonSummaryCard({
+    required this.athleteName,
+    required this.accent,
+  });
+
+  final String athleteName;
+  final Color accent;
+
+  @override
+  State<_NbaSeasonSummaryCard> createState() => _NbaSeasonSummaryCardState();
+}
+
+class _NbaSeasonSummaryCardState extends State<_NbaSeasonSummaryCard> {
+  late Future<BasketballSeasonStat?> _summary;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  void _load() {
+    _summary =
+        BasketballReferenceRepository().seasonSummary(widget.athleteName);
+  }
+
+  @override
+  void didUpdateWidget(covariant _NbaSeasonSummaryCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.athleteName != widget.athleteName) _load();
+  }
+
+  @override
+  Widget build(BuildContext context) => Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(children: [
+            const Expanded(
+                child: Text('Szezon összesítő',
+                    style: TextStyle(
+                        fontSize: 27,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: -1.2))),
+            IconButton(
+                tooltip: 'Szezonadatok frissítése',
+                onPressed: () => setState(_load),
+                icon: const Icon(Icons.refresh)),
+          ]),
+          const SizedBox(height: 12),
+          FutureBuilder<BasketballSeasonStat?>(
+            future: _summary,
+            builder: (context, snapshot) {
+              if (snapshot.connectionState != ConnectionState.done) {
+                return _BasketballSeasonMessage(
+                    message: 'NBA szezonadatok betöltése…',
+                    accent: widget.accent,
+                    loading: true);
+              }
+              if (snapshot.hasError) {
+                return _BasketballSeasonMessage(
+                    message:
+                        'A friss NBA szezonösszesítő most nem érhető el: ${snapshot.error}',
+                    accent: widget.accent);
+              }
+              final summary = snapshot.data;
+              if (summary == null) {
+                return _BasketballSeasonMessage(
+                    message: 'Ehhez a játékoshoz nincs friss NBA szezonadat.',
+                    accent: widget.accent);
+              }
+              return BasketballSeasonSummaryFacts(
+                  summary: summary, accent: widget.accent);
+            },
+          ),
+          const SizedBox(height: 28),
+        ],
+      );
+}
+
+class _BasketballSeasonMessage extends StatelessWidget {
+  const _BasketballSeasonMessage({
+    required this.message,
+    required this.accent,
+    this.loading = false,
+  });
+
+  final String message;
+  final Color accent;
+  final bool loading;
+
+  @override
+  Widget build(BuildContext context) => Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+            color: _paper,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: accent.withValues(alpha: .35))),
+        child: Row(children: [
+          if (loading) ...[
+            const SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(strokeWidth: 2)),
+            const SizedBox(width: 12),
+          ],
+          Expanded(child: Text(message, style: const TextStyle(color: _muted))),
+        ]),
+      );
+}
+
+class BasketballSeasonSummaryFacts extends StatelessWidget {
+  const BasketballSeasonSummaryFacts({
+    super.key,
+    required this.summary,
+    required this.accent,
+  });
+
+  final BasketballSeasonStat summary;
+  final Color accent;
+
+  @override
+  Widget build(BuildContext context) {
+    final metrics = [
+      ('MÉRKŐZÉS', '${summary.games}'),
+      ('PERC / MECCS', _decimal(summary.minutesPerGame)),
+      ('PONT / MECCS', _decimal(summary.pointsPerGame)),
+      ('LEPATTANÓ / MECCS', _decimal(summary.reboundsPerGame)),
+      ('ASSZISZT / MECCS', _decimal(summary.assistsPerGame)),
+      ('LABDASZERZÉS / MECCS', _decimal(summary.stealsPerGame)),
+      ('ELADOTT LABDA / MECCS', _decimal(summary.turnoversPerGame)),
+      ('FG%', _percentage(summary.fieldGoalPercentage)),
+    ];
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(22),
+      decoration: BoxDecoration(
+          color: _paper,
+          borderRadius: BorderRadius.circular(22),
+          border: Border.all(color: accent.withValues(alpha: .45))),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          Expanded(
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                Text(summary.team.isEmpty ? summary.league : summary.team,
+                    style: const TextStyle(
+                        fontSize: 22, fontWeight: FontWeight.w900)),
+                const SizedBox(height: 3),
+                Text('${summary.league} · ${summary.season}',
+                    style: const TextStyle(color: _muted)),
+              ])),
+          _Pill(text: summary.source.toUpperCase(), color: accent),
+        ]),
+        const SizedBox(height: 18),
+        LayoutBuilder(builder: (context, constraints) {
+          final columns = constraints.maxWidth >= 1000 ? 8 : 4;
+          final width = (constraints.maxWidth - (columns - 1) * 10) / columns;
+          return Wrap(
+              spacing: 10,
+              runSpacing: 10,
+              children: metrics
+                  .map((metric) => SizedBox(
+                      width: width,
+                      child: _BasketballSeasonMetric(
+                          label: metric.$1, value: metric.$2, accent: accent)))
+                  .toList());
+        }),
+      ]),
+    );
+  }
+
+  static String _decimal(double? value) =>
+      value == null ? '—' : value.toStringAsFixed(1);
+  static String _percentage(double? value) =>
+      value == null ? '—' : '${value.toStringAsFixed(1)}%';
+}
+
+class _BasketballSeasonMetric extends StatelessWidget {
+  const _BasketballSeasonMetric({
+    required this.label,
+    required this.value,
+    required this.accent,
+  });
+
+  final String label;
+  final String value;
+  final Color accent;
+
+  @override
+  Widget build(BuildContext context) => Container(
+        constraints: const BoxConstraints(minHeight: 90),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+            color: accent.withValues(alpha: .09),
+            borderRadius: BorderRadius.circular(13)),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(label,
+              style: const TextStyle(
+                  color: _muted, fontSize: 9, fontWeight: FontWeight.w900)),
+          const SizedBox(height: 12),
+          Text(value,
+              style:
+                  const TextStyle(fontSize: 22, fontWeight: FontWeight.w900)),
+        ]),
+      );
 }
 
 class _FootballSeasonSummaryCard extends StatefulWidget {
@@ -2174,27 +2390,8 @@ class _WnbaLiveData extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final shown = range == 0 ? games : games.take(range).toList();
-    final summary = WnbaSeasonSummary.fromGames(games);
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      const Text('SZEZON ÖSSZESÍTŐ · VALÓS ADAT',
-          style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w900,
-              color: _muted,
-              letterSpacing: .8)),
-      const SizedBox(height: 10),
-      Wrap(spacing: 10, runSpacing: 10, children: [
-        _WnbaMiniMetric(value: summary.games.toString(), label: 'MECCS'),
-        _WnbaMiniMetric(
-            value: summary.pointsPerGame.toStringAsFixed(1),
-            label: 'PTS / MECCS'),
-        _WnbaMiniMetric(
-            value: summary.reboundsPerGame.toStringAsFixed(1),
-            label: 'REB / MECCS'),
-        _WnbaMiniMetric(
-            value: summary.assistsPerGame.toStringAsFixed(1),
-            label: 'AST / MECCS'),
-      ]),
+      WnbaSeasonSummaryFacts(games: games),
       const SizedBox(height: 22),
       Row(children: [
         const Expanded(
@@ -2225,12 +2422,64 @@ class _WnbaLiveData extends StatelessWidget {
   }
 }
 
+class WnbaSeasonSummaryFacts extends StatelessWidget {
+  const WnbaSeasonSummaryFacts({super.key, required this.games});
+
+  final List<WnbaGameLog> games;
+
+  @override
+  Widget build(BuildContext context) {
+    final summary = WnbaSeasonSummary.fromGames(games);
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      const Text('SZEZON ÖSSZESÍTŐ · VALÓS ADAT',
+          style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w900,
+              color: _muted,
+              letterSpacing: .8)),
+      const SizedBox(height: 4),
+      Text(
+          '${games.first.team} · WNBA ${games.first.date.year} · SPORTSDATAVERSE / WEHOOP',
+          style: const TextStyle(fontSize: 11, color: _muted)),
+      const SizedBox(height: 10),
+      Wrap(spacing: 10, runSpacing: 10, children: [
+        _WnbaMiniMetric(value: summary.games.toString(), label: 'MECCS'),
+        _WnbaMiniMetric(
+            value: summary.minutesPerGame.toStringAsFixed(1),
+            label: 'PERC / MECCS'),
+        _WnbaMiniMetric(
+            value: summary.pointsPerGame.toStringAsFixed(1),
+            label: 'PONT / MECCS'),
+        _WnbaMiniMetric(
+            value: summary.reboundsPerGame.toStringAsFixed(1),
+            label: 'LEPATTANÓ / MECCS'),
+        _WnbaMiniMetric(
+            value: summary.assistsPerGame.toStringAsFixed(1),
+            label: 'ASSZISZT / MECCS'),
+        _WnbaMiniMetric(
+            value: summary.stealsPerGame.toStringAsFixed(1),
+            label: 'LABDASZERZÉS / MECCS'),
+        _WnbaMiniMetric(
+            value: summary.turnoversPerGame.toStringAsFixed(1),
+            label: 'ELADOTT LABDA / MECCS'),
+        _WnbaMiniMetric(
+            value: summary.fieldGoalPercentage == null
+                ? '—'
+                : '${summary.fieldGoalPercentage!.toStringAsFixed(1)}%',
+            label: 'FG%'),
+      ]),
+    ]);
+  }
+}
+
 class _WnbaMiniMetric extends StatelessWidget {
   const _WnbaMiniMetric({required this.value, required this.label});
   final String value;
   final String label;
   @override
   Widget build(BuildContext context) => Container(
+      width: 138,
+      constraints: const BoxConstraints(minHeight: 76),
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
           color: _canvas, borderRadius: BorderRadius.circular(12)),

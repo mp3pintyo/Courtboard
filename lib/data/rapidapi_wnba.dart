@@ -149,6 +149,8 @@ class WnbaRapidApiRepository {
       'REB',
       'AST',
       'STL',
+      'TO',
+      'TOV',
       'BLK',
       'FG%',
       '3P%'
