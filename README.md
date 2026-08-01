@@ -10,6 +10,16 @@ Az alkalmazás saját **Adatforrás-kézikönyve** kereshető sportág, szolgál
 - mennyi ideig cache-elünk;
 - mi történik, ha a forrás hibázik.
 
+## Képernyőképek
+
+### Nyitólap
+
+![A Courtboard nyitólapja a követett sportolókkal és a közelgő eseményekkel](docs/screenshots/home.png)
+
+### Játékosoldal
+
+![Juhász Dorka játékosoldala valódi WNBA meccsnaplóval és mérkőzésadatokkal](docs/screenshots/player-juhasz-dorka.png)
+
 ## Gyors indítás Windows alatt
 
 ### Már elkészített kiadás használata
