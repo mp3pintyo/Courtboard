@@ -26,6 +26,7 @@ Az alkalmazás saját **Adatforrás-kézikönyve** kereshető sportág, szolgál
 - A megjelenéshez választható a zöld és a bordó téma.
 - Az Áttekintés kártyái és a Sportolók listája egymástól függetlenül rendezhető saját sorrend, név, sportág vagy csapat szerint.
 - A **Sportolók** oldalon név szerinti keresés és sportág szerinti szűrés használható.
+- A **Videók** médiatár az összes sportolóhoz mentett YouTube-videót egy helyen mutatja; cím, sportoló és sportág szerint szűrhető.
 - A választott téma és rendezések automatikusan a helyi állapotfájlba kerülnek.
 - A darts sportolóknál nincs csapatmező, ezért az üres vagy „Nincs megadva” csapat nem jelenik meg a kártyákon és profilokon.
 
@@ -128,7 +129,7 @@ Az API-Sports adapter és válaszkezelés be van kötve, de a részletes, játé
 
 Új sportoló felvételekor a TheSportsDB név szerinti keresése próbál profilképet találni. Ha nincs találat, az app monogramot mutat.
 
-A Felfedezés oldalon a felhasználó YouTube URL-t vagy videóazonosítót adhat meg. A cím és bélyegkép a kulcs nélküli YouTube oEmbed válaszból érkezik. A Courtboard nem ír a YouTube-fiókba, és nem hoz létre távoli playlistet. A YouTube Data API keresőadaptere létezik, de jelenleg nincs bekötve automatikus keresési felületre.
+A sportolói profilon a felhasználó YouTube URL-t vagy videóazonosítót adhat meg. A cím és bélyegkép a kulcs nélküli YouTube oEmbed válaszból érkezik. A mentések a központi **Videók** oldalon is megjelennek, ahol cím, sportoló és sportág szerint kereshetők, lejátszhatók vagy eltávolíthatók. A Courtboard nem ír a YouTube-fiókba, és nem hoz létre távoli playlistet. A YouTube Data API keresőadaptere létezik, de jelenleg nincs bekötve automatikus keresési felületre.
 
 ## Helyi adatok és cache-ek
 

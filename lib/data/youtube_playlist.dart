@@ -71,7 +71,7 @@ class AthleteVideoPlaylist {
       ], unassigned: unassigned);
   AthleteVideoPlaylist remove(SavedYouTubeVideo video) => AthleteVideoPlaylist(
       videos: videos.where((item) => item != video).toList(),
-      unassigned: unassigned);
+      unassigned: unassigned.where((item) => item != video).toList());
   Map<String, dynamic> toJson() => {
         'version': 2,
         'videos': videos.map((v) => v.toJson()).toList(),
