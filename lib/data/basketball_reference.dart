@@ -5,6 +5,7 @@ import 'package:html/dom.dart' as dom;
 import 'package:html/parser.dart' as html_parser;
 
 import 'api_sports.dart';
+import 'basketball_season.dart';
 
 typedef BasketballReferenceHtmlFetcher = Future<String> Function(Uri uri);
 
@@ -20,6 +21,9 @@ class NbaGameLog {
     required this.assists,
     required this.steals,
     required this.blocks,
+    this.turnovers = 0,
+    this.fieldGoalsMade = 0,
+    this.fieldGoalsAttempted = 0,
     this.plusMinus,
     this.gameScore,
     this.score,
@@ -35,6 +39,9 @@ class NbaGameLog {
   final int assists;
   final int steals;
   final int blocks;
+  final int turnovers;
+  final int fieldGoalsMade;
+  final int fieldGoalsAttempted;
   final int? plusMinus;
   final double? gameScore;
   final String? score;
@@ -65,6 +72,9 @@ class NbaGameLog {
         assists: _asInt(json['assists']),
         steals: _asInt(json['steals']),
         blocks: _asInt(json['blocks']),
+        turnovers: _asInt(json['turnovers']),
+        fieldGoalsMade: _asInt(json['field_goals_made']),
+        fieldGoalsAttempted: _asInt(json['field_goals_attempted']),
         plusMinus:
             json['plus_minus'] == null ? null : _asInt(json['plus_minus']),
         gameScore:
@@ -122,6 +132,95 @@ class BasketballReferenceRepository {
 
   static int seasonEndYear(DateTime now) =>
       now.month >= 9 ? now.year + 1 : now.year;
+
+  Future<BasketballSeasonStat?> seasonSummary(
+    String athleteName, {
+    DateTime? now,
+  }) async {
+    if (!networkEnabled) return null;
+    final effectiveNow = now ?? DateTime.now();
+    final season = seasonEndYear(effectiveNow);
+    final cache = await _cacheFile(athleteName, season, 'nba_summary');
+    final cached = await _readCache(cache, effectiveNow, freshOnly: true);
+    if (cached != null) {
+      return BasketballSeasonStat.fromJson(cached);
+    }
+
+    try {
+      final player = await _findPlayer(athleteName, league: 'nba');
+      final html = await _fetchHtml(Uri.https(_host, player.$2));
+      final summary = parseNbaSeasonSummaryHtml(
+        html,
+        preferredSeasonEndYear: season,
+      );
+      if (summary == null) {
+        throw StateError(
+          'A Basketball Reference nem adott NBA szezonösszesítőt: $athleteName',
+        );
+      }
+      await cache.parent.create(recursive: true);
+      await cache.writeAsString(jsonEncode(summary.toJson()), flush: true);
+      return summary;
+    } catch (_) {
+      final stale = await _readCache(cache, effectiveNow, freshOnly: false);
+      if (stale != null) return BasketballSeasonStat.fromJson(stale);
+      rethrow;
+    }
+  }
+
+  static BasketballSeasonStat? parseNbaSeasonSummaryHtml(
+    String html, {
+    int? preferredSeasonEndYear,
+  }) {
+    final document = html_parser.parse(html);
+    final candidates = <({int year, String team, dom.Element row})>[];
+    for (final row in document.querySelectorAll('tr[id]')) {
+      final match = RegExp(r'^per_game_stats\.(\d{4})$').firstMatch(row.id);
+      if (match == null) continue;
+      final year = int.tryParse(match.group(1) ?? '');
+      if (year == null ||
+          (preferredSeasonEndYear != null && year > preferredSeasonEndYear)) {
+        continue;
+      }
+      candidates.add((
+        year: year,
+        team: _statText(row, 'team_name_abbr'),
+        row: row,
+      ));
+    }
+    if (candidates.isEmpty) return null;
+    candidates.sort((a, b) {
+      final byYear = b.year.compareTo(a.year);
+      if (byYear != 0) return byYear;
+      final aTotal = RegExp(r'^\d+TM$').hasMatch(a.team) ? 1 : 0;
+      final bTotal = RegExp(r'^\d+TM$').hasMatch(b.team) ? 1 : 0;
+      if (aTotal != bTotal) return bTotal.compareTo(aTotal);
+      return _asInt(_statText(b.row, 'games'))
+          .compareTo(_asInt(_statText(a.row, 'games')));
+    });
+    final selected = candidates.first;
+    final row = selected.row;
+    double? number(String stat) => _nullableDouble(_statText(row, stat));
+    final fieldGoal = number('fg_pct');
+    final team = RegExp(r'^\d+TM$').hasMatch(selected.team)
+        ? 'Több csapat'
+        : (_nbaTeams[selected.team] ?? selected.team);
+    final result = BasketballSeasonStat(
+      league: 'NBA',
+      season: '${selected.year - 1}/${selected.year}',
+      team: team,
+      source: 'Basketball Reference',
+      games: _asInt(_statText(row, 'games')),
+      minutesPerGame: number('mp_per_g'),
+      pointsPerGame: number('pts_per_g'),
+      reboundsPerGame: number('trb_per_g'),
+      assistsPerGame: number('ast_per_g'),
+      stealsPerGame: number('stl_per_g'),
+      turnoversPerGame: number('tov_per_g'),
+      fieldGoalPercentage: fieldGoal == null ? null : fieldGoal * 100,
+    );
+    return result.hasUsefulData ? result : null;
+  }
 
   static List<NbaGameLog> parseGames(Map<String, dynamic> payload) {
     if (payload['error'] != null) {
@@ -352,6 +451,9 @@ class BasketballReferenceRepository {
           'assists': _asInt(cells['ast']),
           'steals': _asInt(cells['stl']),
           'blocks': _asInt(cells['blk']),
+          'turnovers': _asInt(cells['tov']),
+          'field_goals_made': _asInt(cells['fg']),
+          'field_goals_attempted': _asInt(cells['fga']),
           'plus_minus': _nullableInt(cells['plus_minus']),
           'game_score': _nullableDouble(cells['game_score']),
           'score': score,
@@ -376,10 +478,16 @@ Map<String, dynamic> _gameToJson(NbaGameLog game) => {
       'assists': game.assists,
       'steals': game.steals,
       'blocks': game.blocks,
+      'turnovers': game.turnovers,
+      'field_goals_made': game.fieldGoalsMade,
+      'field_goals_attempted': game.fieldGoalsAttempted,
       'plus_minus': game.plusMinus,
       'game_score': game.gameScore,
       'score': game.score,
     };
+
+String _statText(dom.Element row, String stat) =>
+    row.querySelector('[data-stat="$stat"]')?.text.trim() ?? '';
 
 const _nbaTeams = <String, String>{
   'ATL': 'Atlanta Hawks',

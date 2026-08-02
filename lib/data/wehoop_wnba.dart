@@ -84,6 +84,7 @@ class WnbaWehoopRepository {
       if (_playerNameKey(field(values, 'athlete_display_name')) != normalized) {
         continue;
       }
+      if (_asBool(field(values, 'did_not_play'))) continue;
       final date = DateTime.tryParse(field(values, 'game_date'));
       if (date == null) {
         continue;
@@ -92,7 +93,9 @@ class WnbaWehoopRepository {
         gameId: field(values, 'game_id'),
         athleteId: field(values, 'athlete_id'),
         date: date,
-        team: field(values, 'team_name'),
+        team: field(values, 'team_display_name').isNotEmpty
+            ? field(values, 'team_display_name')
+            : field(values, 'team_name'),
         opponent: field(values, 'opponent_team_display_name').isNotEmpty
             ? field(values, 'opponent_team_display_name')
             : field(values, 'opponent_team_name'),
@@ -106,8 +109,12 @@ class WnbaWehoopRepository {
         assists: _asInt(field(values, 'assists')),
         steals: _asInt(field(values, 'steals')),
         blocks: _asInt(field(values, 'blocks')),
+        turnovers: _asInt(field(values, 'turnovers')),
+        fieldGoalsMade: _asInt(field(values, 'field_goals_made')),
+        fieldGoalsAttempted: _asInt(field(values, 'field_goals_attempted')),
         minutes: _asDouble(field(values, 'minutes')),
         headshotUrl: field(values, 'athlete_headshot_href'),
+        seasonType: field(values, 'season_type'),
       ));
     }
     games.sort((a, b) => b.date.compareTo(a.date));
@@ -116,6 +123,8 @@ class WnbaWehoopRepository {
 
   static int _asInt(String value) => int.tryParse(value) ?? 0;
   static double _asDouble(String value) => double.tryParse(value) ?? 0;
+  static bool _asBool(String value) =>
+      const {'true', '1', 'yes'}.contains(value.trim().toLowerCase());
 
   static List<String> _parseCsvLine(String line) {
     final fields = <String>[];
@@ -161,25 +170,52 @@ class WnbaSeasonSummary {
     required this.pointsPerGame,
     required this.reboundsPerGame,
     required this.assistsPerGame,
+    required this.minutesPerGame,
+    required this.stealsPerGame,
+    required this.turnoversPerGame,
+    this.fieldGoalPercentage,
   });
 
   final int games;
   final double pointsPerGame;
   final double reboundsPerGame;
   final double assistsPerGame;
+  final double minutesPerGame;
+  final double stealsPerGame;
+  final double turnoversPerGame;
+  final double? fieldGoalPercentage;
 
   factory WnbaSeasonSummary.fromGames(List<WnbaGameLog> games) {
     if (games.isEmpty) {
       return const WnbaSeasonSummary(
-          games: 0, pointsPerGame: 0, reboundsPerGame: 0, assistsPerGame: 0);
+        games: 0,
+        pointsPerGame: 0,
+        reboundsPerGame: 0,
+        assistsPerGame: 0,
+        minutesPerGame: 0,
+        stealsPerGame: 0,
+        turnoversPerGame: 0,
+      );
     }
+    final regularSeason = games
+        .where((game) => game.seasonType.isEmpty || game.seasonType == '2')
+        .toList();
+    final selected = regularSeason.isEmpty ? games : regularSeason;
     double average(num Function(WnbaGameLog game) selector) =>
-        games.map(selector).reduce((a, b) => a + b) / games.length;
+        selected.map(selector).reduce((a, b) => a + b) / selected.length;
+    final made =
+        selected.fold<int>(0, (total, game) => total + game.fieldGoalsMade);
+    final attempted = selected.fold<int>(
+        0, (total, game) => total + game.fieldGoalsAttempted);
     return WnbaSeasonSummary(
-      games: games.length,
+      games: selected.length,
       pointsPerGame: average((game) => game.points),
       reboundsPerGame: average((game) => game.rebounds),
       assistsPerGame: average((game) => game.assists),
+      minutesPerGame: average((game) => game.minutes),
+      stealsPerGame: average((game) => game.steals),
+      turnoversPerGame: average((game) => game.turnovers),
+      fieldGoalPercentage: attempted == 0 ? null : made / attempted * 100,
     );
   }
 }
@@ -214,6 +250,10 @@ class WnbaGameLog {
     required this.blocks,
     required this.minutes,
     required this.headshotUrl,
+    this.turnovers = 0,
+    this.fieldGoalsMade = 0,
+    this.fieldGoalsAttempted = 0,
+    this.seasonType = '',
   });
 
   final String gameId;
@@ -232,4 +272,8 @@ class WnbaGameLog {
   final int blocks;
   final double minutes;
   final String headshotUrl;
+  final int turnovers;
+  final int fieldGoalsMade;
+  final int fieldGoalsAttempted;
+  final String seasonType;
 }

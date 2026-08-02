@@ -53,6 +53,58 @@ void main() {
         2027);
   });
 
+  test('NBA season summary reads every requested per-game field', () {
+    final summary = BasketballReferenceRepository.parseNbaSeasonSummaryHtml(
+      '''
+      <table><tbody>
+        <tr id="per_game_stats.2025">
+          <th data-stat="year_id">2024-25</th>
+          <td data-stat="team_name_abbr">DEN</td>
+          <td data-stat="games">70</td>
+          <td data-stat="mp_per_g">36.7</td>
+          <td data-stat="fg_pct">.576</td>
+          <td data-stat="trb_per_g">12.7</td>
+          <td data-stat="ast_per_g">10.2</td>
+          <td data-stat="stl_per_g">1.8</td>
+          <td data-stat="tov_per_g">3.3</td>
+          <td data-stat="pts_per_g">29.6</td>
+        </tr>
+        <tr id="per_game_stats.2026">
+          <th data-stat="year_id">2025-26</th>
+          <td data-stat="team_name_abbr">DEN</td>
+          <td data-stat="games">65</td>
+          <td data-stat="mp_per_g">34.8</td>
+          <td data-stat="fg_pct">.569</td>
+          <td data-stat="trb_per_g">12.9</td>
+          <td data-stat="ast_per_g">10.7</td>
+          <td data-stat="stl_per_g">1.4</td>
+          <td data-stat="tov_per_g">3.7</td>
+          <td data-stat="pts_per_g">27.7</td>
+        </tr>
+        <tr id="per_game_stats_post.2026">
+          <th data-stat="year_id">2025-26</th>
+          <td data-stat="team_name_abbr">DEN</td>
+          <td data-stat="games">6</td>
+          <td data-stat="pts_per_g">25.8</td>
+        </tr>
+      </tbody></table>
+      ''',
+      preferredSeasonEndYear: 2026,
+    );
+
+    expect(summary, isNotNull);
+    expect(summary!.season, '2025/2026');
+    expect(summary.team, 'Denver Nuggets');
+    expect(summary.games, 65);
+    expect(summary.minutesPerGame, 34.8);
+    expect(summary.pointsPerGame, 27.7);
+    expect(summary.reboundsPerGame, 12.9);
+    expect(summary.assistsPerGame, 10.7);
+    expect(summary.stealsPerGame, 1.4);
+    expect(summary.turnoversPerGame, 3.7);
+    expect(summary.fieldGoalPercentage, closeTo(56.9, 0.001));
+  });
+
   test('direct Dart parser merges regular season and playoff tables', () {
     final games = BasketballReferenceRepository.parseNbaGameLogHtml('''
       <table id="player_game_log_reg"><tbody>
@@ -64,7 +116,9 @@ void main() {
           <td data-stat="mp">34:30</td>
           <td data-stat="pts">28</td><td data-stat="trb">12</td>
           <td data-stat="ast">9</td><td data-stat="stl">2</td>
-          <td data-stat="blk">1</td><td data-stat="game_score">27.2</td>
+          <td data-stat="blk">1</td><td data-stat="tov">3</td>
+          <td data-stat="fg">10</td><td data-stat="fga">18</td>
+          <td data-stat="game_score">27.2</td>
           <td data-stat="plus_minus">+14</td>
         </tr>
       </tbody></table>
@@ -90,6 +144,9 @@ void main() {
     expect(games.last.minutes, 34.5);
     expect(games.last.plusMinus, 14);
     expect(games.last.score, '120-108');
+    expect(games.last.turnovers, 3);
+    expect(games.last.fieldGoalsMade, 10);
+    expect(games.last.fieldGoalsAttempted, 18);
   });
 
   test('direct Dart parser reads the WNBA last5 table', () {

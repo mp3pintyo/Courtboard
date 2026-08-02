@@ -181,7 +181,9 @@ const providerCatalog = <ProviderCatalogEntry>[
     sports: ['WNBA'],
     role: 'Szezononkénti WNBA box score adatforrás.',
     visibleOutput: [
-      'Szezonösszesítés, forma és utolsó mérkőzések játékosonként',
+      'WNBA szezonátlagok: perc, pont, lepattanó, assziszt, labdaszerzés és eladott labda',
+      'Súlyozott mezőnymutató (FG%) a bedobott és megkísérelt dobásokból',
+      'Forma és utolsó mérkőzések játékosonként',
     ],
     capabilities: [
       'Játékos box score CSV-k',
@@ -198,13 +200,16 @@ const providerCatalog = <ProviderCatalogEntry>[
   ProviderCatalogEntry(
     name: 'Basketball Reference',
     sports: ['NBA', 'WNBA'],
-    role: 'Legutóbbi kosárlabda-mérkőzések tartalék és kiegészítő forrása.',
+    role:
+        'NBA szezonösszesítő, valamint NBA/WNBA mérkőzések kiegészítő forrása.',
     visibleOutput: [
       'NBA alapszakasz és rájátszás utolsó 5 mérkőzése',
+      'NBA aktuális szezonátlagok: perc, pont, lepattanó, assziszt, labdaszerzés, eladott labda és FG%',
       'WNBA utolsó 5 mérkőzése',
     ],
     capabilities: [
       'Közvetlen Dart HTTP-letöltés és HTML-tábla feldolgozás',
+      'A legfrissebb elérhető NBA alapszakasz per-game sorának felismerése',
       'Az NBA alapszakasz- és playoff-tábláit automatikusan egyesíti',
       'A hivatalos API-k hiányos friss adatai mellett is adhat eredményt',
     ],
