@@ -34,4 +34,15 @@ void main() {
     expect(youtubeData.stage, ProviderStage.prepared);
     expect(youtubeData.visibleOutput.join(' '), contains('nincs'));
   });
+
+  test('Live Tennis API documents free-safe tennis features and key state', () {
+    final tennis =
+        providerCatalog.singleWhere((entry) => entry.name == 'Live Tennis API');
+
+    expect(filterProviderCatalog('1000 kérés/nap', 'Tenisz'), [tennis]);
+    expect(tennis.isConfigured(const SportsApiConfig()), isFalse);
+    expect(tennis.isConfigured(const SportsApiConfig(liveTennisKey: 'secret')),
+        isTrue);
+    expect(tennis.capabilities.join(' '), contains('nem kéri le'));
+  });
 }

@@ -17,6 +17,7 @@ void main() {
       alerts: {'Nikola Jokić': true},
       removedAthleteNames: {'Saquon Barkley'},
       rapidApiDartsKey: 'rapid-test-key',
+      liveTennisKey: 'tennis-test-key',
       theme: 'burgundy',
       overviewSort: 'sport',
       athleteSort: 'name',
@@ -31,6 +32,7 @@ void main() {
     expect(restored.removedAthleteNames, contains('Saquon Barkley'));
     expect(restored.customAthletes.single.name, 'Teszt Játékos');
     expect(restored.rapidApiDartsKey, 'rapid-test-key');
+    expect(restored.liveTennisKey, 'tennis-test-key');
     expect(restored.theme, 'burgundy');
     expect(restored.overviewSort, 'sport');
     expect(restored.athleteSort, 'name');

@@ -6,6 +6,7 @@ enum ProviderKey {
   ballDontLie,
   footballData,
   rapidApi,
+  liveTennis,
   youtube
 }
 
@@ -48,6 +49,7 @@ class ProviderCatalogEntry {
         ProviderKey.ballDontLie => config.balldontlieKey.isNotEmpty,
         ProviderKey.footballData => config.footballDataKey.isNotEmpty,
         ProviderKey.rapidApi => config.rapidApiDartsKey.isNotEmpty,
+        ProviderKey.liveTennis => config.liveTennisKey.isNotEmpty,
         ProviderKey.youtube => config.youtubeKey.isNotEmpty,
       };
 
@@ -284,6 +286,35 @@ const providerCatalog = <ProviderCatalogEntry>[
     fallback: 'wehoop és Basketball Reference adatok továbbra is megjelennek.',
     docsUrl: 'https://rapidapi.com/belchiorarkad-FqvHs2EDOtP/api/wnba-api',
     key: ProviderKey.rapidApi,
+  ),
+  ProviderCatalogEntry(
+    name: 'Live Tennis API',
+    sports: ['Tenisz'],
+    role:
+        'Teniszjátékos-profil, aktuális ranglista, élő állás és következő mérkőzések.',
+    visibleOutput: [
+      'Játékos neve, sorozata, országa és aktuális ranglistája',
+      'Ranglistapont, ütőkéz, fonák és születési dátum',
+      'Élő ellenfél, verseny, szett-, játék- és pontállás',
+      'Legfeljebb 5 következő mérkőzés vagy név alapú fixture',
+      'A saját napi API-használat és csomag',
+    ],
+    capabilities: [
+      'ATP, WTA, Challenger, ITF és junior sorozatok',
+      'Free játékoskeresés és részletes játékosprofil',
+      'Free élő és közelgő mérkőzések, aktuális pontállás és fixture lista',
+      'A befejezett mérkőzéseket nem kéri le, mert azok History/BASIC hozzáféréshez kötöttek',
+    ],
+    authentication: 'Ingyenes regisztrációs Bearer API-kulcs szükséges.',
+    limit: 'Free: 30 kérés/perc és 1000 kérés/nap; bankkártya nélkül.',
+    cache:
+        'Játékosonként 10 perces lemezcache; a kézi frissítés kikerüli a cache-t.',
+    setup:
+        'Adatforrások → Live Tennis API, vagy LIVE_TENNIS_API_KEY környezeti változó.',
+    fallback:
+        'Kulcs vagy hálózat nélkül a helyi profil megmarad; kitalált mérkőzés nem jelenik meg.',
+    docsUrl: 'https://docs.livetennisapi.com/reference.html',
+    key: ProviderKey.liveTennis,
   ),
   ProviderCatalogEntry(
     name: 'YouTube oEmbed + helyi lejátszási lista',

@@ -5,6 +5,7 @@ import 'package:courtboard/data/multi_provider.dart';
 import 'package:courtboard/data/basketball_reference.dart';
 import 'package:courtboard/data/basketball_season.dart';
 import 'package:courtboard/data/darts.dart';
+import 'package:courtboard/data/live_tennis.dart';
 import 'package:courtboard/data/espn_liga_f.dart';
 import 'package:courtboard/data/rapidapi_wnba.dart';
 import 'package:courtboard/data/wehoop_wnba.dart';
@@ -33,9 +34,11 @@ void main() {
     final darts = athlete('Luke Littler', 'Darts', 'Nincs megadva');
     final nba = athlete('Nikola Jokić', 'NBA', 'Denver Nuggets');
     final football = athlete('Aitana Bonmatí', 'Foci', 'FC Barcelona');
+    final tennis = athlete('Iga Świątek', 'Tenisz', 'Nincs megadva');
 
     expect(darts.showsTeam, isFalse);
     expect(darts.sportAndTeam, 'Darts');
+    expect(tennis.sportAndTeam, 'Tenisz');
     expect(nba.sportAndTeam, 'NBA · Denver Nuggets');
     expect(sortAthletes([nba, darts, football], 'name').map((a) => a.name),
         ['Aitana Bonmatí', 'Luke Littler', 'Nikola Jokić']);
@@ -379,5 +382,61 @@ void main() {
     expect(find.text('21.5'), findsOneWidget);
     expect(find.text('PTS'), findsOneWidget);
     expect(find.text('1x Rookie of the Year'), findsOneWidget);
+  });
+
+  testWidgets('tennis profile shows ranking live score and next fixture',
+      (tester) async {
+    final player = TennisPlayer(
+        id: 7,
+        name: 'Iga Swiatek',
+        tour: 'wta',
+        country: 'POL',
+        ranking: 2,
+        rankingPoints: 8000,
+        hand: 'R',
+        backhand: 2);
+    final data = TennisProfileData(
+      player: player,
+      usage: const TennisUsage(tier: 'FREE', today: 12, dailyLimit: 1000),
+      liveMatches: [
+        TennisMatch(
+            id: 91,
+            tournament: 'Montreal',
+            status: 'live',
+            player1: 'Iga Swiatek',
+            player2: 'Coco Gauff',
+            player1Id: 7,
+            player2Id: 8,
+            score: const TennisScore(sets: [
+              1,
+              0
+            ], games: [
+              [6, 2],
+              [4, 1]
+            ], points: [
+              '15',
+              '0'
+            ]))
+      ],
+      fixtures: [
+        TennisFixture(
+            id: 100,
+            tournament: 'Cincinnati',
+            player1: 'Gauff Coco',
+            player2: 'Swiatek Iga',
+            eventDate: DateTime(2026, 8, 4, 17))
+      ],
+    );
+
+    await tester.pumpWidget(MaterialApp(
+        home: Scaffold(
+            body: SingleChildScrollView(
+                child: TennisProfileFacts(data: data, accent: Colors.green)))));
+
+    expect(find.text('#2'), findsOneWidget);
+    expect(find.text('vs. Coco Gauff'), findsOneWidget);
+    expect(find.text('1–0 szett · 6–4, 2–1 · 15–0 pont'), findsOneWidget);
+    expect(find.text('Cincinnati'), findsOneWidget);
+    expect(find.textContaining('MA 12/1000 KÉRÉS'), findsOneWidget);
   });
 }

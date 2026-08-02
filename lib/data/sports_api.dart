@@ -11,6 +11,7 @@ class SportsApiConfig {
     this.footballDataKey = '',
     this.youtubeKey = '',
     this.rapidApiDartsKey = '',
+    this.liveTennisKey = '',
   });
 
   factory SportsApiConfig.fromEnvironment() => SportsApiConfig(
@@ -19,6 +20,7 @@ class SportsApiConfig {
         footballDataKey: Platform.environment['FOOTBALL_DATA_KEY'] ?? '',
         youtubeKey: Platform.environment['YOUTUBE_DATA_KEY'] ?? '',
         rapidApiDartsKey: Platform.environment['RAPIDAPI_DARTS_KEY'] ?? '',
+        liveTennisKey: Platform.environment['LIVE_TENNIS_API_KEY'] ?? '',
       );
 
   final String apiSportsKey;
@@ -26,13 +28,15 @@ class SportsApiConfig {
   final String footballDataKey;
   final String youtubeKey;
   final String rapidApiDartsKey;
+  final String liveTennisKey;
 
   bool get hasAnyKey =>
       apiSportsKey.isNotEmpty ||
       balldontlieKey.isNotEmpty ||
       footballDataKey.isNotEmpty ||
       youtubeKey.isNotEmpty ||
-      rapidApiDartsKey.isNotEmpty;
+      rapidApiDartsKey.isNotEmpty ||
+      liveTennisKey.isNotEmpty;
 }
 
 class SportsApiClient {
@@ -133,6 +137,20 @@ class SportsApiClient {
     return _get(uri.toString(), headers: {
       'X-RapidAPI-Key': config.rapidApiDartsKey,
       'X-RapidAPI-Host': 'wnba-api.p.rapidapi.com',
+    });
+  }
+
+  /// Live Tennis API Free végpontok. A kulcsot fejlécben küldjük, így nem
+  /// kerül URL-be, előzményekbe vagy proxy-naplóba.
+  Future<Map<String, dynamic>> liveTennis(String path,
+      [Map<String, String> query = const {}]) {
+    if (config.liveTennisKey.trim().isEmpty) {
+      throw StateError('LIVE_TENNIS_API_KEY nincs beállítva.');
+    }
+    final uri =
+        Uri.https('api.livetennisapi.com', '/api/public/v1$path', query);
+    return _get(uri.toString(), headers: {
+      'Authorization': 'Bearer ${config.liveTennisKey.trim()}',
     });
   }
 

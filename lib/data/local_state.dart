@@ -42,6 +42,7 @@ class CourtboardLocalState {
     this.apiSportsKey = '',
     this.balldontlieKey = '',
     this.rapidApiDartsKey = '',
+    this.liveTennisKey = '',
     this.customAthletes = const [],
     this.theme = 'green',
     this.overviewSort = 'custom',
@@ -55,6 +56,7 @@ class CourtboardLocalState {
   final String apiSportsKey;
   final String balldontlieKey;
   final String rapidApiDartsKey;
+  final String liveTennisKey;
   final List<CustomAthlete> customAthletes;
   final String theme;
   final String overviewSort;
@@ -68,6 +70,7 @@ class CourtboardLocalState {
         'apiSportsKey': apiSportsKey,
         'balldontlieKey': balldontlieKey,
         'rapidApiDartsKey': rapidApiDartsKey,
+        'liveTennisKey': liveTennisKey,
         'customAthletes':
             customAthletes.map((athlete) => athlete.toJson()).toList(),
         'theme': theme,
@@ -94,6 +97,7 @@ class CourtboardLocalState {
       apiSportsKey: json['apiSportsKey'] as String? ?? '',
       balldontlieKey: json['balldontlieKey'] as String? ?? '',
       rapidApiDartsKey: json['rapidApiDartsKey'] as String? ?? '',
+      liveTennisKey: json['liveTennisKey'] as String? ?? '',
       customAthletes: rawAthletes is List
           ? rawAthletes
               .whereType<Map>()
