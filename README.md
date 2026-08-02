@@ -27,6 +27,7 @@ Az alkalmazás saját **Adatforrás-kézikönyve** kereshető sportág, szolgál
 - Az Áttekintés kártyái és a Sportolók listája egymástól függetlenül rendezhető saját sorrend, név, sportág vagy csapat szerint.
 - A **Sportolók** oldalon név szerinti keresés és sportág szerinti szűrés használható.
 - A **Videók** médiatár az összes sportolóhoz mentett YouTube-videót egy helyen mutatja; cím, sportoló és sportág szerint szűrhető.
+- A **Hírek** oldal RSS-forrásokból és a FOX aktuális NBA-, WNBA-, foci- és tenisz-oldalfeedjeiből épít tartós, cím, sportág, sportoló és forrás szerint kereshető helyi archívumot.
 - A választott téma és rendezések automatikusan a helyi állapotfájlba kerülnek.
 - A darts sportolóknál nincs csapatmező, ezért az üres vagy „Nincs megadva” csapat nem jelenik meg a kártyákon és profilokon.
 - A teniszprofiloknál ugyancsak nincs csapatmező. A Live Tennis API adja az aktuális ranglistát, a játékos alapadatait, az élő állást és a következő mérkőzéseket.
@@ -54,7 +55,7 @@ A Basketball Reference integráció közvetlenül Dartban fut, ezért sem Python
 
 További szükséges eszközök:
 
-- Flutter SDK 3.10+;
+- Flutter SDK 3.44+ (Dart 3.12+);
 - Visual Studio a **Desktop development with C++** workload-dal.
 
 ```powershell
@@ -101,6 +102,10 @@ Az appban elmentett kulcsok a helyi `%APPDATA%\courtboard_state.json` fájlba ke
 | RapidAPI Darts API | darts | legfeljebb 8 versenycímke | RapidAPI | 6 óra; Free 1000/hó |
 | RapidAPI WNBA API | WNBA | Bio, csapat, 9 statisztika és legfeljebb 4 díj | RapidAPI | 7 nap; Free 100/hó |
 | Live Tennis API | tenisz | ranglista és profiladatok; élő szett-, játék- és pontállás; legfeljebb 5 következő meccs | saját | 10 perc; Free 30/perc és 1000/nap |
+| FOX Sports JSON-oldalfeed | NBA, WNBA, foci, tenisz | cím, rövid összefoglaló, kép, valódi publikálási dátum és eredeti cikk | nem kell | sportáganként a legfrissebb 100 cikk/frissítés; 20 perc; tartós helyi archívum |
+| CBS Sports RSS | NBA, foci, tenisz | cím, rövid összefoglaló, kép, dátum és eredeti cikk | nem kell | 20 perc; tartós helyi archívum |
+| ESPN RSS | NBA, WNBA, foci, tenisz | opcionálisan cím, forrás, dátum és kötelező eredeti link | nem kell | 20 perc; külön bekapcsolandó |
+| Guardian RSS | foci, tenisz | opcionálisan cím, rövid összefoglaló, kép, dátum és eredeti cikk | nem kell | 20 perc; személyes, nem kereskedelmi használat |
 | YouTube oEmbed | videó | kézzel felvett link címe, bélyegképe és megnyitása | nem kell | helyi playlist |
 | YouTube Data API v3 | videó | jelenleg semmi; a keresőadapter elő van készítve | saját | még nincs aktív hívás |
 
@@ -136,6 +141,22 @@ Az élő mérkőzésnél az ellenfél, a verseny, a szett-, játék- és pontál
 
 A Free csomaghoz tartozó `completed`, `/history`, piac-, modell- és WebSocket-végpontokat az app nem hívja. Egy profil friss betöltése legfeljebb öt kvótás kérést használ, a `/usage` ellenőrzés kvótamentes; a 10 perces lemezcache védi a napi 1000 kéréses keretet. A kézi frissítés tudatosan megkerüli a cache-t.
 
+### Hírek és tartós hírarchívum
+
+A **Hírek** oldal alapból a FOX Sports és a CBS Sports NBA-, WNBA-, foci- és teniszforrásait dolgozza fel. A FOX optimalizált RSS-feedjei egyenetlenek voltak: a WNBA legújabb eleme hónapokkal korábbi, a teniszfeed pedig több éves cikkeket is tartalmazott. Ezért mind a négy FOX sportág a FOX weboldalak által is használt aktuális JSON-hírfolyamból érkezik. Sportáganként kérésenként a legfrissebb 100 cikket kapjuk; a helyi archívum az újabb frissítésekkel tovább növekszik. A forráskezelőben az ESPN és a Guardian feedjei külön kapcsolhatók be.
+
+A helyi adatbázis mindig azonnal betöltődik, a hálózati frissítés csak utána fut, ezért egy hibás vagy átmenetileg nem elérhető forrás nem tünteti el a korábbi híreket. A kártyán mindig a cikk publikálási dátuma jelenik meg, nem a letöltés ideje. Az adatbázis-migráció eltávolítja az első kiadás FOX-elemeit, amelyeknél a hibás időzóna-feldolgozás miatt a lekérési idő került publikálási dátumként tárolásra; a következő frissítés helyes dátummal tölti vissza őket.
+
+- Az automatikus frissítési ablak 20 perc; a Frissítés gomb tudatosan megkerüli ezt az időkorlátot.
+- A letöltött hírek SQLite-adatbázisba kerülnek, és az app nem törli őket automatikusan. Így hónapokkal később és hálózat nélkül is kereshetők maradnak.
+- A deduplikáció elsősorban kanonizált URL, ennek hiányában GUID alapján történik. Egy hír több sportághoz és több feedhez is kapcsolódhat anélkül, hogy duplán jelenne meg.
+- A feldolgozó kezeli az RSS, Atom és FOX JSON eltéréseit, az RFC 822 numerikus időzóna-eltolásokat, valamint az ESPN `EST`/`EDT` jelöléseit. A leírás HTML-entitásait dekódolja, eltávolítja a `script`, `style`, `noscript` elemeket és a tageket, normalizálja a whitespace-t, majd legfeljebb 350 karaktert tárol.
+- A keresés a címben és az összefoglalóban fut. A sportoló szerinti illesztés ékezet- és névsorrend-független tokenekkel működik.
+- A tárolt kép az RSS-ben kapott külső kép-URL; maga a képfájl nincs archiválva. A cím, összefoglaló, dátum, forrás és eredeti link viszont tartósan megmarad.
+- A hírmodell egy `NewsProvider` interfészen keresztül kap adatot, ezért később RSS mellett hírszolgáltatói API vagy más importforrás is hozzáadható az adatbázis és a felület átírása nélkül.
+
+Az ESPN-tartalomnál a Courtboard csak a feed által átadott címet és metaadatokat használja, jól láthatóan feltünteti a forrást, és mindig az eredeti ESPN-cikkre linkel. Az ESPN-feed köré nem szabad reklámot helyezni. A Guardian feedjei személyes, nem kereskedelmi használatra kapcsolhatók be. A FOX és más szolgáltatók feltételei változhatnak; nyilvános vagy üzleti terjesztés előtt a mindenkori felhasználási feltételeket újra ellenőrizni kell.
+
 ## Profilképek és videók
 
 Új sportoló felvételekor a TheSportsDB név szerinti keresése próbál profilképet találni. Ha nincs találat, az app monogramot mutat.
@@ -153,6 +174,7 @@ A sportolói profilon a felhasználó YouTube URL-t vagy videóazonosítót adha
 | `%APPDATA%\courtboard_cache\rapidapi_darts` | darts versenylista | 6 óra |
 | `%APPDATA%\courtboard_cache\rapidapi_wnba` | WNBA bio és advanced stat | 7 nap; hibánál a régebbi mentés is használható |
 | `%APPDATA%\courtboard_cache\live_tennis` | teniszprofil, élő és közelgő mérkőzések, kvótaállapot | 10 perc |
+| `%APPDATA%\Courtboard\courtboard_news.sqlite` | letöltött hírek, sport- és forráskapcsolatok, feedbeállítások és frissítési állapot | tartós; nincs automatikus törlés |
 
 ## Hibaelhárítás
 
@@ -178,6 +200,10 @@ Az app ettől még működik. Az **Adatforrások** oldalon a kártya `KULCS HIÁ
 
 Környezeti változó módosítása után indítsd újra az alkalmazást.
 
+### Egy hírforrás nem frissül
+
+A **Hírek → Források** ablakban ellenőrizd, hogy a feed be van-e kapcsolva, és nézd meg az utolsó sikeres frissítés vagy hiba állapotát. A korábban letöltött archívum feedhiba esetén is megmarad. Automatikusan legfeljebb 20 percenként kér új adatot az app; az azonnali újrapróbáláshoz használd a **Frissítés** gombot.
+
 ## Fejlesztői ellenőrzés
 
 ```powershell
@@ -200,4 +226,9 @@ Az adatforrások központi, kereshető leírása a `lib/data/provider_catalog.da
 - [RapidAPI Darts API](https://rapidapi.com/sportbex-api-default-api/api/darts-api)
 - [RapidAPI WNBA API](https://rapidapi.com/belchiorarkad-FqvHs2EDOtP/api/wnba-api)
 - [Live Tennis API dokumentáció](https://docs.livetennisapi.com/reference.html)
+- [CBS Sports RSS-katalógus](https://www.cbssports.com/xml/rss)
+- [ESPN RSS-információk és felhasználási szabályok](https://www.espn.com/espn/news/story?page=rssinfo)
+- [Guardian RSS-feedek](https://www.theguardian.com/help/feeds)
+- [Guardian felhasználási feltételek](https://www.theguardian.com/help/terms-of-service)
+- [FOX Sports felhasználási feltételek](https://www.foxsports.com/terms-of-use)
 - [YouTube Data API kvótaköltségek](https://developers.google.com/youtube/v3/determine_quota_cost)

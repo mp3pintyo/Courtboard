@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -14,12 +15,14 @@ import 'data/football_season_repository.dart';
 import 'data/local_state.dart';
 import 'data/live_tennis.dart';
 import 'data/multi_provider.dart';
+import 'data/news.dart';
 import 'data/provider_catalog.dart';
 import 'data/rapidapi_wnba.dart';
 import 'data/sports_api.dart';
 import 'data/wehoop_wnba.dart';
 import 'data/youtube_playlist.dart';
 import 'data/youtube_video_id.dart';
+import 'news_page.dart';
 
 void main() => runApp(const CourtboardApp());
 
@@ -162,6 +165,7 @@ class _CourtboardShellState extends State<CourtboardShell> {
   Athlete? _openAthlete;
   int _activeNav = 0;
   final LocalStateStore _stateStore = LocalStateStore();
+  final NewsRepository _newsRepository = NewsRepository();
   Map<String, String> _notes = {};
   Map<String, bool> _alerts = {};
   Set<String> _removedAthleteNames = {};
@@ -316,6 +320,13 @@ class _CourtboardShellState extends State<CourtboardShell> {
     _playlistFile = File('$appData/courtboard_playlist.json');
     _loadPlaylist();
     _loadLocalState();
+  }
+
+  @override
+  void dispose() {
+    _search.dispose();
+    unawaited(_newsRepository.close());
+    super.dispose();
   }
 
   Future<void> _loadLocalState() async {
@@ -541,7 +552,7 @@ class _CourtboardShellState extends State<CourtboardShell> {
             athletes: _athletes,
             search: _search,
             sort: _overviewSort,
-            onOpenSettings: () => setState(() => _activeNav = 5),
+            onOpenSettings: () => setState(() => _activeNav = 6),
             onOpen: (athlete) => setState(() => _openAthlete = athlete)),
         1 => _AthleteDirectory(
             athletes: _athletes,
@@ -549,13 +560,19 @@ class _CourtboardShellState extends State<CourtboardShell> {
             onOpen: (athlete) => setState(() => _openAthlete = athlete),
             onAdd: _openAddAthlete),
         2 => const _CalendarPage(),
-        3 => VideoLibraryPage(
+        3 => NewsPage(
+            repository: _newsRepository,
+            athletes: _athletes
+                .map((athlete) =>
+                    NewsAthleteRef(name: athlete.name, sport: athlete.sport))
+                .toList()),
+        4 => VideoLibraryPage(
             athletes: _athletes,
             playlist: _playlist,
             onOpenAthlete: (athlete) => setState(() => _openAthlete = athlete),
             onRemoveVideo: _toggleVideo,
             onOpenAthletes: () => setState(() => _activeNav = 1)),
-        4 => _DataStatusPage(
+        5 => _DataStatusPage(
             config: _apiConfig,
             onSaveFootballKey: _saveFootballKey,
             onSaveApiSportsKey: _saveApiSportsKey,
@@ -4313,6 +4330,7 @@ class _DataStatusPageState extends State<_DataStatusPage> {
       'Darts',
       'Tenisz',
       'NFL',
+      'Hírek',
       'Videó'
     ];
     final rows = filterProviderCatalog(_searchController.text, _sport);
@@ -4834,20 +4852,25 @@ class _SideRail extends StatelessWidget {
               selected: active == 2,
               onTap: () => onSelect(2)),
           _NavItem(
-              icon: Icons.video_library_outlined,
-              label: 'Videók',
+              icon: Icons.newspaper_outlined,
+              label: 'Hírek',
               selected: active == 3,
               onTap: () => onSelect(3)),
           _NavItem(
-              icon: Icons.cloud_sync_outlined,
-              label: 'Adatforrások',
+              icon: Icons.video_library_outlined,
+              label: 'Videók',
               selected: active == 4,
               onTap: () => onSelect(4)),
           _NavItem(
-              icon: Icons.settings_outlined,
-              label: 'Beállítások',
+              icon: Icons.cloud_sync_outlined,
+              label: 'Adatforrások',
               selected: active == 5,
               onTap: () => onSelect(5)),
+          _NavItem(
+              icon: Icons.settings_outlined,
+              label: 'Beállítások',
+              selected: active == 6,
+              onTap: () => onSelect(6)),
           const Spacer(),
           Container(
               padding: const EdgeInsets.all(16),

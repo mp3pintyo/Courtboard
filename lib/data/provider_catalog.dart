@@ -7,7 +7,7 @@ enum ProviderKey {
   footballData,
   rapidApi,
   liveTennis,
-  youtube
+  youtube,
 }
 
 enum ProviderStage { active, prepared }
@@ -44,27 +44,27 @@ class ProviderCatalogEntry {
   final ProviderStage stage;
 
   bool isConfigured(SportsApiConfig config) => switch (key) {
-        ProviderKey.none => true,
-        ProviderKey.apiSports => config.apiSportsKey.isNotEmpty,
-        ProviderKey.ballDontLie => config.balldontlieKey.isNotEmpty,
-        ProviderKey.footballData => config.footballDataKey.isNotEmpty,
-        ProviderKey.rapidApi => config.rapidApiDartsKey.isNotEmpty,
-        ProviderKey.liveTennis => config.liveTennisKey.isNotEmpty,
-        ProviderKey.youtube => config.youtubeKey.isNotEmpty,
-      };
+    ProviderKey.none => true,
+    ProviderKey.apiSports => config.apiSportsKey.isNotEmpty,
+    ProviderKey.ballDontLie => config.balldontlieKey.isNotEmpty,
+    ProviderKey.footballData => config.footballDataKey.isNotEmpty,
+    ProviderKey.rapidApi => config.rapidApiDartsKey.isNotEmpty,
+    ProviderKey.liveTennis => config.liveTennisKey.isNotEmpty,
+    ProviderKey.youtube => config.youtubeKey.isNotEmpty,
+  };
 
   String get searchText => [
-        name,
-        ...sports,
-        role,
-        ...visibleOutput,
-        ...capabilities,
-        authentication,
-        limit,
-        cache,
-        setup,
-        fallback,
-      ].join(' ').toLowerCase();
+    name,
+    ...sports,
+    role,
+    ...visibleOutput,
+    ...capabilities,
+    authentication,
+    limit,
+    cache,
+    setup,
+    fallback,
+  ].join(' ').toLowerCase();
 }
 
 const providerCatalog = <ProviderCatalogEntry>[
@@ -249,9 +249,7 @@ const providerCatalog = <ProviderCatalogEntry>[
     name: 'RapidAPI · Darts API',
     sports: ['Darts'],
     role: 'Sportbex versenyinformációk a darts profil mellett.',
-    visibleOutput: [
-      'Legfeljebb 8 elérhető verseny címkéje',
-    ],
+    visibleOutput: ['Legfeljebb 8 elérhető verseny címkéje'],
     capabilities: [
       'Az API eseményeket, piacokat és oddsokat is kínál',
       'Az app jelenleg csak a competitions/3503 végpontot használja',
@@ -317,6 +315,38 @@ const providerCatalog = <ProviderCatalogEntry>[
     key: ProviderKey.liveTennis,
   ),
   ProviderCatalogEntry(
+    name: 'Hírek · RSS + FOX JSON-oldalfeed',
+    sports: ['Hírek', 'NBA', 'WNBA', 'Foci', 'Tenisz'],
+    role:
+        'Többforrásos hírolvasó és korlátlan idejű, kereshető helyi hírarchívum.',
+    visibleOutput: [
+      'Központi Hírek oldal cím-, sport-, sportoló- és forrásszűréssel',
+      'Cím, tisztított rövid összefoglaló, kép, dátum és eredeti cikk linkje',
+      'Automatikus sportolókapcsolás ékezet- és névsorrend-függetlenül',
+      'A korábban letöltött hírek internet nélkül és hónapokkal később is elérhetők',
+    ],
+    capabilities: [
+      'FOX: NBA, WNBA, foci és tenisz a weboldalak aktuális JSON-hírfolyamából',
+      'Sportáganként a FOX-oldal legfrissebb 100 cikke kérésenként, valódi publikálási dátummal',
+      'CBS Sports: NBA, foci és tenisz',
+      'Opcionális ESPN: NBA, WNBA, foci és tenisz',
+      'Opcionális Guardian: foci és tenisz',
+      'RSS, Atom és FOX JSON parser, numerikus és névvel jelölt időzónák, URL/guid deduplikáció és HTML-tisztítás',
+      'Forrásfüggetlen hírmodell, amelyhez később API-provider is csatlakoztatható',
+    ],
+    authentication:
+        'Nem kell API-kulcs. ESPN és Guardian külön kapcsolható be.',
+    limit:
+        '20 perces automatikus frissítési ablak; a kézi frissítés azonnal lekéri az aktív feedeket.',
+    cache:
+        'SQLite-adatbázisban tartós megőrzés, automatikus időalapú törlés nélkül.',
+    setup:
+        'Hírek → Források. A FOX és CBS alapból aktív; ESPN és Guardian opcionális.',
+    fallback:
+        'Forráshiba vagy internetkimaradás esetén a teljes korábbi helyi archívum megmarad.',
+    docsUrl: 'https://www.espn.com/espn/news/story?page=rssinfo',
+  ),
+  ProviderCatalogEntry(
     name: 'YouTube oEmbed + helyi lejátszási lista',
     sports: ['Videó', 'Minden sport'],
     role: 'A felhasználó által felvett YouTube-linkek metaadatai.',
@@ -341,9 +371,7 @@ const providerCatalog = <ProviderCatalogEntry>[
     name: 'YouTube Data API v3',
     sports: ['Videó', 'Minden sport'],
     role: 'Előkészített videókereső adapter.',
-    visibleOutput: [
-      'Jelenleg nincs automatikus keresési találat a felületen',
-    ],
+    visibleOutput: ['Jelenleg nincs automatikus keresési találat a felületen'],
     capabilities: [
       'A kódban a videókeresési kliens és a YOUTUBE_DATA_KEY helye elkészült',
     ],
@@ -360,15 +388,15 @@ const providerCatalog = <ProviderCatalogEntry>[
   ),
 ];
 
-List<ProviderCatalogEntry> filterProviderCatalog(
-  String query,
-  String sport,
-) {
+List<ProviderCatalogEntry> filterProviderCatalog(String query, String sport) {
   final normalizedQuery = query.trim().toLowerCase();
-  return providerCatalog.where((entry) {
-    final sportMatches = sport == 'Mind' || entry.sports.contains(sport);
-    final queryMatches =
-        normalizedQuery.isEmpty || entry.searchText.contains(normalizedQuery);
-    return sportMatches && queryMatches;
-  }).toList(growable: false);
+  return providerCatalog
+      .where((entry) {
+        final sportMatches = sport == 'Mind' || entry.sports.contains(sport);
+        final queryMatches =
+            normalizedQuery.isEmpty ||
+            entry.searchText.contains(normalizedQuery);
+        return sportMatches && queryMatches;
+      })
+      .toList(growable: false);
 }
