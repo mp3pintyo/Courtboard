@@ -14,6 +14,95 @@ void main() {
   setUpAll(() => BasketballReferenceRepository.networkEnabled = false);
   tearDownAll(() => BasketballReferenceRepository.networkEnabled = true);
 
+  test('athlete sorting and team visibility follow the saved preferences', () {
+    Athlete athlete(String name, String sport, String team) => Athlete(
+          name: name,
+          sport: sport,
+          team: team,
+          country: 'Teszt',
+          photoUrl: '',
+          accent: Colors.blue,
+          seasonLabel: '',
+          seasonValue: '',
+          primaryLabel: '',
+          primaryValue: '',
+          metrics: const [],
+          matches: const [],
+        );
+
+    final darts = athlete('Luke Littler', 'Darts', 'Nincs megadva');
+    final nba = athlete('Nikola Jokić', 'NBA', 'Denver Nuggets');
+    final football = athlete('Aitana Bonmatí', 'Foci', 'FC Barcelona');
+
+    expect(darts.showsTeam, isFalse);
+    expect(darts.sportAndTeam, 'Darts');
+    expect(nba.sportAndTeam, 'NBA · Denver Nuggets');
+    expect(sortAthletes([nba, darts, football], 'name').map((a) => a.name),
+        ['Aitana Bonmatí', 'Luke Littler', 'Nikola Jokić']);
+    expect(sortAthletes([nba, darts, football], 'sport').map((a) => a.sport),
+        ['Darts', 'Foci', 'NBA']);
+  });
+
+  testWidgets('overview settings button opens configurable settings',
+      (tester) async {
+    tester.view.devicePixelRatio = 1.0;
+    tester.view.physicalSize = const Size(1440, 900);
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    await tester.pumpWidget(const CourtboardApp());
+    await tester.pumpAndSettle();
+
+    expect(find.text('A te személyes sportközpontod'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('overview-settings-button')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Beállítások'), findsNWidgets(2));
+    expect(find.text('Zöld téma'), findsOneWidget);
+    expect(find.text('Bordó téma'), findsOneWidget);
+    expect(find.byKey(const Key('overview-sort-setting')), findsOneWidget);
+    expect(find.byKey(const Key('athlete-sort-setting')), findsOneWidget);
+
+    await tester.tap(find.text('Bordó téma'));
+    await tester.pumpAndSettle();
+    final context = tester.element(find.text('Megjelenés'));
+    expect(Theme.of(context).colorScheme.primary, const Color(0xFF7A263A));
+  });
+
+  testWidgets('athlete directory supports name search and sport filtering',
+      (tester) async {
+    tester.view.devicePixelRatio = 1.0;
+    tester.view.physicalSize = const Size(1440, 900);
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    await tester.pumpWidget(const CourtboardApp());
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Sportolók'));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(
+        find.byKey(const Key('athlete-directory-search')), 'Aitana');
+    await tester.pump();
+    expect(find.byKey(const ValueKey('directory-athlete-Aitana Bonmatí')),
+        findsOneWidget);
+    expect(find.byKey(const ValueKey('directory-athlete-Nikola Jokić')),
+        findsNothing);
+
+    await tester.enterText(
+        find.byKey(const Key('athlete-directory-search')), '');
+    await tester.tap(find.byKey(const ValueKey('athlete-sport-Darts')));
+    await tester.pump();
+    expect(find.byKey(const ValueKey('directory-athlete-Luke Humphries')),
+        findsOneWidget);
+    expect(find.text('Darts · PDC'), findsNothing);
+    expect(find.text('Darts'), findsWidgets);
+  });
+
   testWidgets('athlete card opens a dedicated profile page', (tester) async {
     tester.view.devicePixelRatio = 1.0;
     tester.view.physicalSize = const Size(1440, 900);

@@ -17,6 +17,9 @@ void main() {
       alerts: {'Nikola Jokić': true},
       removedAthleteNames: {'Saquon Barkley'},
       rapidApiDartsKey: 'rapid-test-key',
+      theme: 'burgundy',
+      overviewSort: 'sport',
+      athleteSort: 'name',
       customAthletes: [
         CustomAthlete(name: 'Teszt Játékos', sport: 'Foci', team: 'Teszt FC')
       ],
@@ -28,5 +31,8 @@ void main() {
     expect(restored.removedAthleteNames, contains('Saquon Barkley'));
     expect(restored.customAthletes.single.name, 'Teszt Játékos');
     expect(restored.rapidApiDartsKey, 'rapid-test-key');
+    expect(restored.theme, 'burgundy');
+    expect(restored.overviewSort, 'sport');
+    expect(restored.athleteSort, 'name');
   });
 }

@@ -20,6 +20,15 @@ Az alkalmazás saját **Adatforrás-kézikönyve** kereshető sportág, szolgál
 
 ![Juhász Dorka játékosoldala valódi WNBA meccsnaplóval és mérkőzésadatokkal](docs/screenshots/player-juhasz-dorka.png)
 
+## Felület és személyes beállítások
+
+- Az **Áttekintés** fogaskerék ikonja és a bal oldali **Beállítások** menüpont ugyanazt a beállítási oldalt nyitja meg.
+- A megjelenéshez választható a zöld és a bordó téma.
+- Az Áttekintés kártyái és a Sportolók listája egymástól függetlenül rendezhető saját sorrend, név, sportág vagy csapat szerint.
+- A **Sportolók** oldalon név szerinti keresés és sportág szerinti szűrés használható.
+- A választott téma és rendezések automatikusan a helyi állapotfájlba kerülnek.
+- A darts sportolóknál nincs csapatmező, ezért az üres vagy „Nincs megadva” csapat nem jelenik meg a kártyákon és profilokon.
+
 ## Gyors indítás Windows alatt
 
 ### Már elkészített kiadás használata
@@ -125,7 +134,7 @@ A Felfedezés oldalon a felhasználó YouTube URL-t vagy videóazonosítót adha
 
 | Fájl vagy mappa | Tartalom | Élettartam |
 |---|---|---|
-| `%APPDATA%\courtboard_state.json` | saját sportolók, jegyzetek, figyelések, API-kulcsok | amíg a felhasználó nem törli |
+| `%APPDATA%\courtboard_state.json` | saját sportolók, jegyzetek, figyelések, API-kulcsok, téma és rendezési beállítások | amíg a felhasználó nem törli |
 | `%APPDATA%\courtboard_playlist.json` | mentett YouTube videóazonosítók | amíg a felhasználó nem törli |
 | `%APPDATA%\courtboard\wnba_cache` | wehoop WNBA szezon CSV-k | tartós |
 | `%APPDATA%\courtboard_cache\basketball_reference` | NBA/WNBA meccsek | 6 óra |

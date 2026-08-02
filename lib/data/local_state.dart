@@ -43,6 +43,9 @@ class CourtboardLocalState {
     this.balldontlieKey = '',
     this.rapidApiDartsKey = '',
     this.customAthletes = const [],
+    this.theme = 'green',
+    this.overviewSort = 'custom',
+    this.athleteSort = 'custom',
   });
 
   final Map<String, String> notes;
@@ -53,6 +56,9 @@ class CourtboardLocalState {
   final String balldontlieKey;
   final String rapidApiDartsKey;
   final List<CustomAthlete> customAthletes;
+  final String theme;
+  final String overviewSort;
+  final String athleteSort;
 
   Map<String, dynamic> toJson() => {
         'notes': notes,
@@ -64,6 +70,9 @@ class CourtboardLocalState {
         'rapidApiDartsKey': rapidApiDartsKey,
         'customAthletes':
             customAthletes.map((athlete) => athlete.toJson()).toList(),
+        'theme': theme,
+        'overviewSort': overviewSort,
+        'athleteSort': athleteSort,
       };
 
   factory CourtboardLocalState.fromJson(Map<String, dynamic> json) {
@@ -92,6 +101,9 @@ class CourtboardLocalState {
                   CustomAthlete.fromJson(Map<String, dynamic>.from(item)))
               .toList()
           : const [],
+      theme: json['theme'] as String? ?? 'green',
+      overviewSort: json['overviewSort'] as String? ?? 'custom',
+      athleteSort: json['athleteSort'] as String? ?? 'custom',
     );
   }
 }

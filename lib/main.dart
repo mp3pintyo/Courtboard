@@ -27,6 +27,8 @@ const _canvas = Color(0xFFECE9DF);
 const _paper = Color(0xFFF9F8F3);
 const _olive = Color(0xFFC5D48B);
 const _moss = Color(0xFF596B35);
+const _burgundy = Color(0xFF7A263A);
+const _burgundySoft = Color(0xFFE4B4BD);
 const _muted = Color(0xFF73766C);
 
 class Athlete {
@@ -43,6 +45,7 @@ class Athlete {
     required this.primaryValue,
     required this.metrics,
     required this.matches,
+    this.isCustom = false,
   });
 
   final String name;
@@ -57,6 +60,14 @@ class Athlete {
   final String primaryValue;
   final List<Metric> metrics;
   final List<MatchLine> matches;
+  final bool isCustom;
+
+  bool get showsTeam =>
+      sport != 'Darts' &&
+      team.trim().isNotEmpty &&
+      team.trim().toLowerCase() != 'nincs megadva';
+
+  String get sportAndTeam => showsTeam ? '$sport · $team' : sport;
 }
 
 class Metric {
@@ -85,11 +96,37 @@ class ClipItem {
   String get url => 'https://www.youtube.com/watch?v=$id';
 }
 
-class CourtboardApp extends StatelessWidget {
+class CourtboardApp extends StatefulWidget {
   const CourtboardApp({super.key});
 
   @override
+  State<CourtboardApp> createState() => _CourtboardAppState();
+}
+
+class _CourtboardAppState extends State<CourtboardApp> {
+  String _theme = 'green';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadTheme();
+  }
+
+  Future<void> _loadTheme() async {
+    final state = await LocalStateStore().load();
+    if (mounted && state.theme != _theme) {
+      setState(() => _theme = state.theme);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final burgundy = _theme == 'burgundy';
+    final seed = burgundy ? _burgundy : _moss;
+    final secondary = burgundy ? _burgundySoft : _olive;
+    final scheme =
+        ColorScheme.fromSeed(seedColor: seed, brightness: Brightness.light)
+            .copyWith(primary: seed, secondary: secondary);
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'Courtboard',
@@ -97,16 +134,20 @@ class CourtboardApp extends StatelessWidget {
         useMaterial3: true,
         fontFamily: 'Segoe UI',
         scaffoldBackgroundColor: _canvas,
-        colorScheme: ColorScheme.fromSeed(
-            seedColor: _moss, brightness: Brightness.light),
+        colorScheme: scheme,
       ),
-      home: const CourtboardShell(),
+      home: CourtboardShell(
+          theme: _theme,
+          onThemeChanged: (value) => setState(() => _theme = value)),
     );
   }
 }
 
 class CourtboardShell extends StatefulWidget {
-  const CourtboardShell({super.key});
+  const CourtboardShell(
+      {super.key, required this.theme, required this.onThemeChanged});
+  final String theme;
+  final ValueChanged<String> onThemeChanged;
 
   @override
   State<CourtboardShell> createState() => _CourtboardShellState();
@@ -123,6 +164,9 @@ class _CourtboardShellState extends State<CourtboardShell> {
   Map<String, bool> _alerts = {};
   Set<String> _removedAthleteNames = {};
   SportsApiConfig _apiConfig = SportsApiConfig.fromEnvironment();
+  String _overviewSort = 'custom';
+  String _athleteSort = 'custom';
+  late String _selectedTheme;
 
   final List<Athlete> _athletes = [
     Athlete(
@@ -265,6 +309,7 @@ class _CourtboardShellState extends State<CourtboardShell> {
   @override
   void initState() {
     super.initState();
+    _selectedTheme = widget.theme;
     final appData = Platform.environment['APPDATA'] ?? Directory.current.path;
     _playlistFile = File('$appData/courtboard_playlist.json');
     _loadPlaylist();
@@ -274,6 +319,7 @@ class _CourtboardShellState extends State<CourtboardShell> {
   Future<void> _loadLocalState() async {
     final state = await _stateStore.load();
     if (!mounted) return;
+    widget.onThemeChanged(state.theme);
     setState(() {
       _notes = state.notes;
       _alerts = state.alerts;
@@ -292,6 +338,9 @@ class _CourtboardShellState extends State<CourtboardShell> {
               ? state.rapidApiDartsKey
               : _apiConfig.rapidApiDartsKey);
       _removedAthleteNames = state.removedAthleteNames;
+      _overviewSort = state.overviewSort;
+      _athleteSort = state.athleteSort;
+      _selectedTheme = state.theme;
       _athletes.removeWhere(
           (athlete) => _removedAthleteNames.contains(athlete.name));
       _athletes.addAll(state.customAthletes.map(_customToAthlete));
@@ -305,8 +354,8 @@ class _CourtboardShellState extends State<CourtboardShell> {
         country: athlete.country.isEmpty ? 'Ismeretlen' : athlete.country,
         photoUrl: athlete.photoUrl,
         accent: const Color(0xFF9BAF65),
-        seasonLabel: 'SAJÁT KÖVETÉS',
-        seasonValue: '—',
+        seasonLabel: '',
+        seasonValue: '',
         primaryLabel: 'ADATFORRÁS',
         primaryValue: 'Vár',
         metrics: const [
@@ -316,6 +365,7 @@ class _CourtboardShellState extends State<CourtboardShell> {
           Metric('FRISSÍTVE', '—', 'Helyi profil')
         ],
         matches: const [],
+        isCustom: true,
       );
 
   Future<void> _saveLocalState() => _stateStore.save(CourtboardLocalState(
@@ -326,8 +376,11 @@ class _CourtboardShellState extends State<CourtboardShell> {
         apiSportsKey: _apiConfig.apiSportsKey,
         balldontlieKey: _apiConfig.balldontlieKey,
         rapidApiDartsKey: _apiConfig.rapidApiDartsKey,
+        theme: _selectedTheme,
+        overviewSort: _overviewSort,
+        athleteSort: _athleteSort,
         customAthletes: _athletes
-            .where((a) => a.seasonLabel == 'SAJÁT KÖVETÉS')
+            .where((a) => a.isCustom)
             .map((a) => CustomAthlete(
                 name: a.name,
                 sport: a.sport,
@@ -481,20 +534,46 @@ class _CourtboardShellState extends State<CourtboardShell> {
         0 => _Dashboard(
             athletes: _athletes,
             search: _search,
+            sort: _overviewSort,
+            onOpenSettings: () => setState(() => _activeNav = 5),
             onOpen: (athlete) => setState(() => _openAthlete = athlete)),
         1 => _AthleteDirectory(
             athletes: _athletes,
+            sort: _athleteSort,
             onOpen: (athlete) => setState(() => _openAthlete = athlete),
             onAdd: _openAddAthlete),
         2 => const _CalendarPage(),
         3 => _ComparePage(athletes: _athletes),
-        _ => _DataStatusPage(
+        4 => _DataStatusPage(
             config: _apiConfig,
             onSaveFootballKey: _saveFootballKey,
             onSaveApiSportsKey: _saveApiSportsKey,
             onSaveBallDontLieKey: _saveBallDontLieKey,
             onSaveRapidApiDartsKey: _saveRapidApiDartsKey),
+        _ => _SettingsPage(
+            theme: _selectedTheme,
+            overviewSort: _overviewSort,
+            athleteSort: _athleteSort,
+            onThemeChanged: _setTheme,
+            onOverviewSortChanged: _setOverviewSort,
+            onAthleteSortChanged: _setAthleteSort),
       };
+
+  void _setTheme(String value) {
+    setState(() => _selectedTheme = value);
+    widget.onThemeChanged(value);
+    _saveLocalState();
+  }
+
+  void _setOverviewSort(String value) {
+    setState(() => _overviewSort = value);
+    _saveLocalState();
+  }
+
+  void _setAthleteSort(String value) {
+    setState(() => _athleteSort = value);
+    _saveLocalState();
+  }
 
   void _saveFootballKey(String key) {
     setState(() => _apiConfig = SportsApiConfig(
@@ -587,9 +666,7 @@ class _CourtboardShellState extends State<CourtboardShell> {
                           final athlete = _customToAthlete(CustomAthlete(
                               name: name.text.trim(),
                               sport: sport,
-                              team: team.text.trim().isEmpty
-                                  ? 'Nincs megadva'
-                                  : team.text.trim(),
+                              team: team.text.trim(),
                               photoUrl: imageUrl ?? ''));
                           setState(() => _athletes.add(athlete));
                           _saveLocalState();
@@ -601,11 +678,40 @@ class _CourtboardShellState extends State<CourtboardShell> {
   }
 }
 
+List<Athlete> sortAthletes(List<Athlete> athletes, String mode) {
+  final result = List<Athlete>.from(athletes);
+  int byName(Athlete a, Athlete b) =>
+      normalizeAthleteName(a.name).compareTo(normalizeAthleteName(b.name));
+  switch (mode) {
+    case 'name':
+      result.sort(byName);
+    case 'sport':
+      result.sort((a, b) {
+        final sport = a.sport.compareTo(b.sport);
+        return sport != 0 ? sport : byName(a, b);
+      });
+    case 'team':
+      result.sort((a, b) {
+        final aTeam = a.showsTeam ? normalizeAthleteName(a.team) : 'zzzz';
+        final bTeam = b.showsTeam ? normalizeAthleteName(b.team) : 'zzzz';
+        final team = aTeam.compareTo(bTeam);
+        return team != 0 ? team : byName(a, b);
+      });
+  }
+  return result;
+}
+
 class _Dashboard extends StatefulWidget {
   const _Dashboard(
-      {required this.athletes, required this.search, required this.onOpen});
+      {required this.athletes,
+      required this.search,
+      required this.sort,
+      required this.onOpenSettings,
+      required this.onOpen});
   final List<Athlete> athletes;
   final TextEditingController search;
+  final String sort;
+  final VoidCallback onOpenSettings;
   final ValueChanged<Athlete> onOpen;
   @override
   State<_Dashboard> createState() => _DashboardState();
@@ -615,20 +721,26 @@ class _DashboardState extends State<_Dashboard> {
   String filter = 'Mind';
   @override
   Widget build(BuildContext context) {
-    final list = widget.athletes
-        .where((a) =>
-            (filter == 'Mind' || a.sport == filter) &&
-            (widget.search.text.isEmpty ||
-                a.name
-                    .toLowerCase()
-                    .contains(widget.search.text.toLowerCase())))
-        .toList();
+    final list = sortAthletes(
+      widget.athletes
+          .where((a) =>
+              (filter == 'Mind' || a.sport == filter) &&
+              (widget.search.text.isEmpty ||
+                  a.name
+                      .toLowerCase()
+                      .contains(widget.search.text.toLowerCase())))
+          .toList(),
+      widget.sort,
+    );
     return Container(
       color: _canvas,
       child: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(34, 28, 34, 48),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          _Header(search: widget.search, onChanged: (_) => setState(() {})),
+          _Header(
+              search: widget.search,
+              onChanged: (_) => setState(() {}),
+              onOpenSettings: widget.onOpenSettings),
           const SizedBox(height: 26),
           _WelcomeStrip(
               athlete: widget.athletes.first,
@@ -657,7 +769,8 @@ class _DashboardState extends State<_Dashboard> {
                       .map((item) => ChoiceChip(
                           label: Text(item),
                           selected: filter == item,
-                          selectedColor: _olive,
+                          selectedColor:
+                              Theme.of(context).colorScheme.secondaryContainer,
                           side: const BorderSide(color: Color(0xFFCAC7BC)),
                           onSelected: (_) => setState(() => filter = item)))
                       .toList()),
@@ -691,9 +804,13 @@ class _DashboardState extends State<_Dashboard> {
 }
 
 class _Header extends StatelessWidget {
-  const _Header({required this.search, required this.onChanged});
+  const _Header(
+      {required this.search,
+      required this.onChanged,
+      required this.onOpenSettings});
   final TextEditingController search;
   final ValueChanged<String> onChanged;
+  final VoidCallback onOpenSettings;
   @override
   Widget build(BuildContext context) => Row(children: [
         const Expanded(
@@ -706,7 +823,7 @@ class _Header extends StatelessWidget {
                   fontWeight: FontWeight.w900,
                   letterSpacing: -2)),
           SizedBox(height: 10),
-          Text('A te személyes sportközpontod · 2026. január 20.',
+          Text('A te személyes sportközpontod',
               style: TextStyle(color: _muted, fontWeight: FontWeight.w600))
         ])),
         SizedBox(
@@ -725,17 +842,26 @@ class _Header extends StatelessWidget {
         const SizedBox(width: 10),
         _roundIcon(Icons.notifications_none_rounded),
         const SizedBox(width: 8),
-        _roundIcon(Icons.settings_outlined),
+        _roundIcon(Icons.settings_outlined,
+            onPressed: onOpenSettings,
+            tooltip: 'Beállítások',
+            key: const Key('overview-settings-button')),
       ]);
 }
 
-Widget _roundIcon(IconData icon) => Container(
-    width: 46,
-    height: 46,
-    decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        border: Border.all(color: const Color(0xFFC9C6BB))),
-    child: Icon(icon, size: 21));
+Widget _roundIcon(IconData icon,
+        {VoidCallback? onPressed, String? tooltip, Key? key}) =>
+    Container(
+        key: key,
+        width: 46,
+        height: 46,
+        decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            border: Border.all(color: const Color(0xFFC9C6BB))),
+        child: IconButton(
+            onPressed: onPressed,
+            tooltip: tooltip,
+            icon: Icon(icon, size: 21)));
 
 class _WelcomeStrip extends StatelessWidget {
   const _WelcomeStrip({required this.athlete, required this.onOpen});
@@ -783,15 +909,20 @@ class _WelcomeStrip extends StatelessWidget {
                               fontWeight: FontWeight.w900,
                               letterSpacing: -2)),
                       const SizedBox(height: 8),
-                      Text('${athlete.team} · ${athlete.country}',
+                      Text(
+                          athlete.showsTeam
+                              ? '${athlete.team} · ${athlete.country}'
+                              : athlete.country,
                           style: const TextStyle(
                               color: Colors.white70, fontSize: 16)),
                       const SizedBox(height: 20),
                       FilledButton.icon(
                           onPressed: onOpen,
                           style: FilledButton.styleFrom(
-                              backgroundColor: _olive,
-                              foregroundColor: _ink,
+                              backgroundColor:
+                                  Theme.of(context).colorScheme.secondary,
+                              foregroundColor:
+                                  Theme.of(context).colorScheme.onSecondary,
                               padding: const EdgeInsets.symmetric(
                                   horizontal: 18, vertical: 15)),
                           icon: const Icon(Icons.arrow_forward),
@@ -884,23 +1015,28 @@ class _AthleteTile extends StatelessWidget {
                                 fontWeight: FontWeight.w900,
                                 letterSpacing: -1)),
                         const SizedBox(height: 3),
-                        Text(athlete.team,
-                            style: const TextStyle(color: Colors.white70)),
+                        if (athlete.showsTeam)
+                          Text(athlete.team,
+                              style: const TextStyle(color: Colors.white70)),
                         const SizedBox(height: 13),
                         Row(children: [
-                          Text('${athlete.seasonValue}  ',
-                              style: TextStyle(
-                                  color: athlete.accent,
-                                  fontWeight: FontWeight.w900,
-                                  fontSize: 17)),
-                          Expanded(
-                              child: Text(athlete.seasonLabel,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
-                                      color: Colors.white70,
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.w700))),
+                          if (athlete.seasonValue.isNotEmpty &&
+                              athlete.seasonLabel.isNotEmpty) ...[
+                            Text('${athlete.seasonValue}  ',
+                                style: TextStyle(
+                                    color: athlete.accent,
+                                    fontWeight: FontWeight.w900,
+                                    fontSize: 17)),
+                            Expanded(
+                                child: Text(athlete.seasonLabel,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                        color: Colors.white70,
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w700))),
+                          ] else
+                            const Spacer(),
                           const Icon(Icons.arrow_outward,
                               color: Colors.white, size: 20)
                         ])
@@ -2632,8 +2768,7 @@ class _ProfileHero extends StatelessWidget {
                             fontWeight: FontWeight.w900,
                             letterSpacing: -2)),
                     const SizedBox(height: 5),
-                    Text(
-                        '${athlete.sport} · ${athlete.team} · ${athlete.country}',
+                    Text('${athlete.sportAndTeam} · ${athlete.country}',
                         style: const TextStyle(
                             color: Colors.white70, fontSize: 16))
                   ])),
@@ -2927,14 +3062,43 @@ class _PersonalTools extends StatelessWidget {
       );
 }
 
-class _AthleteDirectory extends StatelessWidget {
+class _AthleteDirectory extends StatefulWidget {
   const _AthleteDirectory(
-      {required this.athletes, required this.onOpen, required this.onAdd});
+      {required this.athletes,
+      required this.sort,
+      required this.onOpen,
+      required this.onAdd});
   final List<Athlete> athletes;
+  final String sort;
   final ValueChanged<Athlete> onOpen;
   final VoidCallback onAdd;
+
+  @override
+  State<_AthleteDirectory> createState() => _AthleteDirectoryState();
+}
+
+class _AthleteDirectoryState extends State<_AthleteDirectory> {
+  final _search = TextEditingController();
+  String _sport = 'Mind';
+
+  @override
+  void dispose() {
+    _search.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
+    final query = normalizeAthleteName(_search.text.trim());
+    final athletes = sortAthletes(
+      widget.athletes
+          .where((athlete) =>
+              (_sport == 'Mind' || athlete.sport == _sport) &&
+              (query.isEmpty ||
+                  normalizeAthleteName(athlete.name).contains(query)))
+          .toList(),
+      widget.sort,
+    );
     return Container(
       color: _canvas,
       padding: const EdgeInsets.all(34),
@@ -2952,34 +3116,208 @@ class _AthleteDirectory extends StatelessWidget {
                     style: TextStyle(color: _muted))
               ])),
           FilledButton.icon(
-              onPressed: onAdd,
+              onPressed: widget.onAdd,
               icon: const Icon(Icons.person_add_alt_1),
               label: const Text('Sportoló hozzáadása')),
         ]),
-        const SizedBox(height: 24),
+        const SizedBox(height: 22),
+        Row(children: [
+          Expanded(
+              child: TextField(
+            key: const Key('athlete-directory-search'),
+            controller: _search,
+            onChanged: (_) => setState(() {}),
+            decoration: InputDecoration(
+                hintText: 'Keresés név alapján…',
+                prefixIcon: const Icon(Icons.search),
+                suffixIcon: _search.text.isEmpty
+                    ? null
+                    : IconButton(
+                        tooltip: 'Keresés törlése',
+                        onPressed: () {
+                          _search.clear();
+                          setState(() {});
+                        },
+                        icon: const Icon(Icons.close)),
+                filled: true,
+                fillColor: _paper,
+                border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: BorderSide.none)),
+          )),
+          const SizedBox(width: 16),
+          Text('${athletes.length} sportoló',
+              style:
+                  const TextStyle(color: _muted, fontWeight: FontWeight.w700)),
+        ]),
+        const SizedBox(height: 14),
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+              children: ['Mind', 'NBA', 'WNBA', 'Foci', 'Darts', 'NFL']
+                  .map((sport) => Padding(
+                        padding: const EdgeInsets.only(right: 8),
+                        child: ChoiceChip(
+                            key: ValueKey('athlete-sport-$sport'),
+                            label: Text(sport),
+                            selected: _sport == sport,
+                            selectedColor: Theme.of(context)
+                                .colorScheme
+                                .secondaryContainer,
+                            onSelected: (_) => setState(() => _sport = sport)),
+                      ))
+                  .toList()),
+        ),
+        const SizedBox(height: 18),
         Expanded(
-            child: ListView.separated(
-          itemCount: athletes.length,
-          separatorBuilder: (_, __) => const SizedBox(height: 10),
-          itemBuilder: (context, index) {
-            final athlete = athletes[index];
-            return ListTile(
-                onTap: () => onOpen(athlete),
-                tileColor: _paper,
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16)),
-                leading: CircleAvatar(
-                    backgroundColor: athlete.accent,
-                    child: Text(athlete.name.substring(0, 1))),
-                title: Text(athlete.name,
-                    style: const TextStyle(fontWeight: FontWeight.w800)),
-                subtitle: Text('${athlete.sport} · ${athlete.team}'),
-                trailing: const Icon(Icons.arrow_forward));
-          },
-        )),
+            child: athletes.isEmpty
+                ? const Center(
+                    child: Text('Nincs a keresésnek megfelelő sportoló.',
+                        style: TextStyle(color: _muted)))
+                : ListView.separated(
+                    itemCount: athletes.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: 10),
+                    itemBuilder: (context, index) {
+                      final athlete = athletes[index];
+                      return Material(
+                          color: _paper,
+                          borderRadius: BorderRadius.circular(16),
+                          clipBehavior: Clip.antiAlias,
+                          child: ListTile(
+                              key:
+                                  ValueKey('directory-athlete-${athlete.name}'),
+                              onTap: () => widget.onOpen(athlete),
+                              leading: CircleAvatar(
+                                  backgroundColor: athlete.accent,
+                                  child: Text(athlete.name.substring(0, 1))),
+                              title: Text(athlete.name,
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.w800)),
+                              subtitle: Text(athlete.sportAndTeam),
+                              trailing: const Icon(Icons.arrow_forward)));
+                    },
+                  )),
       ]),
     );
   }
+}
+
+class _SettingsPage extends StatelessWidget {
+  const _SettingsPage({
+    required this.theme,
+    required this.overviewSort,
+    required this.athleteSort,
+    required this.onThemeChanged,
+    required this.onOverviewSortChanged,
+    required this.onAthleteSortChanged,
+  });
+
+  final String theme;
+  final String overviewSort;
+  final String athleteSort;
+  final ValueChanged<String> onThemeChanged;
+  final ValueChanged<String> onOverviewSortChanged;
+  final ValueChanged<String> onAthleteSortChanged;
+
+  static const _sortOptions = {
+    'custom': 'Saját sorrend',
+    'name': 'Név (A–Z)',
+    'sport': 'Sportág, majd név',
+    'team': 'Csapat, majd név',
+  };
+
+  @override
+  Widget build(BuildContext context) => Container(
+        color: _canvas,
+        padding: const EdgeInsets.all(34),
+        child: ListView(children: [
+          const Text('Beállítások',
+              style: TextStyle(
+                  fontSize: 34,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: -1.4)),
+          const SizedBox(height: 6),
+          const Text('A módosításokat a Courtboard automatikusan elmenti.',
+              style: TextStyle(color: _muted)),
+          const SizedBox(height: 28),
+          _SettingsCard(
+              title: 'Megjelenés',
+              description: 'Válaszd ki az alkalmazás kiemelőszínét.',
+              child: SegmentedButton<String>(segments: const [
+                ButtonSegment(
+                    value: 'green',
+                    icon: Icon(Icons.eco_outlined),
+                    label: Text('Zöld téma')),
+                ButtonSegment(
+                    value: 'burgundy',
+                    icon: Icon(Icons.wine_bar_outlined),
+                    label: Text('Bordó téma')),
+              ], selected: {
+                theme
+              }, onSelectionChanged: (values) => onThemeChanged(values.first))),
+          const SizedBox(height: 16),
+          _SettingsCard(
+              title: 'Sportolók rendezése',
+              description:
+                  'Az Áttekintés és a Sportolók lista sorrendje külön állítható.',
+              child: Column(children: [
+                DropdownButtonFormField<String>(
+                    key: const Key('overview-sort-setting'),
+                    initialValue: overviewSort,
+                    decoration: const InputDecoration(
+                        labelText: 'Áttekintés – sportolók sorrendje',
+                        border: OutlineInputBorder()),
+                    items: _sortOptions.entries
+                        .map((entry) => DropdownMenuItem(
+                            value: entry.key, child: Text(entry.value)))
+                        .toList(),
+                    onChanged: (value) {
+                      if (value != null) onOverviewSortChanged(value);
+                    }),
+                const SizedBox(height: 16),
+                DropdownButtonFormField<String>(
+                    key: const Key('athlete-sort-setting'),
+                    initialValue: athleteSort,
+                    decoration: const InputDecoration(
+                        labelText: 'Sportolók oldal – lista sorrendje',
+                        border: OutlineInputBorder()),
+                    items: _sortOptions.entries
+                        .map((entry) => DropdownMenuItem(
+                            value: entry.key, child: Text(entry.value)))
+                        .toList(),
+                    onChanged: (value) {
+                      if (value != null) onAthleteSortChanged(value);
+                    }),
+              ])),
+        ]),
+      );
+}
+
+class _SettingsCard extends StatelessWidget {
+  const _SettingsCard(
+      {required this.title, required this.description, required this.child});
+  final String title;
+  final String description;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => Container(
+        constraints: const BoxConstraints(maxWidth: 760),
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+            color: _paper,
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(color: const Color(0xFFD8D4C8))),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(title,
+              style:
+                  const TextStyle(fontSize: 21, fontWeight: FontWeight.w900)),
+          const SizedBox(height: 5),
+          Text(description, style: const TextStyle(color: _muted)),
+          const SizedBox(height: 20),
+          child,
+        ]),
+      );
 }
 
 class _CalendarPage extends StatelessWidget {
@@ -3665,77 +4003,85 @@ class _SideRail extends StatelessWidget {
   final int active;
   final ValueChanged<int> onSelect;
   @override
-  Widget build(BuildContext context) => Container(
-      width: 236,
-      color: _ink,
-      padding: const EdgeInsets.fromLTRB(22, 30, 22, 24),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(children: [
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return Container(
+        width: 236,
+        color: _ink,
+        padding: const EdgeInsets.fromLTRB(22, 30, 22, 24),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(children: [
+            Container(
+                width: 34,
+                height: 34,
+                decoration: BoxDecoration(
+                    color: colors.secondary, shape: BoxShape.circle),
+                child: Icon(Icons.bolt, color: colors.onSecondary)),
+            const SizedBox(width: 10),
+            const Expanded(
+              child: Text('COURTBOARD',
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 17,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: -1)),
+            )
+          ]),
+          const SizedBox(height: 48),
+          _NavItem(
+              icon: Icons.grid_view_rounded,
+              label: 'Áttekintés',
+              selected: active == 0,
+              onTap: () => onSelect(0)),
+          _NavItem(
+              icon: Icons.person_add_alt_1_outlined,
+              label: 'Sportolók',
+              selected: active == 1,
+              onTap: () => onSelect(1)),
+          _NavItem(
+              icon: Icons.calendar_month_outlined,
+              label: 'Naptár',
+              selected: active == 2,
+              onTap: () => onSelect(2)),
+          _NavItem(
+              icon: Icons.compare_arrows_rounded,
+              label: 'Összevetés',
+              selected: active == 3,
+              onTap: () => onSelect(3)),
+          _NavItem(
+              icon: Icons.cloud_sync_outlined,
+              label: 'Adatforrások',
+              selected: active == 4,
+              onTap: () => onSelect(4)),
+          _NavItem(
+              icon: Icons.settings_outlined,
+              label: 'Beállítások',
+              selected: active == 5,
+              onTap: () => onSelect(5)),
+          const Spacer(),
           Container(
-              width: 34,
-              height: 34,
-              decoration:
-                  const BoxDecoration(color: _olive, shape: BoxShape.circle),
-              child: const Icon(Icons.bolt, color: _ink)),
-          const SizedBox(width: 10),
-          const Expanded(
-            child: Text('COURTBOARD',
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 17,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: -1)),
-          )
-        ]),
-        const SizedBox(height: 48),
-        _NavItem(
-            icon: Icons.grid_view_rounded,
-            label: 'Áttekintés',
-            selected: active == 0,
-            onTap: () => onSelect(0)),
-        _NavItem(
-            icon: Icons.person_add_alt_1_outlined,
-            label: 'Sportolók',
-            selected: active == 1,
-            onTap: () => onSelect(1)),
-        _NavItem(
-            icon: Icons.calendar_month_outlined,
-            label: 'Naptár',
-            selected: active == 2,
-            onTap: () => onSelect(2)),
-        _NavItem(
-            icon: Icons.compare_arrows_rounded,
-            label: 'Összevetés',
-            selected: active == 3,
-            onTap: () => onSelect(3)),
-        _NavItem(
-            icon: Icons.cloud_sync_outlined,
-            label: 'Adatforrások',
-            selected: active == 4,
-            onTap: () => onSelect(4)),
-        const Spacer(),
-        Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-                color: const Color(0xFF2A3027),
-                borderRadius: BorderRadius.circular(22)),
-            child: const Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Icon(Icons.auto_awesome, color: _olive),
-                  SizedBox(height: 12),
-                  Text('SZEMÉLYES KÖVETÉS',
-                      style: TextStyle(
-                          color: _olive,
-                          fontSize: 10,
-                          fontWeight: FontWeight.w900)),
-                  SizedBox(height: 6),
-                  Text('Minden kedvenced egy helyen.',
-                      style: TextStyle(
-                          color: Colors.white70, fontSize: 12, height: 1.3))
-                ])),
-      ]));
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                  color: const Color(0xFF2A3027),
+                  borderRadius: BorderRadius.circular(22)),
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(Icons.auto_awesome, color: colors.secondary),
+                    const SizedBox(height: 12),
+                    Text('SZEMÉLYES KÖVETÉS',
+                        style: TextStyle(
+                            color: colors.secondary,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w900)),
+                    const SizedBox(height: 6),
+                    const Text('Minden kedvenced egy helyen.',
+                        style: TextStyle(
+                            color: Colors.white70, fontSize: 12, height: 1.3))
+                  ])),
+        ]));
+  }
 }
 
 class _NavItem extends StatelessWidget {
@@ -3749,27 +4095,34 @@ class _NavItem extends StatelessWidget {
   final bool selected;
   final VoidCallback onTap;
   @override
-  Widget build(BuildContext context) => Padding(
-      padding: const EdgeInsets.only(bottom: 7),
-      child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(13),
-          child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 13),
-              decoration: BoxDecoration(
-                  color:
-                      selected ? const Color(0xFF36422A) : Colors.transparent,
-                  borderRadius: BorderRadius.circular(13)),
-              child: Row(children: [
-                Icon(icon, color: selected ? _olive : Colors.white54, size: 19),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(label,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                          color: selected ? Colors.white : Colors.white60,
-                          fontWeight:
-                              selected ? FontWeight.w800 : FontWeight.w600)),
-                )
-              ]))));
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return Padding(
+        padding: const EdgeInsets.only(bottom: 7),
+        child: InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(13),
+            child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 13, vertical: 13),
+                decoration: BoxDecoration(
+                    color: selected
+                        ? colors.primary.withValues(alpha: .55)
+                        : Colors.transparent,
+                    borderRadius: BorderRadius.circular(13)),
+                child: Row(children: [
+                  Icon(icon,
+                      color: selected ? colors.secondary : Colors.white54,
+                      size: 19),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(label,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                            color: selected ? Colors.white : Colors.white60,
+                            fontWeight:
+                                selected ? FontWeight.w800 : FontWeight.w600)),
+                  )
+                ]))));
+  }
 }
