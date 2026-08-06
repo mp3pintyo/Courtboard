@@ -144,6 +144,17 @@ void main() {
     expect(find.text('1 találat'), findsOneWidget);
     expect(find.text('ESPN · Liga F'), findsOneWidget);
     expect(find.text('TheSportsDB'), findsNothing);
+
+    await tester.enterText(
+        find.byKey(const Key('provider-doc-search')), 'beégetett');
+    await tester.pump();
+
+    expect(find.text('1 találat'), findsOneWidget);
+    expect(find.text('football-data.org'), findsWidgets);
+    await tester.tap(find.text('football-data.org').last);
+    await tester.pumpAndSettle();
+    expect(find.textContaining('nincs beégetett Liverpool-azonosító'),
+        findsOneWidget);
   });
 
   testWidgets('NFL athlete uses the unified NFL performance template',

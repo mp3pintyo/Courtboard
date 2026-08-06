@@ -114,11 +114,13 @@ const providerCatalog = <ProviderCatalogEntry>[
   ),
   ProviderCatalogEntry(
     name: 'TheSportsDB',
-    sports: ['NBA', 'WNBA', 'Darts', 'Minden sport'],
-    role: 'Névfeloldás, profilkép, alapadatok és darts eredmények.',
+    sports: ['NBA', 'WNBA', 'Foci', 'Darts', 'Minden sport'],
+    role:
+        'Névfeloldás, profilkép, alapadatok, focicsapat-mérkőzések és darts eredmények.',
     visibleOutput: [
       'Új sportoló profilképe',
       'NBA-profil kiegészítő adatai',
+      'Támogatott focicsapatok utolsó és következő mérkőzései',
       'Darts-játékosprofil és az utolsó 5 eredmény',
     ],
     capabilities: [
@@ -137,20 +139,24 @@ const providerCatalog = <ProviderCatalogEntry>[
   ProviderCatalogEntry(
     name: 'football-data.org',
     sports: ['Foci'],
-    role: 'Befejezett klubmérkőzések kiegészítő forrása.',
+    role:
+        'Free ligák kereteinek, játékos-alapadatainak és klubmérkőzéseinek kiegészítő forrása.',
     visibleOutput: [
-      'Az utolsó 5 befejezett mérkőzés a támogatott csapatoknál',
-      'Jelenleg a Liverpool névfeloldása van bekötve',
+      'Név alapján feloldott focista klubja, posztja, nemzetisége, születési dátuma, mezszáma és azonosítója',
+      'Az utolsó 5 klubmérkőzés a Free csomag által támogatott csapatoknál',
     ],
     capabilities: [
+      'Dinamikus csapat- és játékosfeloldás; nincs beégetett Liverpool-azonosító',
+      'A 12 TIER_ONE verseny aktuális csapatkereteinek név szerinti keresése',
       'Free versenyek, mérkőzések, eredmények és tabellák',
-      'Az API-Sports futballeredményeivel együtt használható',
+      'A játékos meccsenkénti statisztikáját a Free API nem adja; ezt a FotMob egészíti ki',
     ],
     authentication: 'Ingyenes regisztrációs kulcs szükséges.',
     limit: 'Free: 12 verseny és 10 kérés/perc.',
-    cache: 'Nincs külön tartós klienscache.',
+    cache: 'A Free csapatkeretek 7 napos tartós lemezcache-be kerülnek.',
     setup: 'Adatforrások → football-data.org kulcs, vagy FOOTBALL_DATA_KEY.',
-    fallback: 'API-Sports vagy a helyi sportolói alapadatok maradnak.',
+    fallback:
+        'A FotMob adja a szezonstatisztikát; nem támogatott ligánál a TheSportsDB ad klubmérkőzést.',
     docsUrl: 'https://www.football-data.org/client/register',
     key: ProviderKey.footballData,
   ),

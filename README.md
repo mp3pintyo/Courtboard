@@ -77,7 +77,7 @@ Egyetlen kulcs sem kötelező az app indulásához.
 |---|---|---|---|---|
 | API-Sports | NBA-profil, foci, korlátozott NFL-integráció | API-Sports | `API_SPORTS_KEY` | 100 kérés/nap, 10/perc; korlátozott szezonok |
 | BALLDONTLIE | NBA-profil kiegészítés | BALLDONTLIE | `BALLDONTLIE_KEY` | 5 kérés/perc |
-| football-data.org | támogatott focicsapatok befejezett meccsei | football-data.org | `FOOTBALL_DATA_KEY` | 12 verseny, 10 kérés/perc |
+| football-data.org | Free ligák focistáinak alapadatai és támogatott klubok mérkőzései | football-data.org | `FOOTBALL_DATA_KEY` | 12 verseny, 10 kérés/perc |
 | RapidAPI Darts API | darts versenylista | RapidAPI · Darts + WNBA | `RAPIDAPI_DARTS_KEY` | 1000 kérés/hó |
 | RapidAPI WNBA API | Player Bio és Advanced Statistics | ugyanaz a RapidAPI kulcs | `RAPIDAPI_DARTS_KEY` | 100 kérés/hó |
 | Live Tennis API | teniszprofil, ranglista, élő és közelgő mérkőzések | Live Tennis API | `LIVE_TENNIS_API_KEY` | 30 kérés/perc, 1000/nap |
@@ -93,8 +93,8 @@ Az appban elmentett kulcsok a helyi `%APPDATA%\courtboard_state.json` fájlba ke
 |---|---|---|---|---|
 | API-Sports | NBA, NFL, foci | NBA profilmezők; befejezett focimeccsek; elérhető friss szezonoknál focista-összesítő; NFL-válasz alapintegráció | saját | Free 100/nap, 10/perc |
 | BALLDONTLIE | NBA | közös NBA-profil kiegészítő mezői | saját | Free 5/perc |
-| TheSportsDB | több sport, darts | új sportoló képe; NBA-alapadatok; darts profil és utolsó 5 eredmény | publikus `123` | Free legfeljebb 30/perc |
-| football-data.org | foci | utolsó 5 befejezett meccs; jelenleg Liverpool névfeloldással | saját | Free 10/perc |
+| TheSportsDB | több sport, foci, darts | új sportoló képe; NBA-alapadatok; nem támogatott fociligáknál klubmeccsek; darts profil és utolsó 5 eredmény | publikus `123` | Free legfeljebb 30/perc |
+| football-data.org | foci | dinamikusan feloldott játékos klubja, posztja, nemzetisége, születési dátuma, mezszáma és azonosítója; támogatott klubok utolsó 5 meccse | saját | Free 10/perc; csapatkeretek 7 napos lemezcache-ben |
 | FotMob | férfi és női foci | aktuális vagy előző szezon: csapat, versenysorozat, értékelés, meccs, gól, gólpassz, sárga és piros lap | nem kell | 6 órás memóriacache; nem hivatalos webes feed |
 | SportsDataverse wehoop | WNBA | szezonátlagok (perc, pont, lepattanó, assziszt, labdaszerzés, eladott labda, FG%), forma, box score és utolsó meccsek | nem kell | szezonfájl tartós helyi cache-ben |
 | Basketball Reference | NBA, WNBA | NBA aktuális szezonátlagok és alapszakasz + playoff utolsó 5 meccs; WNBA utolsó 5 meccs | nem kell | 6 óra; nem hivatalos webes forrás |
@@ -123,7 +123,9 @@ A wehoop adja a teljes aktuális alapszakasz box score-jait. Ezekből az app val
 
 Az API-Sports Free kompatibilis, `season` alapú mérkőzéslekérést használ. Nem küld `last` paramétert, mert az a Free csomagban hibát okoz. A focisták **Szezon összesítő** kártyájához az app megpróbálja az API-Sports játékosstatisztikáját is felhasználni. Mivel a Free csomag jelenleg csak régebbi szezonokat enged, a friss adatokat a kulcs nélküli FotMob feed egészíti ki. Csak a naptári év szerinti aktuális vagy előző szezon fogadható el; régebbi adat nem jelenik meg frissként. Azonos csapat és versenysorozat esetén a két forrás mezői összeolvadnak.
 
-A szezonkártyán a csapat, versenysorozat, értékelésátlag, játszott mérkőzések, gólok, gólpasszok, sárga és piros lapok látszanak. A névfeloldás az ékezeteket és a keresztnév–vezetéknév sorrendet is kezeli. A football-data.org jelenleg a Liverpool utolsó befejezett meccseit egészíti ki. Aitana Bonmatí esetén külön ESPN Liga F (`esp.w.1`) adapter szűri a Barcelona Femení meccseit; férfi Barcelona-eredményt nem kever a profilba.
+A szezonkártyán a csapat, versenysorozat, értékelésátlag, játszott mérkőzések, gólok, gólpasszok, sárga és piros lapok látszanak. A névfeloldás az ékezeteket és a keresztnév–vezetéknév sorrendet is kezeli. A football-data.org adapter már nem beégetett csapatazonosítókból dolgozik: a Free csapatlistában dinamikusan oldja fel a klubot, majd az aktuális keretben név alapján keresi meg a játékost. A profilkártyán klub, poszt, nemzetiség, születési dátum, mezszám és football-data.org játékosazonosító jelenhet meg. A 12 Free `TIER_ONE` verseny keretei 7 napos lemezcache-be kerülnek, a lekérések pedig a 10 kérés/perces korláthoz igazodnak.
+
+A football-data.org Free csomag nem ad játékosonkénti meccsaggregációt, ezért a gól-, gólpassz-, lap- és értékelésadatokat továbbra is a FotMob vagy az API-Sports egészíti ki. Ha egy klub ligája nem része a football-data.org Free kínálatának – ilyen az MLS és az Inter Miami –, a csapat utolsó és következő mérkőzéseit a kulcs nélküli TheSportsDB fallback tölti be. Aitana Bonmatí esetén külön ESPN Liga F (`esp.w.1`) adapter szűri a Barcelona Femení meccseit; férfi Barcelona-eredményt nem kever a profilba.
 
 ### Darts
 
@@ -173,6 +175,7 @@ A sportolói profilon a felhasználó YouTube URL-t vagy videóazonosítót adha
 | `%APPDATA%\courtboard_cache\basketball_reference` | NBA/WNBA meccsek | 6 óra |
 | `%APPDATA%\courtboard_cache\rapidapi_darts` | darts versenylista | 6 óra |
 | `%APPDATA%\courtboard_cache\rapidapi_wnba` | WNBA bio és advanced stat | 7 nap; hibánál a régebbi mentés is használható |
+| `%APPDATA%\courtboard_cache\football_data\free_players.json` | football-data.org Free csapatkeretek és játékos-alapadatok | 7 nap; hálózati hibánál a régebbi mentés is használható |
 | `%APPDATA%\courtboard_cache\live_tennis` | teniszprofil, élő és közelgő mérkőzések, kvótaállapot | 10 perc |
 | `%APPDATA%\Courtboard\courtboard_news.sqlite` | letöltött hírek, sport- és forráskapcsolatok, feedbeállítások és frissítési állapot | tartós; nincs automatikus törlés |
 
@@ -214,6 +217,8 @@ flutter build windows --release
 ```
 
 Az adatforrások központi, kereshető leírása a `lib/data/provider_catalog.dart` fájlban van. Új integráció felvételekor ezt a katalógust és a README mátrixát együtt kell frissíteni.
+
+A Flutter belépési pontja szándékosan kicsi: a `lib/main.dart` az importokat és a `part` deklarációkat tartalmazza, a képernyők és profilmodulok pedig sportág és funkció szerint a `lib/ui/` fájljaiban találhatók. Így egy adatforrás vagy nézet fejlesztéséhez nem kell egy több ezer soros központi fájlt módosítani.
 
 ## Szolgáltatói dokumentáció
 
