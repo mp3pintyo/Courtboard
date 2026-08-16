@@ -109,7 +109,8 @@ class TennisScore {
       }
     }
     if (points.length >= 2 && points.any((point) => point != null)) {
-      parts.add('${points[0] ?? '—'}–${points[1] ?? '—'} pont');
+      final label = isTiebreak ? 'rövidítés' : 'pont';
+      parts.add('${points[0] ?? '—'}–${points[1] ?? '—'} $label');
     }
     return parts.isEmpty
         ? 'A mérkőzés még nem kezdődött el'
@@ -182,6 +183,17 @@ class TennisMatch {
       player1Id == player.id || athleteNamesMatch(player.name, player1)
           ? player2
           : player1;
+
+  String liveDetail(TennisPlayer player) {
+    final summary = score?.summary ?? 'Élő mérkőzés';
+    final server = score?.server;
+    if (server != 1 && server != 2) return summary;
+    final playerIsOne =
+        player1Id == player.id || athleteNamesMatch(player.name, player1);
+    return (server == 1) == playerIsOne
+        ? '$summary · adogat'
+        : '$summary · az ellenfél adogat';
+  }
 }
 
 class TennisFixture {

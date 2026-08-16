@@ -229,7 +229,7 @@ class TennisProfileFacts extends StatelessWidget {
             (match) => _TennisMatchTile(
               opponent: match.opponentOf(player),
               tournament: match.tournament,
-              detail: match.score?.summary ?? 'Élő mérkőzés',
+              detail: match.liveDetail(player),
               date: match.scheduledTime,
               surface: match.surface,
               accent: accent,

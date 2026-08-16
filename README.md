@@ -80,7 +80,7 @@ Egyetlen kulcs sem kötelező az app indulásához.
 | football-data.org | Free ligák focistáinak alapadatai és támogatott klubok mérkőzései | football-data.org | `FOOTBALL_DATA_KEY` | 12 verseny, 10 kérés/perc |
 | RapidAPI Darts API | darts versenylista | RapidAPI · Darts + WNBA | `RAPIDAPI_DARTS_KEY` | 1000 kérés/hó |
 | RapidAPI WNBA API | Player Bio és Advanced Statistics | ugyanaz a RapidAPI kulcs | `RAPIDAPI_DARTS_KEY` | 100 kérés/hó |
-| Live Tennis API | teniszprofil, ranglista, élő és közelgő mérkőzések | Live Tennis API | `LIVE_TENNIS_API_KEY` | 30 kérés/perc, 1000/nap |
+| Live Tennis API | teniszprofil, ranglista, élő és közelgő mérkőzések | Live Tennis API | `LIVE_TENNIS_API_KEY` | 30 kérés/perc, 100/nap |
 | YouTube Data API v3 | előkészített, még nem aktív automatikus kereső | nincs külön mező | `YOUTUBE_DATA_KEY` | Google-projektkvóta |
 
 A Darts és a WNBA RapidAPI ugyanazt az alkalmazáskulcsot kapja, de a RapidAPI oldalán **mindkét API Free csomagjára külön fel kell iratkozni**.
@@ -101,7 +101,7 @@ Az appban elmentett kulcsok a helyi `%APPDATA%\courtboard_state.json` fájlba ke
 | ESPN `esp.w.1` | női foci | Aitana Bonmatí / Barcelona Femení utolsó 5 befejezett meccse | nem kell | nincs publikált kvóta |
 | RapidAPI Darts API | darts | legfeljebb 8 versenycímke | RapidAPI | 6 óra; Free 1000/hó |
 | RapidAPI WNBA API | WNBA | Bio, csapat, 9 statisztika és legfeljebb 4 díj | RapidAPI | 7 nap; Free 100/hó |
-| Live Tennis API | tenisz | ranglista és profiladatok; élő szett-, játék- és pontállás; legfeljebb 5 következő meccs | saját | 10 perc; Free 30/perc és 1000/nap |
+| Live Tennis API | tenisz | ranglista és profiladatok; élő szett-, játék- és pontállás adogatójelzéssel; legfeljebb 5 következő meccs | saját | 10 perc; Free 30/perc és 100/nap |
 | FOX Sports JSON-oldalfeed | NBA, WNBA, foci, tenisz | cím, rövid összefoglaló, kép, valódi publikálási dátum és eredeti cikk | nem kell | sportáganként a legfrissebb 100 cikk/frissítés; 20 perc; tartós helyi archívum |
 | CBS Sports RSS | NBA, foci, tenisz | cím, rövid összefoglaló, kép, dátum és eredeti cikk | nem kell | 20 perc; tartós helyi archívum |
 | ESPN RSS | NBA, WNBA, foci, tenisz | opcionálisan cím, forrás, dátum és kötelező eredeti link | nem kell | 20 perc; külön bekapcsolandó |
@@ -139,9 +139,9 @@ Az API-Sports adapter és válaszkezelés be van kötve, de a részletes, játé
 
 Új sportoló felvételekor válaszd a **Tenisz** sportágat; csapatot nem kell megadni. A Live Tennis API kulcsa az **Adatforrások** oldalon menthető. A név szerinti játékoskeresés ékezet- és névsorrend-független, majd a részletes profilból az app megjeleníti az aktuális ranglistát, ranglistapontot, sorozatot, országot, ütőkezet, fonákot és születési dátumot.
 
-Az élő mérkőzésnél az ellenfél, a verseny, a szett-, játék- és pontállás látható. A közelgő meccseket az azonosítóval rendelkező upcoming feed és a név alapú fixture lista együtt tölti ki. A játékos saját sorozatkódját csak akkor küldjük szűrőként, ha egyértelműen `atp` vagy `wta`, mert az alsóbb sorozatok profilkódjai eltérnek az API szűrőértékeitől.
+Az élő mérkőzésnél az ellenfél, a verseny, a szett-, játék- és pontállás látható, valamint az, hogy éppen ki adogat; rövidítésnél a pontállás rövidítésként jelenik meg. A közelgő meccseket az azonosítóval rendelkező upcoming feed és a név alapú fixture lista együtt tölti ki. A játékos saját sorozatkódját csak akkor küldjük szűrőként, ha egyértelműen `atp` vagy `wta`, mert az alsóbb sorozatok profilkódjai eltérnek az API szűrőértékeitől.
 
-A Free csomaghoz tartozó `completed`, `/history`, piac-, modell- és WebSocket-végpontokat az app nem hívja. Egy profil friss betöltése legfeljebb öt kvótás kérést használ, a `/usage` ellenőrzés kvótamentes; a 10 perces lemezcache védi a napi 1000 kéréses keretet. A kézi frissítés tudatosan megkerüli a cache-t.
+A Free csomagban nem elérhető `completed`, `/history`, piac-, modell- és WebSocket-végpontokat az app nem hívja; a befejezett meccselőzmény fizetős History hozzáférés. Egy profil friss betöltése legfeljebb öt kvótás kérést használ, a `/usage` ellenőrzés kvótamentes; a 10 perces lemezcache védi a napi 100 kéréses keretet. A kézi frissítés tudatosan megkerüli a cache-t.
 
 ### Hírek és tartós hírarchívum
 

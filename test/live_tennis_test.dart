@@ -29,6 +29,64 @@ void main() {
     expect(score.server, 1);
   });
 
+  test('tiebreak points are labelled as tiebreak', () {
+    final score = TennisScore.fromJson({
+      'sets': [0, 0],
+      'games': [
+        [6],
+        [6]
+      ],
+      'points': ['5', '3'],
+      'server': 2,
+      'is_tiebreak': true,
+    });
+
+    expect(score.summary, '0–0 szett · 6–6 · 5–3 rövidítés');
+  });
+
+  test('live detail shows the server from the tracked player side', () {
+    final player =
+        TennisPlayer.fromJson(const {'id': 7, 'name': 'Iga Swiatek'});
+    final match = TennisMatch.fromJson({
+      'id': 91,
+      'tournament': 'Montreal',
+      'status': 'live',
+      'players': {
+        'p1': {'id': 7, 'name': 'Iga Swiatek'},
+        'p2': {'id': 8, 'name': 'Coco Gauff'}
+      },
+      'score': {
+        'sets': [1, 0],
+        'games': [
+          [6, 4],
+          [2, 1]
+        ],
+        'points': ['15', '0'],
+        'server': 1,
+      }
+    });
+    final opponentServes = TennisMatch.fromJson({
+      'id': 92,
+      'tournament': 'Montreal',
+      'status': 'live',
+      'players': {
+        'p1': {'id': 8, 'name': 'Coco Gauff'},
+        'p2': {'id': 7, 'name': 'Iga Swiatek'}
+      },
+      'score': {
+        'sets': [0, 0],
+        'games': [
+          [3],
+          [3]
+        ],
+        'server': 1,
+      }
+    });
+
+    expect(match.liveDetail(player), endsWith('· adogat'));
+    expect(opponentServes.liveDetail(player), endsWith('· az ellenfél adogat'));
+  });
+
   test('repository uses only Free endpoints and filters by player', () async {
     final calls = <String>[];
     Future<Map<String, dynamic>> fake(
@@ -105,7 +163,7 @@ void main() {
       if (path == '/usage') {
         return {
           'tier': 'free',
-          'limits': {'per_day': 1000},
+          'limits': {'per_day': 100},
           'today': {'calls': 12}
         };
       }
@@ -119,7 +177,7 @@ void main() {
     expect(data.liveMatches.single.opponentOf(data.player), 'Coco Gauff');
     expect(data.fixtures.single.opponentOf(data.player), 'Gauff Coco');
     expect(data.usage?.today, 12);
-    expect(data.usage?.dailyLimit, 1000);
+    expect(data.usage?.dailyLimit, 100);
     expect(calls.any((call) => call.contains('status=completed')), isFalse);
     expect(calls.any((call) => call.contains('/history')), isFalse);
     expect(calls.where((call) => call.startsWith('/matches?')),
