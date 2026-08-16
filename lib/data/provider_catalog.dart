@@ -299,7 +299,7 @@ const providerCatalog = <ProviderCatalogEntry>[
     visibleOutput: [
       'Játékos neve, sorozata, országa és aktuális ranglistája',
       'Ranglistapont, ütőkéz, fonák és születési dátum',
-      'Élő ellenfél, verseny, szett-, játék- és pontállás',
+      'Élő ellenfél, verseny, szett-, játék- és pontállás, adogatójelzés',
       'Legfeljebb 5 következő mérkőzés vagy név alapú fixture',
       'A saját napi API-használat és csomag',
     ],
@@ -310,7 +310,7 @@ const providerCatalog = <ProviderCatalogEntry>[
       'A befejezett mérkőzéseket nem kéri le, mert azok History/BASIC hozzáféréshez kötöttek',
     ],
     authentication: 'Ingyenes regisztrációs Bearer API-kulcs szükséges.',
-    limit: 'Free: 30 kérés/perc és 1000 kérés/nap; bankkártya nélkül.',
+    limit: 'Free: 30 kérés/perc és 100 kérés/nap; bankkártya nélkül.',
     cache:
         'Játékosonként 10 perces lemezcache; a kézi frissítés kikerüli a cache-t.',
     setup:

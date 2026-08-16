@@ -39,7 +39,7 @@ void main() {
     final tennis =
         providerCatalog.singleWhere((entry) => entry.name == 'Live Tennis API');
 
-    expect(filterProviderCatalog('1000 kérés/nap', 'Tenisz'), [tennis]);
+    expect(filterProviderCatalog('100 kérés/nap', 'Tenisz'), [tennis]);
     expect(tennis.isConfigured(const SportsApiConfig()), isFalse);
     expect(tennis.isConfigured(const SportsApiConfig(liveTennisKey: 'secret')),
         isTrue);
