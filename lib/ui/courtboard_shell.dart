@@ -10,6 +10,7 @@ class CourtboardShell extends StatefulWidget {
     this.apiKeyStore,
     this.secureStorageAvailable = true,
     required this.onThemeChanged,
+    this.onThemeModeChanged,
   });
 
   /// A futtatás előtt betöltött helyi állapot.
@@ -28,6 +29,9 @@ class CourtboardShell extends StatefulWidget {
   final ApiKeyStore? apiKeyStore;
   final bool secureStorageAvailable;
   final ValueChanged<String> onThemeChanged;
+
+  /// A megjelenési mód (`system` / `light` / `dark`) változása.
+  final ValueChanged<String>? onThemeModeChanged;
 
   @override
   State<CourtboardShell> createState() => _CourtboardShellState();
@@ -60,6 +64,24 @@ class _CourtboardShellState extends State<CourtboardShell> {
   String _overviewSort = 'custom';
   String _athleteSort = 'custom';
   String _selectedTheme = 'green';
+  String _selectedThemeMode = 'system';
+
+  /// Széles ablakban is összecsukott (kompakt) oldalsáv, a felhasználó
+  /// választása szerint.
+  bool _railCollapsed = false;
+
+  /// A profil adatkártyái által legutóbb mentett eredmények és események
+  /// sportolónként (csak már betöltött adatból, hálózati kérés nélkül).
+  Map<String, AthleteHighlight> _highlights = const {};
+
+  /// Billentyűparancsok jelzései a látható oldal felé.
+  final CourtboardCommands _commands = CourtboardCommands();
+
+  /// A shell fókuszcsomópontja: a billentyűparancsok innen indulnak akkor
+  /// is, ha az oldalon semmi nincs fókuszban.
+  final FocusNode _shellFocus = FocusNode(debugLabel: 'courtboard-shell');
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+  ModalRoute<Object?>? _route;
 
   final List<Athlete> _athletes = [
     _seedAthlete(
@@ -138,10 +160,21 @@ class _CourtboardShellState extends State<CourtboardShell> {
     super.initState();
     _applyState(widget.initialState);
     unawaited(_loadPlaylist());
+    unawaited(_loadHighlights());
+    FocusManager.instance.addListener(_keepShellFocus);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _route = ModalRoute.of(context);
   }
 
   @override
   void dispose() {
+    FocusManager.instance.removeListener(_keepShellFocus);
+    _shellFocus.dispose();
+    _commands.dispose();
     _search.dispose();
     unawaited(_newsRepository.close());
     super.dispose();
@@ -160,6 +193,8 @@ class _CourtboardShellState extends State<CourtboardShell> {
     _overviewSort = state.overviewSort;
     _athleteSort = state.athleteSort;
     _selectedTheme = state.theme;
+    _selectedThemeMode = state.themeMode;
+    _railCollapsed = state.railCollapsed;
     _athletes.removeWhere(
       (athlete) => _removedAthleteNames.contains(athlete.name),
     );
@@ -195,6 +230,7 @@ class _CourtboardShellState extends State<CourtboardShell> {
     // Régebbi mentésekben „Ismeretlen” helyőrző szerepelhet: nem mutatjuk.
     country: athlete.country.trim() == 'Ismeretlen' ? '' : athlete.country,
     photoUrl: athlete.photoUrl,
+    // Saját sportoló azonosító színe (a téma kiemelőszínétől független).
     accent: const Color(0xFF9BAF65),
     seasonLabel: '',
     seasonValue: '',
@@ -211,9 +247,11 @@ class _CourtboardShellState extends State<CourtboardShell> {
     removedAthleteNames: _removedAthleteNames,
     legacyApiKeys: _legacyApiKeys,
     theme: _selectedTheme,
+    themeMode: _selectedThemeMode,
     overviewSort: _overviewSort,
     athleteSort: _athleteSort,
     athleteOrder: _athletes.map((athlete) => athlete.name).toList(),
+    railCollapsed: _railCollapsed,
     customAthletes: _athletes
         .where((a) => a.isCustom)
         .map(
@@ -340,9 +378,13 @@ class _CourtboardShellState extends State<CourtboardShell> {
   Future<void> _confirmDeleteAthlete(Athlete athlete) => showDialog<void>(
     context: context,
     builder: (dialogContext) => AlertDialog(
+      key: const Key('delete-athlete-dialog'),
+      icon: Icon(Icons.delete_outline, color: dialogContext.cb.error),
       title: const Text('Sportoló törlése'),
       content: Text(
-        'Biztosan törlöd őt a követettek közül?\n\n${athlete.name}',
+        'Biztosan törlöd őt a követettek közül?\n\n${athlete.name}\n\n'
+        'A jegyzet és a mentett videók megmaradnak, a sportoló bármikor '
+        'újra felvehető.',
       ),
       actions: [
         TextButton(
@@ -350,6 +392,13 @@ class _CourtboardShellState extends State<CourtboardShell> {
           child: const Text('Mégse'),
         ),
         FilledButton(
+          key: const Key('delete-athlete-confirm'),
+          style: FilledButton.styleFrom(
+            backgroundColor: dialogContext.cb.error,
+            foregroundColor: dialogContext.cb.isDark
+                ? const Color(0xFF3B0A08)
+                : Colors.white,
+          ),
           onPressed: () {
             setState(() {
               _removedAthleteNames.add(athlete.name);
@@ -374,42 +423,199 @@ class _CourtboardShellState extends State<CourtboardShell> {
 
   void _openProfile(Athlete athlete) => setState(() => _openAthlete = athlete);
 
+  /// Vissza a profilból; a kiemelések újraolvasása, hogy a profilon most
+  /// betöltött eredmény az Áttekintésen is megjelenjen.
+  void _closeProfile() {
+    setState(() => _openAthlete = null);
+    unawaited(_loadHighlights());
+  }
+
+  void _navigate(int index) {
+    final wasProfile = _openAthlete != null;
+    setState(() {
+      _openAthlete = null;
+      _activeNav = index;
+    });
+    if (wasProfile || index == 0) unawaited(_loadHighlights());
+  }
+
+  Future<void> _loadHighlights() async {
+    final names = _athletes.map((athlete) => athlete.name).toList();
+    final highlights = await AthleteHighlightStore.shared.readAll(names);
+    if (mounted) setState(() => _highlights = highlights);
+  }
+
+  void _toggleRail() {
+    setState(() => _railCollapsed = !_railCollapsed);
+    _saveLocalState();
+  }
+
+  /// Ha a fókusz „elveszik” (például egy fókuszban lévő mező eltűnik egy
+  /// oldalváltáskor), visszakerül a shellre, így a billentyűparancsok mindig
+  /// működnek. Nyitott párbeszédablaknál (nem aktuális útvonal) nem nyúl hozzá.
+  void _keepShellFocus() {
+    if (!mounted || !(_route?.isCurrent ?? true)) return;
+    final primary = FocusManager.instance.primaryFocus;
+    if (primary != null &&
+        (primary == _shellFocus || primary.ancestors.contains(_shellFocus))) {
+      return;
+    }
+    // Csak akkor vesszük vissza, ha a fókusz egy őscsomóponton (gyökér vagy
+    // útvonal-hatókör) ragadt, nem egy másik widget saját mezőjén.
+    if (primary != null && !_shellFocus.ancestors.contains(primary)) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !(_route?.isCurrent ?? true)) return;
+      final current = FocusManager.instance.primaryFocus;
+      if (current == null || _shellFocus.ancestors.contains(current)) {
+        _shellFocus.requestFocus();
+      }
+    });
+  }
+
+  /// A látható oldal címe (keskeny ablak felső sávjához).
+  String get _pageTitle =>
+      _openAthlete?.name ?? _navItems[_activeNav.clamp(0, 6)].$2;
+
+  /// Oldalak, amelyeken van keresőmező (Ctrl+F).
+  bool get _pageHasSearch =>
+      _openAthlete == null && const {0, 1, 3, 4}.contains(_activeNav);
+
+  void _focusSearch() {
+    if (_pageHasSearch && _commands.hasSearchHandler) {
+      _commands.requestSearchFocus();
+      return;
+    }
+    // Keresőmező nélküli oldalról az Áttekintés keresőjére ugrunk.
+    _navigate(0);
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => _commands.requestSearchFocus(),
+    );
+  }
+
+  void _refreshPage() {
+    if (_commands.hasRefreshHandler) {
+      _commands.requestRefresh();
+    } else {
+      unawaited(_loadHighlights());
+    }
+  }
+
+  Map<Type, Action<Intent>> get _actions => {
+    _FocusSearchIntent: CallbackAction<_FocusSearchIntent>(
+      onInvoke: (_) {
+        _focusSearch();
+        return null;
+      },
+    ),
+    _BackIntent: _ShellAction<_BackIntent>(
+      enabled: () => _openAthlete != null,
+      onInvoke: _closeProfile,
+    ),
+    _RefreshIntent: CallbackAction<_RefreshIntent>(
+      onInvoke: (_) {
+        _refreshPage();
+        return null;
+      },
+    ),
+    _NavigateIntent: CallbackAction<_NavigateIntent>(
+      onInvoke: (intent) {
+        _navigate(intent.index);
+        return null;
+      },
+    ),
+    _AddAthleteIntent: CallbackAction<_AddAthleteIntent>(
+      onInvoke: (_) {
+        unawaited(_openAddAthlete());
+        return null;
+      },
+    ),
+  };
+
   @override
   Widget build(BuildContext context) {
     final showingProfile = _openAthlete != null;
-    return Scaffold(
-      body: SafeArea(
-        child: Row(
-          children: [
-            _SideRail(
-              // A profil megnyitásakor a kiinduló menüpont marad kiemelve.
-              active: _activeNav,
-              onSelect: (index) => setState(() {
-                _openAthlete = null;
-                _activeNav = index;
-              }),
-            ),
-            Expanded(
-              child: showingProfile
-                  ? _ProfilePage(
-                      key: ValueKey(_openAthlete!.name),
-                      athlete: _openAthlete!,
-                      backLabel: _backLabel,
-                      apiConfig: _apiConfig,
-                      videos: _playlist.forAthlete(_openAthlete!.name),
-                      note: _notes[_openAthlete!.name] ?? '',
-                      alertEnabled: _alerts[_openAthlete!.name] ?? false,
-                      onBack: () => setState(() => _openAthlete = null),
-                      onToggleClip: _toggleVideo,
-                      onAddVideo: () => unawaited(_openAddVideo(_openAthlete!)),
-                      onDelete: () =>
-                          unawaited(_confirmDeleteAthlete(_openAthlete!)),
-                      onSaveNote: _setNote,
-                      onToggleAlert: _toggleAlert,
+    final width = MediaQuery.sizeOf(context).width;
+    final mode = _Layout.modeFor(width, collapsed: _railCollapsed);
+    final canToggle = width >= _Layout.fullRailBreakpoint;
+    void selectFromDrawer(int index) {
+      _scaffoldKey.currentState?.closeDrawer();
+      _navigate(index);
+    }
+
+    final page = showingProfile
+        ? _ProfilePage(
+            key: ValueKey(_openAthlete!.name),
+            athlete: _openAthlete!,
+            backLabel: _backLabel,
+            apiConfig: _apiConfig,
+            videos: _playlist.forAthlete(_openAthlete!.name),
+            note: _notes[_openAthlete!.name] ?? '',
+            alertEnabled: _alerts[_openAthlete!.name] ?? false,
+            onBack: _closeProfile,
+            onToggleClip: _toggleVideo,
+            onAddVideo: () => unawaited(_openAddVideo(_openAthlete!)),
+            onDelete: () => unawaited(_confirmDeleteAthlete(_openAthlete!)),
+            onSaveNote: _setNote,
+            onToggleAlert: _toggleAlert,
+          )
+        : _buildPage();
+
+    return CourtboardCommandScope(
+      commands: _commands,
+      child: Shortcuts(
+        shortcuts: _shellShortcuts,
+        child: Actions(
+          actions: _actions,
+          child: Focus(
+            focusNode: _shellFocus,
+            autofocus: true,
+            child: Scaffold(
+              key: _scaffoldKey,
+              drawer: mode == _RailMode.drawer
+                  ? Drawer(
+                      width: 264,
+                      backgroundColor: context.cb.ink,
+                      child: _SideRail(
+                        active: _activeNav,
+                        width: double.infinity,
+                        onSelect: selectFromDrawer,
+                      ),
                     )
-                  : _buildPage(),
+                  : null,
+              body: SafeArea(
+                child: Row(
+                  // A tartalom mindig kitölti a teljes magasságot (rövid
+                  // oldalnál sem kerül függőlegesen középre).
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    if (mode != _RailMode.drawer)
+                      _SideRail(
+                        // A profil megnyitásakor a kiinduló menüpont marad
+                        // kiemelve.
+                        active: _activeNav,
+                        compact: mode == _RailMode.compact,
+                        onToggle: canToggle ? _toggleRail : null,
+                        onSelect: _navigate,
+                      ),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          if (mode == _RailMode.drawer)
+                            _CompactTopBar(
+                              title: _pageTitle,
+                              onMenu: () =>
+                                  _scaffoldKey.currentState?.openDrawer(),
+                            ),
+                          Expanded(child: _ContentFrame(child: page)),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
-          ],
+          ),
         ),
       ),
     );
@@ -418,13 +624,16 @@ class _CourtboardShellState extends State<CourtboardShell> {
   Widget _buildPage() => switch (_activeNav) {
     0 => _Dashboard(
       athletes: _athletes,
+      highlights: _highlights,
       search: _search,
       sort: _overviewSort,
       filter: _dashboardFilter,
       onFilterChanged: (value) => setState(() => _dashboardFilter = value),
-      onOpenSettings: () => setState(() => _activeNav = 6),
+      onOpenSettings: () => _navigate(6),
       onOpen: _openProfile,
       onAddAthlete: _openAddAthlete,
+      onOpenNews: () => _navigate(3),
+      onOpenVideos: () => _navigate(4),
     ),
     1 => _AthleteDirectory(
       athletes: _athletes,
@@ -448,7 +657,7 @@ class _CourtboardShellState extends State<CourtboardShell> {
       playlist: _playlist,
       onOpenAthlete: _openProfile,
       onRemoveVideo: _toggleVideo,
-      onOpenAthletes: () => setState(() => _activeNav = 1),
+      onOpenAthletes: () => _navigate(1),
     ),
     5 => _DataStatusPage(
       config: _apiConfig,
@@ -457,6 +666,8 @@ class _CourtboardShellState extends State<CourtboardShell> {
     ),
     _ => _SettingsPage(
       theme: _selectedTheme,
+      themeMode: _selectedThemeMode,
+      onThemeModeChanged: _setThemeMode,
       overviewSort: _overviewSort,
       athleteSort: _athleteSort,
       onThemeChanged: _setTheme,
@@ -468,6 +679,12 @@ class _CourtboardShellState extends State<CourtboardShell> {
   void _setTheme(String value) {
     setState(() => _selectedTheme = value);
     widget.onThemeChanged(value);
+    _saveLocalState();
+  }
+
+  void _setThemeMode(String value) {
+    setState(() => _selectedThemeMode = value);
+    widget.onThemeModeChanged?.call(value);
     _saveLocalState();
   }
 
@@ -628,6 +845,7 @@ class _AddAthleteDialogState extends State<_AddAthleteDialog> {
           ),
           const SizedBox(height: 12),
           DropdownButtonFormField<String>(
+            style: context.text.bodyLarge,
             initialValue: _sport,
             decoration: const InputDecoration(labelText: 'Sportág'),
             items: const ['NBA', 'WNBA', 'Foci', 'Darts', 'Tenisz', 'NFL']
@@ -650,7 +868,7 @@ class _AddAthleteDialogState extends State<_AddAthleteDialog> {
               _sport == 'Tenisz'
                   ? 'A teniszezőkhöz nem kell csapatot megadni.'
                   : 'A dartsjátékosokhoz nem kell csapatot megadni.',
-              style: const TextStyle(fontSize: 12, color: _muted),
+              style: context.text.bodySmall,
             ),
           ],
           const SizedBox(height: 10),
@@ -658,16 +876,15 @@ class _AddAthleteDialogState extends State<_AddAthleteDialog> {
             _busy
                 ? 'Profilkép keresése…'
                 : 'A profilképet a rendszer háttérben próbálja feloldani; sikertelen esetben monogram jelenik meg.',
-            style: const TextStyle(fontSize: 12, color: _muted),
+            style: context.text.bodySmall,
           ),
           if (_error != null) ...[
             const SizedBox(height: 10),
             Text(
               _error!,
               key: const Key('add-athlete-error'),
-              style: const TextStyle(
-                fontSize: 12,
-                color: Color(0xFFB44646),
+              style: context.text.bodySmall?.copyWith(
+                color: context.cb.error,
                 fontWeight: FontWeight.w700,
               ),
             ),
@@ -778,9 +995,8 @@ class _AddVideoDialogState extends State<_AddVideoDialog> {
             const SizedBox(height: 10),
             Text(
               _error!,
-              style: const TextStyle(
-                fontSize: 12,
-                color: Color(0xFFB44646),
+              style: context.text.bodySmall?.copyWith(
+                color: context.cb.error,
                 fontWeight: FontWeight.w700,
               ),
             ),
@@ -805,6 +1021,50 @@ class _AddVideoDialogState extends State<_AddVideoDialog> {
         label: const Text('Hozzáadás'),
       ),
     ],
+  );
+}
+
+/// A Back intent csak akkor „fogyasztja el” a billentyűt, ha van hova
+/// visszalépni; különben az Esc továbbjut (például a párbeszédablakokhoz).
+class _ShellAction<T extends Intent> extends Action<T> {
+  _ShellAction({required this.enabled, required this.onInvoke});
+  final bool Function() enabled;
+  final VoidCallback onInvoke;
+
+  @override
+  bool isEnabled(T intent) => enabled();
+
+  @override
+  Object? invoke(T intent) {
+    onInvoke();
+    return null;
+  }
+}
+
+/// A lap tartalma: ultraszéles ablakban legfeljebb
+/// [_Layout.contentMaxWidth] széles, vízszintesen középre zárva.
+class _ContentFrame extends StatelessWidget {
+  const _ContentFrame({required this.child});
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => ColoredBox(
+    color: context.cb.canvas,
+    child: LayoutBuilder(
+      builder: (context, constraints) {
+        final width = constraints.maxWidth > _Layout.contentMaxWidth
+            ? _Layout.contentMaxWidth
+            : constraints.maxWidth;
+        return Align(
+          alignment: Alignment.topCenter,
+          child: SizedBox(
+            width: width,
+            height: constraints.maxHeight,
+            child: child,
+          ),
+        );
+      },
+    ),
   );
 }
 

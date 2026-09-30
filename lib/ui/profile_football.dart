@@ -1,6 +1,6 @@
 part of '../main.dart';
 
-class _FootballSeasonSummaryCard extends StatefulWidget {
+class _FootballSeasonSummaryCard extends StatelessWidget {
   const _FootballSeasonSummaryCard({
     required this.athleteName,
     required this.teamName,
@@ -14,417 +14,139 @@ class _FootballSeasonSummaryCard extends StatefulWidget {
   final SportsApiConfig config;
 
   @override
-  State<_FootballSeasonSummaryCard> createState() =>
-      _FootballSeasonSummaryCardState();
+  Widget build(BuildContext context) => DataSourceCard<FootballSeasonResult>(
+    title: 'Szezon összesítő',
+    icon: Icons.leaderboard_outlined,
+    accent: accent,
+    reloadKey: (athleteName, teamName, config.apiSportsKey),
+    refreshTooltip: 'Szezonadatok frissítése',
+    loadingLabel: 'Szezonadatok betöltése…',
+    errorPrefix: 'Nem érkezett friss szezonadat. ',
+    emptyMessage: 'Az aktuális vagy előző szezonhoz nincs elérhető adat.',
+    isEmpty: (result) => result.stats.isEmpty,
+    emptyFooter: (context, result) => Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [for (final error in result.errors) CourtboardNote(error)],
+    ),
+    load: ({required force}) =>
+        FootballSeasonRepository(config).fetchWithStatus(athleteName, teamName),
+    freshness: (result) => result.fetchedAt == null
+        ? null
+        : DataFreshness(result.fetchedAt!, fromCache: result.fromCache),
+    builder: (context, result) => Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (var i = 0; i < result.stats.length; i++) ...[
+          if (i > 0) ...[
+            const SizedBox(height: 18),
+            const Divider(),
+            const SizedBox(height: 18),
+          ],
+          _FootballSeasonStatPanel(stat: result.stats[i]),
+        ],
+        for (final error in result.errors) CourtboardNote(error),
+      ],
+    ),
+  );
 }
 
-class _FootballSeasonSummaryCardState
-    extends State<_FootballSeasonSummaryCard> {
-  late Future<FootballSeasonResult> _stats;
+class _FootballSeasonStatPanel extends StatelessWidget {
+  const _FootballSeasonStatPanel({required this.stat});
+  final FootballSeasonStat stat;
 
   @override
-  void initState() {
-    super.initState();
-    _load();
-  }
-
-  void _load() {
-    _stats = FootballSeasonRepository(
-      widget.config,
-    ).fetchWithStatus(widget.athleteName, widget.teamName);
-  }
-
-  @override
-  void didUpdateWidget(covariant _FootballSeasonSummaryCard oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.athleteName != widget.athleteName ||
-        oldWidget.teamName != widget.teamName ||
-        oldWidget.config.apiSportsKey != widget.config.apiSportsKey) {
-      _load();
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) => Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      Row(
-        children: [
-          const Text(
-            'Szezon összesítő',
-            style: TextStyle(
-              fontSize: 27,
-              fontWeight: FontWeight.w900,
-              letterSpacing: -1.2,
-            ),
-          ),
-          const Spacer(),
-          IconButton(
-            tooltip: 'Szezonadatok frissítése',
-            onPressed: () => setState(_load),
-            icon: const Icon(Icons.refresh),
-          ),
-        ],
-      ),
-      const SizedBox(height: 12),
-      FutureBuilder<FootballSeasonResult>(
-        future: _stats,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState != ConnectionState.done) {
-            return const Padding(
-              padding: EdgeInsets.all(18),
-              child: CircularProgressIndicator(),
-            );
-          }
-          if (snapshot.hasError) {
-            return _FootballSeasonMessage(
-              message:
-                  'Nem érkezett friss szezonadat. ${friendlyError(snapshot.error!)}',
-              accent: widget.accent,
-              onRetry: () => setState(_load),
-            );
-          }
-          final result = snapshot.data ?? const FootballSeasonResult();
-          final notes = [
-            for (final error in result.errors) CourtboardNote(error),
-          ];
-          if (result.stats.isEmpty) {
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _FootballSeasonMessage(
-                  message:
-                      'Az aktuális vagy előző szezonhoz nincs elérhető adat.',
-                  accent: widget.accent,
-                  onRetry: result.errors.isEmpty ? null : () => setState(_load),
-                ),
-                ...notes,
-              ],
-            );
-          }
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (result.fetchedAt != null)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: FreshnessNote(
-                    fetchedAt: result.fetchedAt!,
-                    fromCache: result.fromCache,
-                  ),
-                ),
-              ...result.stats.map(
-                (item) => Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: _FootballSeasonStatCard(
-                    stat: item,
-                    accent: widget.accent,
-                  ),
-                ),
-              ),
-              ...notes,
-            ],
-          );
-        },
-      ),
+  Widget build(BuildContext context) => SeasonSummaryPanel(
+    title: stat.team,
+    subtitle: '${stat.competition} · ${stat.season}',
+    source: stat.source,
+    metrics: [
+      ('ÉRTÉKELÉS ÁTLAG', formatDecimal(stat.rating, digits: 2)),
+      ('MÉRKŐZÉS', formatInt(stat.appearances)),
+      ('GÓL', formatInt(stat.goals)),
+      ('GÓLPASSZ', formatInt(stat.assists)),
+      ('SÁRGA LAP', formatInt(stat.yellowCards)),
+      ('PIROS LAP', formatInt(stat.redCards)),
     ],
   );
 }
 
-class _FootballSeasonMessage extends StatelessWidget {
-  const _FootballSeasonMessage({
-    required this.message,
-    required this.accent,
-    this.onRetry,
-  });
-  final String message;
-  final Color accent;
-  final VoidCallback? onRetry;
-
-  @override
-  Widget build(BuildContext context) => Container(
-    width: double.infinity,
-    padding: const EdgeInsets.all(18),
-    decoration: BoxDecoration(
-      color: _paper,
-      borderRadius: BorderRadius.circular(20),
-      border: Border.all(color: accent.withValues(alpha: .35)),
-    ),
-    child: Row(
-      children: [
-        Expanded(
-          child: Text(message, style: const TextStyle(color: _muted)),
-        ),
-        if (onRetry != null)
-          TextButton.icon(
-            onPressed: onRetry,
-            icon: const Icon(Icons.refresh, size: 18),
-            label: const Text('Újrapróbálás'),
-          ),
-      ],
-    ),
-  );
-}
-
-class _FootballSeasonStatCard extends StatelessWidget {
-  const _FootballSeasonStatCard({required this.stat, required this.accent});
-  final FootballSeasonStat stat;
-  final Color accent;
-
-  @override
-  Widget build(BuildContext context) {
-    final metrics = [
-      ('ÉRTÉKELÉS ÁTLAG', stat.rating?.toStringAsFixed(2) ?? '—'),
-      ('MÉRKŐZÉS', _format(stat.appearances)),
-      ('GÓL', _format(stat.goals)),
-      ('GÓLPASSZ', _format(stat.assists)),
-      ('SÁRGA LAP', _format(stat.yellowCards)),
-      ('PIROS LAP', _format(stat.redCards)),
-    ];
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: _paper,
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: accent.withValues(alpha: .42)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      stat.team,
-                      style: const TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                    const SizedBox(height: 3),
-                    Text(
-                      '${stat.competition} · ${stat.season}',
-                      style: const TextStyle(color: _muted),
-                    ),
-                  ],
-                ),
-              ),
-              _Pill(text: stat.source.toUpperCase(), color: accent),
-            ],
-          ),
-          const SizedBox(height: 18),
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final columns = constraints.maxWidth >= 900 ? 6 : 3;
-              final width =
-                  (constraints.maxWidth - (columns - 1) * 10) / columns;
-              return Wrap(
-                spacing: 10,
-                runSpacing: 10,
-                children: metrics
-                    .map(
-                      (metric) => Container(
-                        width: width,
-                        padding: const EdgeInsets.all(13),
-                        decoration: BoxDecoration(
-                          color: accent.withValues(alpha: .16),
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              metric.$1,
-                              style: const TextStyle(
-                                color: _muted,
-                                fontSize: 9,
-                                fontWeight: FontWeight.w900,
-                              ),
-                            ),
-                            const SizedBox(height: 7),
-                            Text(
-                              metric.$2,
-                              style: const TextStyle(
-                                fontSize: 22,
-                                fontWeight: FontWeight.w900,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    )
-                    .toList(),
-              );
-            },
-          ),
-        ],
-      ),
-    );
-  }
-
-  static String _format(int? value) => value?.toString() ?? '—';
-}
-
-class _FootballDataCard extends StatefulWidget {
+class _FootballDataCard extends StatelessWidget {
   const _FootballDataCard({
+    required this.athleteName,
     required this.teamName,
     required this.accent,
     required this.config,
   });
+  final String athleteName;
   final String teamName;
   final Color accent;
   final SportsApiConfig config;
-  @override
-  State<_FootballDataCard> createState() => _FootballDataCardState();
-}
 
-class _FootballDataCardState extends State<_FootballDataCard> {
-  late Future<FootballTeamGames> _games;
-  FootballDataRepository? _repository;
+  static MatchOutcome _outcome(FootballResult result) => switch (result) {
+    FootballResult.win => MatchOutcome.win,
+    FootballResult.loss => MatchOutcome.loss,
+    FootballResult.draw => MatchOutcome.draw,
+    FootballResult.unknown => MatchOutcome.upcoming,
+  };
 
-  @override
-  void initState() {
-    super.initState();
-    _load();
-  }
-
-  void _load() {
-    _repository?.close();
-    final repository = _repository = FootballDataRepository(
-      SportsApiClient(config: widget.config),
-    );
-    _games = repository.fetchTeamGames(widget.teamName);
-  }
+  Widget _gameRow(FootballGame game) => MatchRow(
+    date: game.date,
+    opponent: 'vs. ${game.opponent}',
+    score: game.score,
+    outcome: _outcome(game.result),
+  );
 
   @override
-  void didUpdateWidget(covariant _FootballDataCard oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.teamName != widget.teamName ||
-        oldWidget.config.footballDataKey != widget.config.footballDataKey) {
-      _load();
-    }
-  }
-
-  @override
-  void dispose() {
-    _repository?.close();
-    super.dispose();
-  }
-
-  static String _date(DateTime date) =>
-      '${date.year}.${date.month.toString().padLeft(2, '0')}.${date.day.toString().padLeft(2, '0')}';
-
-  Widget _gameRow(FootballGame game) => Padding(
-    padding: const EdgeInsets.symmetric(vertical: 7),
-    child: Row(
+  Widget build(BuildContext context) => DataSourceCard<FootballTeamGames>(
+    title: 'Csapatmérkőzések',
+    provider: 'Élő adatforrás',
+    subtitle: '$teamName · valódi eredmények',
+    icon: Icons.sports_soccer,
+    accent: accent,
+    reloadKey: (teamName, config.footballDataKey),
+    refreshTooltip: 'Mérkőzések frissítése',
+    loadingLabel: 'Mérkőzések lekérése…',
+    emptyMessage: 'Nem található friss vagy közelgő csapatmérkőzés.',
+    emptyIcon: Icons.event_busy_outlined,
+    isEmpty: (data) => data.recent.isEmpty && data.upcoming.isEmpty,
+    emptyFooter: (context, data) => Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [for (final warning in data.warnings) CourtboardNote(warning)],
+    ),
+    load: ({required force}) => _withHighlights(
+      athleteName,
+      FootballDataRepository(
+        SportsApiClient(config: config),
+      ).fetchTeamGames(teamName),
+      (data) => [
+        for (final game in [...data.recent, ...data.upcoming])
+          _highlight(
+            game.date,
+            'vs. ${game.opponent}',
+            _outcome(game.result),
+            game.result == FootballResult.unknown ? null : game.score,
+          ),
+      ],
+    ),
+    builder: (context, data) => Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Expanded(
-          child: Text(
-            '${_date(game.date)} · vs. ${game.opponent}',
-            style: const TextStyle(fontWeight: FontWeight.w700),
-          ),
-        ),
-        Text(game.score, style: const TextStyle(fontWeight: FontWeight.w900)),
-        const SizedBox(width: 10),
-        Text(
-          game.result == FootballResult.win
-              ? 'GY'
-              : game.result == FootballResult.loss
-              ? 'V'
-              : game.result == FootballResult.draw
-              ? 'D'
-              : 'KÖV.',
-          style: TextStyle(
-            fontWeight: FontWeight.w900,
-            color: game.result == FootballResult.win
-                ? _olive
-                : game.result == FootballResult.loss
-                ? const Color(0xFFB44646)
-                : _muted,
-          ),
-        ),
+        if (data.recent.isNotEmpty) ...[
+          const SubsectionLabel('LEJÁTSZOTT MÉRKŐZÉSEK'),
+          ...data.recent.map(_gameRow),
+        ],
+        if (data.upcoming.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          const SubsectionLabel('KÖVETKEZŐ MÉRKŐZÉSEK'),
+          ...data.upcoming.map(_gameRow),
+        ],
+        for (final warning in data.warnings) CourtboardNote(warning),
       ],
     ),
   );
-
-  @override
-  Widget build(BuildContext context) => FutureBuilder<FootballTeamGames>(
-    future: _games,
-    builder: (context, snapshot) {
-      final data = snapshot.data;
-      return Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(18),
-        decoration: BoxDecoration(
-          color: _paper,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: widget.accent.withValues(alpha: .7)),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                const Expanded(
-                  child: Text(
-                    'CSAPATMÉRKŐZÉSEK · ÉLŐ ADATFORRÁS',
-                    style: TextStyle(fontWeight: FontWeight.w900, fontSize: 13),
-                  ),
-                ),
-                IconButton(
-                  tooltip: 'Mérkőzések frissítése',
-                  onPressed: () => setState(_load),
-                  icon: const Icon(Icons.refresh),
-                ),
-              ],
-            ),
-            Text(
-              '${widget.teamName} · valódi eredmények',
-              style: const TextStyle(color: _muted, fontSize: 11),
-            ),
-            const SizedBox(height: 12),
-            if (snapshot.connectionState != ConnectionState.done)
-              const Text('Mérkőzések lekérése…')
-            else if (snapshot.hasError)
-              CourtboardErrorState.fromError(
-                snapshot.error!,
-                onRetry: () => setState(_load),
-              )
-            else ...[
-              if (data == null ||
-                  (data.recent.isEmpty && data.upcoming.isEmpty))
-                const Text(
-                  'Nem található friss vagy közelgő csapatmérkőzés.',
-                  style: TextStyle(color: _muted),
-                )
-              else ...[
-                ...data.recent.map(_gameRow),
-                if (data.upcoming.isNotEmpty) ...[
-                  const SizedBox(height: 12),
-                  const Text(
-                    'Következő mérkőzések',
-                    style: TextStyle(fontWeight: FontWeight.w900, fontSize: 13),
-                  ),
-                  const SizedBox(height: 4),
-                  ...data.upcoming.map(_gameRow),
-                ],
-              ],
-              if (data != null)
-                for (final warning in data.warnings) CourtboardNote(warning),
-            ],
-          ],
-        ),
-      );
-    },
-  );
 }
 
-class _FootballDataPlayerCard extends StatefulWidget {
+class _FootballDataPlayerCard extends StatelessWidget {
   const _FootballDataPlayerCard({
     required this.athleteName,
     required this.teamName,
@@ -438,254 +160,92 @@ class _FootballDataPlayerCard extends StatefulWidget {
   final SportsApiConfig config;
 
   @override
-  State<_FootballDataPlayerCard> createState() =>
-      _FootballDataPlayerCardState();
-}
-
-class _FootballDataPlayerCardState extends State<_FootballDataPlayerCard> {
-  late Future<FootballDataPlayerProfile?> _profile;
-  SportsApiClient? _client;
-
-  @override
-  void initState() {
-    super.initState();
-    _load();
-  }
-
-  void _load() {
-    _client?.close();
-    final client = _client = SportsApiClient(config: widget.config);
-    _profile = FootballDataPlayerRepository(
-      client,
-    ).findPlayer(widget.athleteName, widget.teamName);
-  }
-
-  @override
-  void dispose() {
-    _client?.close();
-    super.dispose();
-  }
-
-  @override
-  void didUpdateWidget(covariant _FootballDataPlayerCard oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.athleteName != widget.athleteName ||
-        oldWidget.teamName != widget.teamName ||
-        oldWidget.config.footballDataKey != widget.config.footballDataKey) {
-      _load();
-    }
-  }
-
-  @override
   Widget build(
     BuildContext context,
-  ) => FutureBuilder<FootballDataPlayerProfile?>(
-    future: _profile,
-    builder: (context, snapshot) => Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: _paper,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: widget.accent.withValues(alpha: .45)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Text(
-                'JÁTÉKOSPROFIL · FOOTBALL-DATA.ORG FREE',
-                style: TextStyle(
-                  color: widget.accent,
-                  fontWeight: FontWeight.w900,
-                  fontSize: 13,
-                ),
-              ),
-              const Spacer(),
-              IconButton(
-                tooltip: 'Játékosadat frissítése',
-                onPressed: () => setState(_load),
-                icon: const Icon(Icons.refresh),
-              ),
-            ],
-          ),
-          if (snapshot.connectionState != ConnectionState.done)
-            const Padding(
-              padding: EdgeInsets.all(12),
-              child: CircularProgressIndicator(),
-            )
-          else if (snapshot.hasError)
-            CourtboardErrorState.fromError(
-              snapshot.error!,
-              onRetry: () => setState(_load),
-            )
-          else if (snapshot.data == null)
-            const Text(
-              'A játékos nem található az ingyenes versenysorozatok aktuális kereteiben.',
-              style: TextStyle(color: _muted),
-            )
-          else
-            _FootballDataPlayerFacts(
-              profile: snapshot.data!,
-              accent: widget.accent,
-            ),
-        ],
-      ),
-    ),
+  ) => DataSourceCard<FootballDataPlayerProfile?>(
+    title: 'Játékosprofil',
+    provider: 'football-data.org',
+    icon: Icons.badge_outlined,
+    accent: accent,
+    reloadKey: (athleteName, teamName, config.footballDataKey),
+    refreshTooltip: 'Játékosadat frissítése',
+    loadingLabel: 'Játékosadat lekérése…',
+    emptyMessage:
+        'A játékos nem található az ingyenes versenysorozatok aktuális kereteiben.',
+    emptyIcon: Icons.person_search_outlined,
+    load: ({required force}) => FootballDataPlayerRepository(
+      SportsApiClient(config: config),
+    ).findPlayer(athleteName, teamName),
+    builder: (context, profile) => _FootballDataPlayerFacts(profile: profile!),
   );
 }
 
 class _FootballDataPlayerFacts extends StatelessWidget {
-  const _FootballDataPlayerFacts({required this.profile, required this.accent});
+  const _FootballDataPlayerFacts({required this.profile});
 
   final FootballDataPlayerProfile profile;
-  final Color accent;
 
   @override
   Widget build(BuildContext context) {
+    final birth = profile.dateOfBirth;
     final facts = [
       ('CSAPAT', profile.team),
       ('POSZT', profile.position ?? '—'),
       ('NEMZETISÉG', profile.nationality ?? '—'),
-      ('SZÜLETÉSI DÁTUM', profile.dateOfBirth ?? '—'),
+      ('SZÜLETÉSI DÁTUM', birth == null ? '—' : formatDateText(birth)),
       ('MEZSZÁM', profile.shirtNumber?.toString() ?? '—'),
       ('PLAYER ID', profile.id.toString()),
     ];
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          profile.name,
-          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
-        ),
+        Text(profile.name, style: context.text.titleLarge),
         const SizedBox(height: 12),
-        Wrap(
-          spacing: 10,
-          runSpacing: 10,
-          children: facts
-              .map(
-                (fact) => Container(
-                  width: 180,
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: accent.withValues(alpha: .12),
-                    borderRadius: BorderRadius.circular(13),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        fact.$1,
-                        style: const TextStyle(
-                          color: _muted,
-                          fontSize: 9,
-                          fontWeight: FontWeight.w900,
-                        ),
-                      ),
-                      const SizedBox(height: 5),
-                      Text(
-                        fact.$2,
-                        style: const TextStyle(fontWeight: FontWeight.w800),
-                      ),
-                    ],
-                  ),
-                ),
-              )
-              .toList(),
+        MetricGrid(
+          minTileWidth: 170,
+          maxColumns: 6,
+          children: [
+            for (final (label, value) in facts)
+              MetricTile(label: label, value: value),
+          ],
         ),
       ],
     );
   }
 }
 
-class _LigaFCard extends StatefulWidget {
-  const _LigaFCard({required this.accent});
+class _LigaFCard extends StatelessWidget {
+  const _LigaFCard({required this.athleteName, required this.accent});
+  final String athleteName;
   final Color accent;
 
   @override
-  State<_LigaFCard> createState() => _LigaFCardState();
-}
-
-class _LigaFCardState extends State<_LigaFCard> {
-  late Future<List<LigaFGame>> _games;
-  LigaFRepository? _repository;
-
-  @override
-  void initState() {
-    super.initState();
-    _load();
-  }
-
-  void _load() {
-    _repository?.close();
-    final repository = _repository = LigaFRepository();
-    _games = repository.recentBarcelonaGames();
-  }
-
-  @override
-  void dispose() {
-    _repository?.close();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) => FutureBuilder<List<LigaFGame>>(
-    future: _games,
-    builder: (context, snapshot) => Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: _paper,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: widget.accent.withValues(alpha: .7)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(Icons.sports_soccer, color: widget.accent),
-              const SizedBox(width: 9),
-              const Expanded(
-                child: Text(
-                  'FC BARCELONA FEMENÍ · LIGA F',
-                  style: TextStyle(
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: .5,
-                  ),
-                ),
-              ),
-              const _Pill(text: 'ESPN · esp.w.1', color: _moss),
-              IconButton(
-                tooltip: 'Újratöltés',
-                onPressed: () => setState(_load),
-                icon: const Icon(Icons.refresh),
-              ),
-            ],
+  Widget build(BuildContext context) => DataSourceCard<List<LigaFGame>>(
+    title: 'FC Barcelona Femení · Liga F',
+    provider: 'ESPN · esp.w.1',
+    subtitle:
+        'Valós női Barcelona csapateredmények; nem a férfi FC Barcelona feedje.',
+    icon: Icons.sports_soccer,
+    accent: accent,
+    refreshTooltip: 'Újratöltés',
+    loadingLabel: 'Liga F eredmények betöltése…',
+    emptyMessage: 'Nincs befejezett Barcelona-meccs ebben az évben.',
+    emptyIcon: Icons.event_busy_outlined,
+    isEmpty: (games) => games.isEmpty,
+    load: ({required force}) => _withHighlights(
+      athleteName,
+      LigaFRepository().recentBarcelonaGames(),
+      (games) => [
+        for (final game in games)
+          _highlight(
+            game.date,
+            game.opponent,
+            MatchOutcome.parse(game.result),
+            game.score,
           ),
-          const SizedBox(height: 5),
-          const Text(
-            'Valós női Barcelona csapateredmények; nem a férfi FC Barcelona feedje.',
-            style: TextStyle(fontSize: 11, color: _muted),
-          ),
-          const SizedBox(height: 14),
-          if (snapshot.connectionState != ConnectionState.done)
-            const CircularProgressIndicator()
-          else if (snapshot.hasError)
-            CourtboardErrorState.fromError(
-              snapshot.error!,
-              onRetry: () => setState(_load),
-            )
-          else if (snapshot.data == null || snapshot.data!.isEmpty)
-            const Text(
-              'Nincs befejezett Barcelona-meccs ebben az évben.',
-              style: TextStyle(color: _muted),
-            )
-          else
-            LigaFGameList(games: snapshot.data!, accent: widget.accent),
-        ],
-      ),
+      ],
     ),
+    builder: (context, games) => LigaFGameList(games: games, accent: accent),
   );
 }
 
@@ -696,20 +256,16 @@ class LigaFGameList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Column(
-    children: games
-        .map(
-          (game) => _MatchRow(
-            accent: accent,
-            match: MatchLine(
-              '${game.date.year}.${game.date.month.toString().padLeft(2, '0')}.${game.date.day.toString().padLeft(2, '0')}',
-              game.opponent,
-              game.result,
-              game.score,
-              game.home ? 'HAZAI · LIGA F' : 'IDEGEN · LIGA F',
-              '—',
-            ),
-          ),
-        )
-        .toList(),
+    children: [
+      for (final game in games)
+        MatchRow(
+          date: game.date,
+          venue: game.home ? 'Hazai' : 'Idegen',
+          opponent: game.opponent,
+          subtitle: 'Liga F',
+          score: game.score,
+          outcome: MatchOutcome.parse(game.result),
+        ),
+    ],
   );
 }

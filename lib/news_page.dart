@@ -3,12 +3,12 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import 'common_ui.dart';
+import 'components.dart';
 import 'data/athlete_names.dart' show normalizeAthleteName;
 import 'data/news.dart';
-
-const _newsCanvas = Color(0xFFECE9DF);
-const _newsPaper = Color(0xFFF9F8F3);
-const _newsMuted = Color(0xFF73766C);
+import 'format.dart';
+import 'images.dart';
+import 'theme/courtboard_theme.dart';
 
 class NewsAthleteRef {
   const NewsAthleteRef({required this.name, required this.sport});
@@ -46,6 +46,7 @@ class NewsPage extends StatefulWidget {
 class _NewsPageState extends State<NewsPage> {
   late final NewsRepository _repository;
   final _search = TextEditingController();
+  final _searchFocus = FocusNode(debugLabel: 'news-search');
   Timer? _debounce;
   static const _pageSize = 60;
 
@@ -202,7 +203,7 @@ class _NewsPageState extends State<NewsPage> {
                   value: state.enabled,
                   title: Text(
                     '${source.name} · ${source.sport}',
-                    style: const TextStyle(fontWeight: FontWeight.w800),
+                    style: context.text.titleSmall,
                   ),
                   subtitle: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -213,7 +214,7 @@ class _NewsPageState extends State<NewsPage> {
                           'Utolsó hiba: ${state.lastError}',
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(color: Color(0xFFB44646)),
+                          style: TextStyle(color: context.cb.error),
                         ),
                     ],
                   ),
@@ -258,6 +259,7 @@ class _NewsPageState extends State<NewsPage> {
   void dispose() {
     _debounce?.cancel();
     _search.dispose();
+    _searchFocus.dispose();
     if (widget.repository == null) unawaited(_repository.close());
     super.dispose();
   }
@@ -279,299 +281,369 @@ class _NewsPageState extends State<NewsPage> {
           );
     final activeAthlete = athleteNames.contains(_athlete) ? _athlete : 'Mind';
 
-    return Container(
-      color: _newsCanvas,
-      padding: const EdgeInsets.fromLTRB(34, 28, 34, 34),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Hírek',
-                      style: TextStyle(
-                        fontSize: 34,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: -1.5,
-                      ),
-                    ),
-                    SizedBox(height: 5),
-                    Text(
-                      'Tartós hírarchívum: a már letöltött hírek később és hálózat nélkül is kereshetők.',
-                      style: TextStyle(color: _newsMuted),
-                    ),
-                  ],
-                ),
-              ),
-              OutlinedButton.icon(
-                key: const Key('news-source-settings'),
-                onPressed: _openSources,
-                icon: const Icon(Icons.tune_rounded),
-                label: const Text('Források'),
-              ),
-              const SizedBox(width: 10),
-              FilledButton.icon(
-                key: const Key('news-refresh-button'),
-                onPressed: _refreshing ? null : () => _refresh(force: true),
-                icon: _refreshing
-                    ? const SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.sync_rounded),
-                label: Text(_refreshing ? 'Frissítés…' : 'Frissítés'),
-              ),
-            ],
-          ),
-          const SizedBox(height: 18),
-          Wrap(
-            spacing: 10,
-            runSpacing: 10,
-            children: [
-              _NewsStat(value: '$_storedCount', label: 'tartósan tárolt hír'),
-              _NewsStat(
-                value: '${enabledSources.length}',
-                label: 'aktív hírforrás',
-              ),
-              _NewsStat(
-                value: '${_articles.length}${_hasMore ? '+' : ''}',
-                label: 'jelenlegi találat',
-              ),
-            ],
-          ),
-          if (_status.isNotEmpty) ...[
-            const SizedBox(height: 12),
-            Wrap(
-              crossAxisAlignment: WrapCrossAlignment.center,
-              spacing: 8,
-              children: [
-                Text(
-                  _status,
-                  key: const Key('news-refresh-status'),
-                  style: const TextStyle(color: _newsMuted),
-                ),
-                if (_refreshFailed)
-                  TextButton.icon(
-                    key: const Key('news-refresh-retry'),
-                    onPressed: _refreshing ? null : () => _refresh(force: true),
-                    icon: const Icon(Icons.refresh, size: 18),
-                    label: const Text('Újrapróbálás'),
-                  ),
-              ],
-            ),
-          ],
-          const SizedBox(height: 18),
-          Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: _newsPaper,
-              borderRadius: BorderRadius.circular(18),
-            ),
-            child: Column(
-              children: [
-                TextField(
-                  key: const Key('news-search'),
-                  controller: _search,
-                  onChanged: (_) => _scheduleReload(),
-                  decoration: InputDecoration(
-                    hintText: 'Keresés a címekben és összefoglalókban…',
-                    prefixIcon: const Icon(Icons.search_rounded),
-                    suffixIcon: _search.text.isEmpty
-                        ? null
-                        : IconButton(
-                            tooltip: 'Keresés törlése',
-                            onPressed: () {
-                              _search.clear();
-                              _scheduleReload();
-                              setState(() {});
-                            },
-                            icon: const Icon(Icons.close_rounded),
-                          ),
-                    border: InputBorder.none,
-                  ),
-                ),
-                const Divider(),
-                Row(
-                  children: [
-                    Expanded(
-                      child: DropdownButtonFormField<String>(
-                        key: const Key('news-sport-filter'),
-                        initialValue: _sport,
-                        decoration: const InputDecoration(labelText: 'Sportág'),
-                        items: ['Mind', ...sports]
-                            .map(
-                              (value) => DropdownMenuItem(
-                                value: value,
-                                child: Text(value),
-                              ),
-                            )
-                            .toList(),
-                        onChanged: (value) {
-                          setState(() {
-                            _sport = value ?? 'Mind';
-                            _athlete = 'Mind';
-                          });
-                          unawaited(_reload());
-                        },
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: DropdownButtonFormField<String>(
-                        key: const Key('news-athlete-filter'),
-                        initialValue: activeAthlete,
-                        decoration: const InputDecoration(
-                          labelText: 'Sportoló',
-                        ),
-                        items: ['Mind', ...athleteNames]
-                            .map(
-                              (value) => DropdownMenuItem(
-                                value: value,
-                                child: Text(
-                                  value,
-                                  overflow: TextOverflow.ellipsis,
+    final cb = context.cb;
+    final horizontal = MediaQuery.sizeOf(context).width < 800 ? 20.0 : 34.0;
+    return CommandListener(
+      onRefresh: () {
+        if (!_refreshing) unawaited(_refresh(force: true));
+      },
+      onFocusSearch: () {
+        _searchFocus.requestFocus();
+        _search.selection = TextSelection(
+          baseOffset: 0,
+          extentOffset: _search.text.length,
+        );
+      },
+      child: ColoredBox(
+        color: cb.canvas,
+        child: LayoutBuilder(
+          builder: (context, viewport) {
+            // A fejléc és a szűrők a hírekkel együtt görgetnek, így alacsony
+            // ablakban (vagy nagy szövegméretnél) sem csordul túl semmi.
+            final contentWidth = viewport.maxWidth - 2 * horizontal;
+            final columns = contentWidth >= 1120
+                ? 3
+                : contentWidth >= 720
+                ? 2
+                : 1;
+            const gap = 16.0;
+            final rows = (_articles.length + columns - 1) ~/ columns;
+            final showList =
+                !_loading &&
+                !(_loadError != null && _articles.isEmpty) &&
+                _articles.isNotEmpty;
+            return CustomScrollView(
+              key: const PageStorageKey('news-list'),
+              slivers: [
+                SliverPadding(
+                  padding: EdgeInsets.fromLTRB(horizontal, 28, horizontal, 18),
+                  sliver: SliverToBoxAdapter(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        PageHeader(
+                          title: 'Hírek',
+                          subtitle:
+                              'Tartós hírarchívum: a már letöltött hírek később és hálózat nélkül is kereshetők.',
+                          actions: [
+                            OutlinedButton.icon(
+                              key: const Key('news-source-settings'),
+                              onPressed: _openSources,
+                              icon: const Icon(Icons.tune_rounded),
+                              label: const Text('Források'),
+                            ),
+                            Tooltip(
+                              message: 'Hírek frissítése (Ctrl+R)',
+                              child: FilledButton.icon(
+                                key: const Key('news-refresh-button'),
+                                onPressed: _refreshing
+                                    ? null
+                                    : () => _refresh(force: true),
+                                icon: _refreshing
+                                    ? const SizedBox(
+                                        width: 16,
+                                        height: 16,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                        ),
+                                      )
+                                    : const Icon(Icons.sync_rounded),
+                                label: Text(
+                                  _refreshing ? 'Frissítés…' : 'Frissítés',
                                 ),
                               ),
-                            )
-                            .toList(),
-                        onChanged: (value) {
-                          setState(() => _athlete = value ?? 'Mind');
-                          unawaited(_reload());
-                        },
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: DropdownButtonFormField<String>(
-                        key: const Key('news-source-filter'),
-                        initialValue: _source,
-                        decoration: const InputDecoration(labelText: 'Forrás'),
-                        items: [
-                          const DropdownMenuItem(
-                            value: 'Mind',
-                            child: Text('Mind'),
-                          ),
-                          ..._sources.map(
-                            (state) => DropdownMenuItem(
-                              value: state.source.id,
-                              child: Text(
-                                '${state.source.name} · ${state.source.sport}',
-                                overflow: TextOverflow.ellipsis,
-                              ),
                             ),
+                          ],
+                        ),
+                        const SizedBox(height: 18),
+                        Wrap(
+                          spacing: 10,
+                          runSpacing: 10,
+                          children: [
+                            _NewsStat(
+                              value: formatInt(_storedCount),
+                              label: 'tartósan tárolt hír',
+                            ),
+                            _NewsStat(
+                              value: formatInt(enabledSources.length),
+                              label: 'aktív hírforrás',
+                            ),
+                            _NewsStat(
+                              value:
+                                  '${formatInt(_articles.length)}${_hasMore ? '+' : ''}',
+                              label: 'jelenlegi találat',
+                            ),
+                          ],
+                        ),
+                        if (_status.isNotEmpty) ...[
+                          const SizedBox(height: 12),
+                          Wrap(
+                            crossAxisAlignment: WrapCrossAlignment.center,
+                            spacing: 8,
+                            children: [
+                              Icon(
+                                _refreshFailed
+                                    ? Icons.cloud_off_outlined
+                                    : Icons.info_outline_rounded,
+                                size: 17,
+                                color: _refreshFailed
+                                    ? cb.warning
+                                    : cb.textMuted,
+                              ),
+                              Text(
+                                _status,
+                                key: const Key('news-refresh-status'),
+                                style: context.text.bodyMedium?.copyWith(
+                                  color: cb.textMuted,
+                                ),
+                              ),
+                              if (_refreshFailed)
+                                TextButton.icon(
+                                  key: const Key('news-refresh-retry'),
+                                  onPressed: _refreshing
+                                      ? null
+                                      : () => _refresh(force: true),
+                                  icon: const Icon(Icons.refresh, size: 18),
+                                  label: const Text('Újrapróbálás'),
+                                ),
+                            ],
                           ),
                         ],
-                        onChanged: (value) {
-                          setState(() => _source = value ?? 'Mind');
-                          unawaited(_reload());
-                        },
-                      ),
+                        const SizedBox(height: 18),
+                        SurfaceCard(
+                          padding: const EdgeInsets.all(14),
+                          child: Column(
+                            children: [
+                              TextField(
+                                key: const Key('news-search'),
+                                controller: _search,
+                                focusNode: _searchFocus,
+                                onChanged: (_) => _scheduleReload(),
+                                decoration: InputDecoration(
+                                  hintText:
+                                      'Keresés a címekben és összefoglalókban… (Ctrl+F)',
+                                  prefixIcon: const Icon(Icons.search_rounded),
+                                  suffixIcon: _search.text.isEmpty
+                                      ? null
+                                      : IconButton(
+                                          tooltip: 'Keresés törlése',
+                                          onPressed: () {
+                                            _search.clear();
+                                            _scheduleReload();
+                                            setState(() {});
+                                          },
+                                          icon: const Icon(Icons.close_rounded),
+                                        ),
+                                  filled: false,
+                                  border: InputBorder.none,
+                                  enabledBorder: InputBorder.none,
+                                  focusedBorder: InputBorder.none,
+                                ),
+                              ),
+                              const Divider(height: 16),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: DropdownButtonFormField<String>(
+                                      isExpanded: true,
+                                      style: context.text.bodyLarge,
+                                      key: const Key('news-sport-filter'),
+                                      initialValue: _sport,
+                                      decoration: const InputDecoration(
+                                        labelText: 'Sportág',
+                                      ),
+                                      items: ['Mind', ...sports]
+                                          .map(
+                                            (value) => DropdownMenuItem(
+                                              value: value,
+                                              child: Text(value),
+                                            ),
+                                          )
+                                          .toList(),
+                                      onChanged: (value) {
+                                        setState(() {
+                                          _sport = value ?? 'Mind';
+                                          _athlete = 'Mind';
+                                        });
+                                        unawaited(_reload());
+                                      },
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: DropdownButtonFormField<String>(
+                                      isExpanded: true,
+                                      style: context.text.bodyLarge,
+                                      key: const Key('news-athlete-filter'),
+                                      initialValue: activeAthlete,
+                                      decoration: const InputDecoration(
+                                        labelText: 'Sportoló',
+                                      ),
+                                      items: ['Mind', ...athleteNames]
+                                          .map(
+                                            (value) => DropdownMenuItem(
+                                              value: value,
+                                              child: Text(
+                                                value,
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                            ),
+                                          )
+                                          .toList(),
+                                      onChanged: (value) {
+                                        setState(
+                                          () => _athlete = value ?? 'Mind',
+                                        );
+                                        unawaited(_reload());
+                                      },
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: DropdownButtonFormField<String>(
+                                      isExpanded: true,
+                                      style: context.text.bodyLarge,
+                                      key: const Key('news-source-filter'),
+                                      initialValue: _source,
+                                      decoration: const InputDecoration(
+                                        labelText: 'Forrás',
+                                      ),
+                                      items: [
+                                        const DropdownMenuItem(
+                                          value: 'Mind',
+                                          child: Text('Mind'),
+                                        ),
+                                        ..._sources.map(
+                                          (state) => DropdownMenuItem(
+                                            value: state.source.id,
+                                            child: Text(
+                                              '${state.source.name} · ${state.source.sport}',
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                      onChanged: (value) {
+                                        setState(
+                                          () => _source = value ?? 'Mind',
+                                        );
+                                        unawaited(_reload());
+                                      },
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  IconButton(
+                                    tooltip: 'Szűrők törlése',
+                                    onPressed: _clearFilters,
+                                    icon: const Icon(
+                                      Icons.filter_alt_off_outlined,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(width: 8),
-                    IconButton(
-                      tooltip: 'Szűrők törlése',
-                      onPressed: _clearFilters,
-                      icon: const Icon(Icons.filter_alt_off_outlined),
-                    ),
-                  ],
+                  ),
                 ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 18),
-          Expanded(
-            child: _loading
-                ? const Center(child: CircularProgressIndicator())
-                : _loadError != null && _articles.isEmpty
-                ? Center(
-                    key: const Key('news-load-error'),
-                    child: CourtboardErrorState(
-                      message: _loadError!,
-                      onRetry: () {
-                        setState(() => _loading = true);
-                        unawaited(_reload());
+                if (showList)
+                  SliverPadding(
+                    padding: EdgeInsets.fromLTRB(horizontal, 0, horizontal, 34),
+                    // Soronként, lustán épített lista: csak a látható
+                    // kártyák készülnek el, a teljes archívum soha.
+                    sliver: SliverList.builder(
+                      itemCount: rows + (_hasMore ? 1 : 0),
+                      itemBuilder: (context, row) {
+                        if (row == rows) {
+                          return Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 8),
+                            child: Center(
+                              child: OutlinedButton.icon(
+                                key: const Key('news-load-more'),
+                                onPressed: _loadingMore ? null : _loadMore,
+                                icon: _loadingMore
+                                    ? const SizedBox(
+                                        width: 16,
+                                        height: 16,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                        ),
+                                      )
+                                    : const Icon(Icons.expand_more_rounded),
+                                label: const Text('Továbbiak betöltése'),
+                              ),
+                            ),
+                          );
+                        }
+                        final start = row * columns;
+                        return Padding(
+                          padding: EdgeInsets.only(
+                            bottom: row == rows - 1 ? 0 : gap,
+                          ),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              for (
+                                var column = 0;
+                                column < columns;
+                                column++
+                              ) ...[
+                                if (column > 0) const SizedBox(width: gap),
+                                Expanded(
+                                  child: start + column < _articles.length
+                                      ? NewsArticleCard(
+                                          article: _articles[start + column],
+                                          relatedAthletes:
+                                              _related[_articles[start + column]
+                                                  .dedupeKey] ??
+                                              const [],
+                                        )
+                                      : const SizedBox.shrink(),
+                                ),
+                              ],
+                            ],
+                          ),
+                        );
                       },
                     ),
                   )
-                : _articles.isEmpty
-                ? const _EmptyNews()
-                : LayoutBuilder(
-                    builder: (context, constraints) {
-                      final columns = constraints.maxWidth >= 1120
-                          ? 3
-                          : constraints.maxWidth >= 720
-                          ? 2
-                          : 1;
-                      const gap = 16.0;
-                      final rows = (_articles.length + columns - 1) ~/ columns;
-                      // Soronként, lustán épített lista: csak a látható
-                      // kártyák készülnek el, a teljes archívum soha.
-                      return ListView.builder(
-                        key: const PageStorageKey('news-list'),
-                        itemCount: rows + (_hasMore ? 1 : 0),
-                        itemBuilder: (context, row) {
-                          if (row == rows) {
-                            return Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 8),
-                              child: Center(
-                                child: OutlinedButton.icon(
-                                  key: const Key('news-load-more'),
-                                  onPressed: _loadingMore ? null : _loadMore,
-                                  icon: _loadingMore
-                                      ? const SizedBox(
-                                          width: 16,
-                                          height: 16,
-                                          child: CircularProgressIndicator(
-                                            strokeWidth: 2,
-                                          ),
-                                        )
-                                      : const Icon(Icons.expand_more_rounded),
-                                  label: const Text('Továbbiak betöltése'),
-                                ),
+                else
+                  SliverFillRemaining(
+                    hasScrollBody: false,
+                    child: Padding(
+                      padding: EdgeInsets.fromLTRB(
+                        horizontal,
+                        0,
+                        horizontal,
+                        34,
+                      ),
+                      child: _loading
+                          ? const Align(
+                              alignment: Alignment.topCenter,
+                              child: CardSkeleton(
+                                label: 'Mentett hírek betöltése…',
                               ),
-                            );
-                          }
-                          final start = row * columns;
-                          return Padding(
-                            padding: EdgeInsets.only(
-                              bottom: row == rows - 1 ? 0 : gap,
-                            ),
-                            child: Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                for (
-                                  var column = 0;
-                                  column < columns;
-                                  column++
-                                ) ...[
-                                  if (column > 0) const SizedBox(width: gap),
-                                  Expanded(
-                                    child: start + column < _articles.length
-                                        ? NewsArticleCard(
-                                            article: _articles[start + column],
-                                            relatedAthletes:
-                                                _related[_articles[start +
-                                                        column]
-                                                    .dedupeKey] ??
-                                                const [],
-                                          )
-                                        : const SizedBox.shrink(),
-                                  ),
-                                ],
-                              ],
-                            ),
-                          );
-                        },
-                      );
-                    },
+                            )
+                          : _loadError != null && _articles.isEmpty
+                          ? Center(
+                              key: const Key('news-load-error'),
+                              child: CourtboardErrorState(
+                                message: _loadError!,
+                                onRetry: () {
+                                  setState(() => _loading = true);
+                                  unawaited(_reload());
+                                },
+                              ),
+                            )
+                          : const _EmptyNews(),
+                    ),
                   ),
-          ),
-        ],
+              ],
+            );
+          },
+        ),
       ),
     );
   }
@@ -586,15 +658,19 @@ class _NewsStat extends StatelessWidget {
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
     decoration: BoxDecoration(
-      color: _newsPaper,
+      color: context.cb.surface,
       borderRadius: BorderRadius.circular(14),
+      border: Border.all(color: context.cb.border),
     ),
     child: Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Text(value, style: const TextStyle(fontWeight: FontWeight.w900)),
+        Text(value, style: context.text.titleMedium),
         const SizedBox(width: 6),
-        Text(label, style: const TextStyle(color: _newsMuted)),
+        Text(
+          label,
+          style: context.text.bodyMedium?.copyWith(color: context.cb.textMuted),
+        ),
       ],
     ),
   );
@@ -613,133 +689,139 @@ class NewsArticleCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cb = context.cb;
     final related = relatedAthletes;
-    return Material(
-      color: _newsPaper,
+    final placeholder = ColoredBox(
+      color: cb.surfaceMuted,
+      child: Center(
+        child: Icon(Icons.newspaper_rounded, size: 40, color: cb.textMuted),
+      ),
+    );
+    return FocusRing(
       borderRadius: BorderRadius.circular(20),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        key: ValueKey('news-${article.dedupeKey}'),
-        onTap: () => openExternalUrl(context, article.url),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (article.imageUrl.isNotEmpty)
-              AspectRatio(
-                aspectRatio: 16 / 8,
-                child: Image.network(
-                  article.imageUrl,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) => Container(
-                    color: const Color(0xFFDDE1D0),
-                    child: const Icon(
-                      Icons.newspaper_rounded,
-                      size: 44,
-                      color: _newsMuted,
-                    ),
+      child: Material(
+        color: cb.surface,
+        clipBehavior: Clip.antiAlias,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+          side: BorderSide(color: cb.border),
+        ),
+        child: InkWell(
+          key: ValueKey('news-${article.dedupeKey}'),
+          onTap: () => openExternalUrl(context, article.url),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (article.imageUrl.isNotEmpty)
+                AspectRatio(
+                  aspectRatio: 16 / 8,
+                  child: CourtboardImage(
+                    url: article.imageUrl,
+                    placeholder: placeholder,
                   ),
-                ),
-              )
-            else
-              Container(
-                height: 82,
-                color: const Color(0xFFDDE1D0),
-                alignment: Alignment.centerLeft,
-                padding: const EdgeInsets.symmetric(horizontal: 18),
-                child: const Icon(
-                  Icons.newspaper_rounded,
-                  size: 38,
-                  color: _newsMuted,
-                ),
-              ),
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Wrap(
-                    spacing: 7,
-                    runSpacing: 7,
+                )
+              else
+                Container(
+                  height: 64,
+                  color: cb.surfaceMuted,
+                  alignment: Alignment.centerLeft,
+                  padding: const EdgeInsets.symmetric(horizontal: 18),
+                  child: Row(
                     children: [
-                      _NewsChip(article.sourceName),
-                      _NewsChip(article.sport),
-                      if (related.isNotEmpty) _NewsChip(related.join(' · ')),
-                    ],
-                  ),
-                  const SizedBox(height: 11),
-                  Text(
-                    article.title,
-                    maxLines: 3,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 17,
-                      height: 1.2,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                  if (article.summary.isNotEmpty) ...[
-                    const SizedBox(height: 8),
-                    Text(
-                      article.summary,
-                      maxLines: 4,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: _newsMuted,
-                        fontSize: 12,
-                        height: 1.35,
+                      Icon(
+                        Icons.newspaper_rounded,
+                        size: 24,
+                        color: cb.textMuted,
                       ),
-                    ),
-                  ],
-                  const SizedBox(height: 13),
-                  Row(
-                    children: [
+                      const SizedBox(width: 10),
                       Expanded(
                         child: Text(
-                          _newsDate(article.publishedAt),
-                          style: const TextStyle(
-                            color: _newsMuted,
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
-                          ),
+                          article.sourceName.toUpperCase(),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: context.text.labelMedium,
                         ),
                       ),
-                      const Text(
-                        'Eredeti cikk',
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w900,
-                        ),
-                      ),
-                      const SizedBox(width: 4),
-                      const Icon(Icons.open_in_new_rounded, size: 15),
                     ],
                   ),
-                ],
+                ),
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: [
+                        StatusPill(article.sourceName),
+                        StatusPill(article.sport, tone: StatusTone.accent),
+                        if (related.isNotEmpty)
+                          StatusPill(
+                            related.join(' · '),
+                            tone: StatusTone.accent,
+                            icon: Icons.person_outline,
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      article.title,
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
+                      style: context.text.titleMedium?.copyWith(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w900,
+                        height: 1.25,
+                      ),
+                    ),
+                    if (article.summary.isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      Text(
+                        article.summary,
+                        maxLines: 4,
+                        overflow: TextOverflow.ellipsis,
+                        style: context.text.bodyMedium?.copyWith(
+                          color: cb.textMuted,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 14),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            formatDateTime(article.publishedAt),
+                            style: context.text.bodySmall?.copyWith(
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                        Text(
+                          'Eredeti cikk',
+                          style: context.text.labelLarge?.copyWith(
+                            color: cb.accent,
+                            fontSize: 13,
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        Icon(
+                          Icons.open_in_new_rounded,
+                          size: 15,
+                          color: cb.accent,
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
   }
-}
-
-class _NewsChip extends StatelessWidget {
-  const _NewsChip(this.text);
-  final String text;
-
-  @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-    decoration: BoxDecoration(
-      color: Theme.of(context).colorScheme.secondaryContainer,
-      borderRadius: BorderRadius.circular(20),
-    ),
-    child: Text(
-      text,
-      style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w900),
-    ),
-  );
 }
 
 class _EmptyNews extends StatelessWidget {
@@ -747,25 +829,10 @@ class _EmptyNews extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => const Center(
-    child: Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(Icons.newspaper_outlined, size: 46, color: _newsMuted),
-        SizedBox(height: 12),
-        Text(
-          'Még nincs a szűrésnek megfelelő mentett hír.',
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
-        ),
-        SizedBox(height: 6),
-        Text(
-          'Frissítsd az aktív feedeket, vagy módosítsd a szűrőket.',
-          style: TextStyle(color: _newsMuted),
-        ),
-      ],
+    child: EmptyState(
+      icon: Icons.newspaper_outlined,
+      title: 'Még nincs a szűrésnek megfelelő mentett hír.',
+      message: 'Frissítsd az aktív feedeket, vagy módosítsd a szűrőket.',
     ),
   );
 }
-
-String _newsDate(DateTime date) =>
-    '${date.year}.${date.month.toString().padLeft(2, '0')}.${date.day.toString().padLeft(2, '0')} '
-    '${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';

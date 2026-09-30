@@ -31,40 +31,118 @@ class _ProfilePage extends StatelessWidget {
   final void Function(Athlete, String) onSaveNote;
   final ValueChanged<Athlete> onToggleAlert;
 
+  /// Az élő adatkártyák sportág szerint; üres lista, ha nincs élő forrás.
+  List<Widget> _liveCards(bool ligaFProfile) => [
+    if (athlete.sport == 'NBA' || athlete.sport == 'NFL')
+      _ApiSportsCard(
+        sport: athlete.sport,
+        athleteName: athlete.name,
+        teamName: athlete.team,
+        accent: athlete.accent,
+        config: apiConfig,
+      ),
+    if (athlete.sport == 'NBA')
+      _NbaSeasonSummaryCard(athleteName: athlete.name, accent: athlete.accent),
+    if (athlete.sport == 'Foci' && !ligaFProfile) ...[
+      _FootballDataCard(
+        athleteName: athlete.name,
+        teamName: athlete.team,
+        accent: athlete.accent,
+        config: apiConfig,
+      ),
+      _FootballDataPlayerCard(
+        athleteName: athlete.name,
+        teamName: athlete.team,
+        accent: athlete.accent,
+        config: apiConfig,
+      ),
+    ],
+    if (ligaFProfile)
+      _LigaFCard(athleteName: athlete.name, accent: athlete.accent),
+    if (athlete.sport == 'Foci')
+      _FootballSeasonSummaryCard(
+        athleteName: athlete.name,
+        teamName: athlete.team,
+        accent: athlete.accent,
+        config: apiConfig,
+      ),
+    if (athlete.sport == 'WNBA') ...[
+      _WnbaWehoopCard(athleteName: athlete.name, accent: athlete.accent),
+      _WnbaBasketballReferenceCard(
+        athleteName: athlete.name,
+        accent: athlete.accent,
+      ),
+      _WnbaRapidApiCard(
+        athleteName: athlete.name,
+        accent: athlete.accent,
+        config: apiConfig,
+      ),
+    ],
+    if (athlete.sport == 'Darts')
+      _DartsDataCard(
+        athleteName: athlete.name,
+        accent: athlete.accent,
+        config: apiConfig,
+      ),
+    if (athlete.sport == 'Tenisz')
+      _TennisDataCard(
+        athleteName: athlete.name,
+        accent: athlete.accent,
+        config: apiConfig,
+      ),
+  ];
+
   @override
   Widget build(BuildContext context) {
-    final clips = videos;
+    final cb = context.cb;
     final ligaFProfile =
         athlete.sport == 'Foci' &&
         (athlete.name.toLowerCase().contains('aitana bonmat') ||
             athlete.team.toLowerCase().contains('femen'));
-    return Container(
-      color: _canvas,
+    final liveCards = _liveCards(ligaFProfile);
+    final hasOwnSummary = const {
+      'NBA',
+      'WNBA',
+      'Tenisz',
+      'Foci',
+    }.contains(athlete.sport);
+    final horizontal = MediaQuery.sizeOf(context).width < 800 ? 20.0 : 34.0;
+    final commands = CourtboardCommandScope.maybeOf(context);
+    return ColoredBox(
+      color: cb.canvas,
       child: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(34, 24, 34, 48),
+        padding: EdgeInsets.fromLTRB(horizontal, 20, horizontal, 48),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
-                TextButton.icon(
-                  onPressed: onBack,
-                  icon: const Icon(Icons.arrow_back),
-                  label: Text(backLabel),
-                ),
-                const Spacer(),
-                IconButton(
-                  tooltip: 'Sportoló törlése',
-                  onPressed: onDelete,
-                  icon: const Icon(
-                    Icons.delete_outline,
-                    color: Color(0xFFB44646),
+                Expanded(
+                  child: Align(
+                    alignment: AlignmentDirectional.centerStart,
+                    child: Tooltip(
+                      message: 'Vissza (Esc vagy Alt+←)',
+                      child: TextButton.icon(
+                        key: const Key('profile-back'),
+                        onPressed: onBack,
+                        icon: const Icon(Icons.arrow_back),
+                        label: Text(
+                          backLabel,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ),
                   ),
                 ),
-                _Pill(text: 'JÁTÉKOSPROFIL', color: athlete.accent),
+                _ProfileMoreMenu(
+                  onRefresh: () => commands?.requestRefresh(),
+                  onAddVideo: onAddVideo,
+                  onDelete: onDelete,
+                ),
               ],
             ),
-            const SizedBox(height: 14),
+            const SizedBox(height: 12),
             _ProfileHero(athlete: athlete),
             const SizedBox(height: 14),
             _PersonalTools(
@@ -73,190 +151,85 @@ class _ProfilePage extends StatelessWidget {
               onSaveNote: (value) => onSaveNote(athlete, value),
               onToggleAlert: () => onToggleAlert(athlete),
             ),
-            if (athlete.sport == 'NBA' || athlete.sport == 'NFL') ...[
-              const SizedBox(height: 18),
-              _ApiSportsCard(
-                sport: athlete.sport,
-                athleteName: athlete.name,
-                teamName: athlete.team,
-                accent: athlete.accent,
-                config: apiConfig,
+            if (liveCards.isNotEmpty) ...[
+              const SizedBox(height: 32),
+              const SectionHeader(
+                title: 'Élő adatok',
+                subtitle:
+                    'Valós adatforrásokból; minden kártya külön frissíthető.',
               ),
+              for (var i = 0; i < liveCards.length; i++) ...[
+                if (i > 0) const SizedBox(height: 16),
+                liveCards[i],
+              ],
             ],
-            if (athlete.sport == 'Foci' && !ligaFProfile) ...[
-              const SizedBox(height: 18),
-              _FootballDataCard(
-                teamName: athlete.team,
-                accent: athlete.accent,
-                config: apiConfig,
-              ),
-              const SizedBox(height: 18),
-              _FootballDataPlayerCard(
-                athleteName: athlete.name,
-                teamName: athlete.team,
-                accent: athlete.accent,
-                config: apiConfig,
-              ),
-            ],
-            if (ligaFProfile) ...[
-              const SizedBox(height: 18),
-              _LigaFCard(accent: athlete.accent),
-            ],
-            if (athlete.sport == 'WNBA') ...[
-              const SizedBox(height: 18),
-              _WnbaWehoopCard(
-                athleteName: athlete.name,
-                accent: athlete.accent,
-              ),
-              const SizedBox(height: 18),
-              _WnbaBasketballReferenceCard(
-                athleteName: athlete.name,
-                accent: athlete.accent,
-              ),
-              const SizedBox(height: 18),
-              _WnbaRapidApiCard(
-                athleteName: athlete.name,
-                accent: athlete.accent,
-                config: apiConfig,
-              ),
-            ],
-            if (athlete.sport == 'NBA') ...[
-              const SizedBox(height: 22),
-              _NbaSeasonSummaryCard(
-                athleteName: athlete.name,
-                accent: athlete.accent,
-              ),
-            ],
-            if (athlete.sport == 'Darts') ...[
-              const SizedBox(height: 18),
-              _DartsDataCard(
-                athleteName: athlete.name,
-                accent: athlete.accent,
-                config: apiConfig,
-              ),
-            ],
-            if (athlete.sport == 'Tenisz') ...[
-              const SizedBox(height: 18),
-              _TennisDataCard(
-                athleteName: athlete.name,
-                accent: athlete.accent,
-                config: apiConfig,
-              ),
-            ],
-            if (athlete.sport == 'Foci') ...[
-              const SizedBox(height: 22),
-              _FootballSeasonSummaryCard(
-                athleteName: athlete.name,
-                teamName: athlete.team,
-                accent: athlete.accent,
-                config: apiConfig,
-              ),
-              const SizedBox(height: 28),
-            ] else if (athlete.sport != 'WNBA' &&
-                athlete.sport != 'NBA' &&
-                athlete.sport != 'Tenisz') ...[
-              const SizedBox(height: 22),
-              const Text(
-                'Szezon összesítő',
-                style: TextStyle(
-                  fontSize: 27,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: -1.2,
-                ),
-              ),
-              const SizedBox(height: 12),
+            if (!hasOwnSummary) ...[
+              const SizedBox(height: 32),
+              const SectionHeader(title: 'Szezon összesítő'),
               if (athlete.metrics.isEmpty)
                 const _ProfileEmptyNote(
                   'Ehhez a sportolóhoz még nincs valós szezonadat. A számok csak élő adatforrásból jelennek meg.',
                 )
               else
-                LayoutBuilder(
-                  builder: (context, constraints) {
-                    final w = (constraints.maxWidth - 48) / 4;
-                    return Wrap(
-                      spacing: 16,
-                      runSpacing: 16,
-                      children: athlete.metrics
-                          .map(
-                            (metric) => SizedBox(
-                              width: w,
-                              child: _MetricCard(
-                                metric: metric,
-                                accent: athlete.accent,
-                              ),
-                            ),
-                          )
-                          .toList(),
-                    );
-                  },
+                MetricGrid(
+                  minTileWidth: 180,
+                  maxColumns: 4,
+                  children: [
+                    for (final metric in athlete.metrics)
+                      MetricTile(
+                        label: metric.label,
+                        value: metric.value,
+                        caption: metric.note,
+                        captionColor: athlete.accent,
+                      ),
+                  ],
                 ),
-              const SizedBox(height: 28),
+              const SizedBox(height: 20),
               _SportTemplate(athlete: athlete),
-              if (athlete.sport != 'NBA' && !ligaFProfile) ...[
-                const SizedBox(height: 28),
-                const Text(
-                  'Utóbbi mérkőzések',
-                  style: TextStyle(
-                    fontSize: 27,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: -1.2,
-                  ),
+              if (!ligaFProfile) ...[
+                const SizedBox(height: 32),
+                const SectionHeader(
+                  title: 'Utóbbi mérkőzések',
+                  subtitle:
+                      'Egységes mérkőzés-sablon: eredmény, sportág szerinti teljesítmény, értékelés.',
                 ),
-                const SizedBox(height: 6),
-                const Text(
-                  'Egységes mérkőzés-sablon: eredmény, sportág szerinti teljesítmény, értékelés.',
-                  style: TextStyle(color: _muted),
-                ),
-                const SizedBox(height: 12),
                 if (athlete.matches.isEmpty)
                   const _ProfileEmptyNote(
                     'Még nincs megjeleníthető mérkőzésadat ehhez a sportolóhoz.',
                   )
                 else
                   ...athlete.matches.map(
-                    (match) => _MatchRow(match: match, accent: athlete.accent),
+                    (match) => MatchRow(
+                      dateLabel: match.date,
+                      opponent: match.opponent,
+                      subtitle: match.performance,
+                      score: match.score,
+                      outcome: MatchOutcome.parse(match.result),
+                      grade: match.grade,
+                    ),
                   ),
               ],
-              const SizedBox(height: 28),
             ],
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  'Videók és saját playlist',
-                  style: TextStyle(
-                    fontSize: 27,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: -1.2,
-                  ),
-                ),
-                Row(
-                  children: [
-                    Text(
-                      '${videos.length} mentett videó',
-                      style: const TextStyle(color: _muted),
-                    ),
-                    const SizedBox(width: 10),
-                    FilledButton.icon(
-                      onPressed: onAddVideo,
-                      icon: const Icon(Icons.add),
-                      label: const Text('Videó hozzáadása'),
-                    ),
-                  ],
-                ),
-              ],
+            const SizedBox(height: 32),
+            SectionHeader(
+              title: 'Videók és saját playlist',
+              subtitle: '${videos.length} mentett videó',
+              trailing: FilledButton.icon(
+                onPressed: onAddVideo,
+                icon: const Icon(Icons.add),
+                label: const Text('Videó hozzáadása'),
+              ),
             ),
-            const SizedBox(height: 12),
-            if (clips.isEmpty)
-              const Text(
+            if (videos.isEmpty)
+              const _ProfileEmptyNote(
                 'Még nincs mentett videó. A „Videó hozzáadása” gombbal illessz be egy YouTube-linket vagy videóazonosítót.',
-                style: TextStyle(color: _muted),
+                icon: Icons.video_library_outlined,
               )
             else
               Wrap(
                 spacing: 16,
                 runSpacing: 16,
-                children: clips
+                children: videos
                     .map(
                       (video) => _ClipCard(
                         video: video,
@@ -272,19 +245,80 @@ class _ProfilePage extends StatelessWidget {
   }
 }
 
-class _ProfileEmptyNote extends StatelessWidget {
-  const _ProfileEmptyNote(this.message);
-  final String message;
+/// A profil másodlagos műveletei egy „Továbbiak” menüben (a törlés
+/// megerősítő párbeszédablakkal).
+class _ProfileMoreMenu extends StatelessWidget {
+  const _ProfileMoreMenu({
+    required this.onRefresh,
+    required this.onAddVideo,
+    required this.onDelete,
+  });
+
+  final VoidCallback onRefresh;
+  final VoidCallback onAddVideo;
+  final VoidCallback onDelete;
 
   @override
-  Widget build(BuildContext context) => Container(
-    width: double.infinity,
+  Widget build(BuildContext context) {
+    final cb = context.cb;
+    Widget item(IconData icon, String label, {Color? color}) => Row(
+      children: [
+        Icon(icon, size: 20, color: color ?? cb.textPrimary),
+        const SizedBox(width: 12),
+        Flexible(
+          child: Text(
+            label,
+            style: context.text.bodyMedium?.copyWith(
+              color: color,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+      ],
+    );
+    return PopupMenuButton<String>(
+      key: const Key('profile-more-menu'),
+      tooltip: 'Továbbiak',
+      icon: const Icon(Icons.more_horiz_rounded),
+      position: PopupMenuPosition.under,
+      onSelected: (value) => switch (value) {
+        'refresh' => onRefresh(),
+        'video' => onAddVideo(),
+        'delete' => onDelete(),
+        _ => null,
+      },
+      itemBuilder: (context) => [
+        PopupMenuItem(
+          value: 'refresh',
+          child: item(Icons.refresh_rounded, 'Adatok frissítése (Ctrl+R)'),
+        ),
+        PopupMenuItem(
+          value: 'video',
+          child: item(Icons.video_call_outlined, 'Videó hozzáadása'),
+        ),
+        const PopupMenuDivider(),
+        PopupMenuItem(
+          key: const Key('profile-delete-athlete'),
+          value: 'delete',
+          child: item(
+            Icons.delete_outline,
+            'Sportoló törlése…',
+            color: cb.error,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ProfileEmptyNote extends StatelessWidget {
+  const _ProfileEmptyNote(this.message, {this.icon = Icons.inbox_outlined});
+  final String message;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) => SurfaceCard(
     padding: const EdgeInsets.all(18),
-    decoration: BoxDecoration(
-      color: _paper,
-      borderRadius: BorderRadius.circular(20),
-      border: Border.all(color: const Color(0xFFD8D4C8)),
-    ),
-    child: Text(message, style: const TextStyle(color: _muted)),
+    child: EmptyState(compact: true, icon: icon, message: message),
   );
 }

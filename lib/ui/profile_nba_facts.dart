@@ -14,89 +14,42 @@ class UnifiedAthleteFacts extends StatelessWidget {
   Widget build(BuildContext context) => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
-      const SizedBox(height: 10),
       Wrap(
         spacing: 8,
         runSpacing: 8,
-        children: data.providers.map((provider) {
-          final color = provider.hasData
-              ? _moss
-              : provider.configured
-              ? Colors.red.shade400
-              : Colors.orange.shade600;
-          return Tooltip(
-            message: provider.message ?? 'Adat érkezett',
-            child: Chip(
-              avatar: Icon(
-                provider.hasData
-                    ? Icons.check_circle
-                    : provider.configured
-                    ? Icons.error_outline
-                    : Icons.key_off,
-                size: 17,
-                color: color,
-              ),
-              label: Text(provider.name),
-              side: BorderSide(color: color.withValues(alpha: .45)),
-              backgroundColor: color.withValues(alpha: .08),
+        children: [
+          for (final provider in data.providers)
+            ProviderChip.fromFlags(
+              name: provider.name,
+              ready: provider.hasData,
+              configured: provider.configured,
+              message: provider.message ?? 'Adat érkezett',
             ),
-          );
-        }).toList(),
+        ],
       ),
-      const SizedBox(height: 12),
+      const SizedBox(height: 16),
       if (data.facts.isEmpty)
-        const Text(
-          'Egyik beállított szolgáltató sem talált ilyen nevű NBA-játékost.',
-          style: TextStyle(color: _muted),
+        const EmptyState(
+          compact: true,
+          icon: Icons.person_search_outlined,
+          message:
+              'Egyik beállított szolgáltató sem talált ilyen nevű NBA-játékost.',
         )
       else
-        Wrap(
-          spacing: 12,
-          runSpacing: 12,
-          children: data.facts
-              .map(
-                (fact) => Container(
-                  width: 190,
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: accent.withValues(alpha: .08),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        fact.label.toUpperCase(),
-                        style: const TextStyle(
-                          color: _muted,
-                          fontSize: 10,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                      const SizedBox(height: 3),
-                      Text(
-                        fact.value,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w900,
-                        ),
-                      ),
-                      const SizedBox(height: 3),
-                      Text(
-                        fact.source,
-                        style: TextStyle(
-                          color: accent,
-                          fontSize: 10,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              )
-              .toList(),
+        MetricGrid(
+          minTileWidth: 170,
+          maxColumns: 6,
+          children: [
+            for (final fact in data.facts)
+              MetricTile(
+                label: fact.label,
+                value: fact.value,
+                caption: fact.source,
+                captionColor: accent,
+              ),
+          ],
         ),
-      const SizedBox(height: 18),
+      const SizedBox(height: 22),
       BasketballReferenceGameList(
         games: data.games,
         accent: accent,
@@ -122,36 +75,29 @@ class BasketballReferenceGameList extends StatelessWidget {
   Widget build(BuildContext context) => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
-      Row(
-        children: [
-          Icon(Icons.sports_basketball, color: accent, size: 20),
-          const SizedBox(width: 8),
-          Text(
-            'LEGUTÓBBI $league MECCSEK · BASKETBALL REFERENCE',
-            style: const TextStyle(fontWeight: FontWeight.w900),
-          ),
-        ],
+      SubsectionLabel(
+        'LEGUTÓBBI $league MECCSEK · BASKETBALL REFERENCE',
+        icon: Icons.sports_basketball,
+        color: accent,
       ),
-      const SizedBox(height: 10),
       if (games.isEmpty)
-        Text(
-          'A Basketball Reference nem adott friss $league játékos-box score-t.',
-          style: const TextStyle(color: _muted),
+        EmptyState(
+          compact: true,
+          icon: Icons.event_busy_outlined,
+          message:
+              'A Basketball Reference nem adott friss $league játékos-box score-t.',
         )
       else
-        ...games.map(
-          (game) => _MatchRow(
-            accent: accent,
-            match: MatchLine(
-              '${game.date.year}.${game.date.month.toString().padLeft(2, '0')}.${game.date.day.toString().padLeft(2, '0')}',
-              game.opponent,
-              game.resultLabel,
-              game.score ?? (game.location == 'HOME' ? 'HAZAI' : 'IDEGEN'),
-              game.performance,
-              game.grade,
-            ),
+        for (final game in games)
+          MatchRow(
+            date: game.date,
+            venue: game.location == 'HOME' ? 'Hazai' : 'Idegen',
+            opponent: game.opponent,
+            subtitle: game.performance,
+            score: game.score,
+            outcome: MatchOutcome.parse(game.outcome),
+            grade: game.grade,
           ),
-        ),
     ],
   );
 }

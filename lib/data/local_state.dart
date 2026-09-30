@@ -22,20 +22,20 @@ class CustomAthlete {
   final String photoUrl;
 
   Map<String, dynamic> toJson() => {
-        'name': name,
-        'sport': sport,
-        'team': team,
-        'country': country,
-        'photoUrl': photoUrl,
-      };
+    'name': name,
+    'sport': sport,
+    'team': team,
+    'country': country,
+    'photoUrl': photoUrl,
+  };
 
   factory CustomAthlete.fromJson(Map<String, dynamic> json) => CustomAthlete(
-        name: json['name'] as String? ?? '',
-        sport: json['sport'] as String? ?? '',
-        team: json['team'] as String? ?? '',
-        country: json['country'] as String? ?? '',
-        photoUrl: json['photoUrl'] as String? ?? '',
-      );
+    name: json['name'] as String? ?? '',
+    sport: json['sport'] as String? ?? '',
+    team: json['team'] as String? ?? '',
+    country: json['country'] as String? ?? '',
+    photoUrl: json['photoUrl'] as String? ?? '',
+  );
 }
 
 class CourtboardLocalState {
@@ -46,9 +46,11 @@ class CourtboardLocalState {
     this.legacyApiKeys = const {},
     this.customAthletes = const [],
     this.theme = 'green',
+    this.themeMode = 'system',
     this.overviewSort = 'custom',
     this.athleteSort = 'custom',
     this.athleteOrder = const [],
+    this.railCollapsed = false,
   });
 
   final Map<String, String> notes;
@@ -63,11 +65,18 @@ class CourtboardLocalState {
   final Map<ApiKeyId, String> legacyApiKeys;
   final List<CustomAthlete> customAthletes;
   final String theme;
+
+  /// Megjelenési mód: `system` (alapértelmezett), `light` vagy `dark`.
+  /// A 0.10.0 előtti állapotfájlokból hiányzik; ilyenkor `system`.
+  final String themeMode;
   final String overviewSort;
   final String athleteSort;
 
   /// A „Saját sorrend” szerinti névsor; üres lista esetén az alapsorrend él.
   final List<String> athleteOrder;
+
+  /// Igaz, ha a felhasználó széles ablakban is összecsukta az oldalsávot.
+  final bool railCollapsed;
 
   /// Másolat, amelyben a régi, titkosítatlan kulcsok helyén [keys] áll.
   CourtboardLocalState withLegacyApiKeys(Map<ApiKeyId, String> keys) =>
@@ -78,24 +87,29 @@ class CourtboardLocalState {
         legacyApiKeys: keys,
         customAthletes: customAthletes,
         theme: theme,
+        themeMode: themeMode,
         overviewSort: overviewSort,
         athleteSort: athleteSort,
         athleteOrder: athleteOrder,
+        railCollapsed: railCollapsed,
       );
 
   Map<String, dynamic> toJson() => {
-        'notes': notes,
-        'alerts': alerts,
-        'removedAthleteNames': removedAthleteNames.toList(),
-        for (final MapEntry(key: id, :value) in legacyApiKeys.entries)
-          if (value.isNotEmpty) id.legacyJsonField: value,
-        'customAthletes':
-            customAthletes.map((athlete) => athlete.toJson()).toList(),
-        'theme': theme,
-        'overviewSort': overviewSort,
-        'athleteSort': athleteSort,
-        'athleteOrder': athleteOrder,
-      };
+    'notes': notes,
+    'alerts': alerts,
+    'removedAthleteNames': removedAthleteNames.toList(),
+    for (final MapEntry(key: id, :value) in legacyApiKeys.entries)
+      if (value.isNotEmpty) id.legacyJsonField: value,
+    'customAthletes': customAthletes
+        .map((athlete) => athlete.toJson())
+        .toList(),
+    'theme': theme,
+    'themeMode': themeMode,
+    'overviewSort': overviewSort,
+    'athleteSort': athleteSort,
+    'athleteOrder': athleteOrder,
+    'railCollapsed': railCollapsed,
+  };
 
   factory CourtboardLocalState.fromJson(Map<String, dynamic> json) {
     final rawNotes = json['notes'];
@@ -120,16 +134,21 @@ class CourtboardLocalState {
             id: key.trim(),
       },
       customAthletes: rawAthletes is List
-          ? jsonMapList(rawAthletes)
-              .map(CustomAthlete.fromJson)
-              .toList()
+          ? jsonMapList(rawAthletes).map(CustomAthlete.fromJson).toList()
           : const [],
       theme: json['theme'] as String? ?? 'green',
+      themeMode: switch (json['themeMode']) {
+        final String mode
+            when const {'system', 'light', 'dark'}.contains(mode) =>
+          mode,
+        _ => 'system',
+      },
       overviewSort: json['overviewSort'] as String? ?? 'custom',
       athleteSort: json['athleteSort'] as String? ?? 'custom',
       athleteOrder: rawOrder is List
           ? rawOrder.whereType<String>().toList()
           : const [],
+      railCollapsed: json['railCollapsed'] == true,
     );
   }
 }

@@ -17,3 +17,6 @@ dist/
 windows/flutter/ephemeral/
 windows/runner/Debug/
 windows/runner/Release/
+
+# Képernyőkép-teszt kimenete
+test/screenshots/out/

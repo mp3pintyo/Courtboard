@@ -3,10 +3,10 @@ import 'package:url_launcher/url_launcher.dart';
 
 import 'data/friendly_error.dart';
 import 'data/url_safety.dart';
+import 'format.dart';
+import 'theme/courtboard_theme.dart';
 
 export 'data/friendly_error.dart' show friendlyError;
-
-const _commonMuted = Color(0xFF73766C);
 
 /// Külső webcím megnyitása a rendszer alapértelmezett böngészőjében.
 ///
@@ -61,13 +61,17 @@ class CourtboardErrorState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cb = context.cb;
     final text = Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        const Icon(Icons.error_outline, size: 18, color: _commonMuted),
+        Icon(Icons.error_outline, size: 18, color: cb.error),
         const SizedBox(width: 8),
         Flexible(
-          child: Text(message, style: const TextStyle(color: _commonMuted)),
+          child: Text(
+            message,
+            style: context.text.bodyMedium?.copyWith(color: cb.textPrimary),
+          ),
         ),
       ],
     );
@@ -110,24 +114,23 @@ class CourtboardNote extends StatelessWidget {
     child: Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Padding(
-          padding: EdgeInsets.only(top: 2),
-          child: Icon(Icons.info_outline, size: 14, color: _commonMuted),
-        ),
-        const SizedBox(width: 6),
-        Expanded(
-          child: Text(
-            text,
-            style: const TextStyle(fontSize: 11, color: _commonMuted),
+        Padding(
+          padding: const EdgeInsets.only(top: 2),
+          child: Icon(
+            Icons.info_outline,
+            size: 15,
+            color: context.cb.textMuted,
           ),
         ),
+        const SizedBox(width: 6),
+        Expanded(child: Text(text, style: context.text.bodySmall)),
       ],
     ),
   );
 }
 
 /// Rövid frissességi felirat, például „Frissítve: 14:32 · gyorsítótárból”.
-/// Nem mai adatnál a dátum is megjelenik (`09.28. 14:32`).
+/// Nem mai adatnál a dátum is megjelenik (`szept. 28. 14:32`).
 String freshnessLabel(
   DateTime fetchedAt, {
   bool fromCache = false,
@@ -136,17 +139,17 @@ String freshnessLabel(
 }) {
   final local = fetchedAt.toLocal();
   final today = (now ?? DateTime.now()).toLocal();
-  String two(int value) => value.toString().padLeft(2, '0');
-  final time = '${two(local.hour)}:${two(local.minute)}';
-  final sameDay = local.year == today.year &&
+  final time = formatTime(local);
+  final sameDay =
+      local.year == today.year &&
       local.month == today.month &&
       local.day == today.day;
-  final when = sameDay ? time : '${two(local.month)}.${two(local.day)}. $time';
+  final when = sameDay ? time : '${formatShortDate(local)} $time';
   final origin = stale
       ? ' · régebbi mentett adat'
       : fromCache
-          ? ' · gyorsítótárból'
-          : '';
+      ? ' · gyorsítótárból'
+      : '';
   return 'Frissítve: $when$origin';
 }
 
@@ -164,8 +167,21 @@ class FreshnessNote extends StatelessWidget {
   final bool stale;
 
   @override
-  Widget build(BuildContext context) => Text(
-        freshnessLabel(fetchedAt, fromCache: fromCache, stale: stale),
-        style: const TextStyle(fontSize: 11, color: _commonMuted),
-      );
+  Widget build(BuildContext context) => Row(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      Icon(
+        stale ? Icons.history_rounded : Icons.schedule_rounded,
+        size: 14,
+        color: stale ? context.cb.warning : context.cb.textMuted,
+      ),
+      const SizedBox(width: 5),
+      Flexible(
+        child: Text(
+          freshnessLabel(fetchedAt, fromCache: fromCache, stale: stale),
+          style: context.text.bodySmall,
+        ),
+      ),
+    ],
+  );
 }

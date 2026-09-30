@@ -14,16 +14,26 @@ Az alkalmazás saját **Adatforrás-kézikönyve** kereshető sportág, szolgál
 
 ### Nyitólap
 
-![A Courtboard nyitólapja a követett sportolókkal és a közelgő eseményekkel](docs/screenshots/home.png)
+![A Courtboard nyitólapja a „Mai fókusz” blokkal és a követett sportolók kártyáival](docs/screenshots/home.png)
 
 ### Játékosoldal
 
-![Juhász Dorka játékosoldala valódi WNBA meccsnaplóval és mérkőzésadatokkal](docs/screenshots/player-juhasz-dorka.png)
+![Juhász Dorka játékosoldala az új profilfejléccel és az élő WNBA-adatkártyákkal](docs/screenshots/player-juhasz-dorka.png)
+
+### Sötét mód
+
+![A nyitólap sötét módban, bordó kiemelőszínnel](docs/screenshots/home-dark.png)
+
+> A képernyőképek tesztkörnyezetben, hálózat nélkül készülnek (`test/screenshots`), ezért a fotók helyén a sportoló színéből képzett helyőrző látszik, az élő kártyák a hálózat nélküli állapotot mutatják, a nyitólap eredményei pedig mintaadatok.
 
 ## Felület és személyes beállítások
 
 - Az **Áttekintés** fogaskerék ikonja és a bal oldali **Beállítások** menüpont ugyanazt a beállítási oldalt nyitja meg.
-- A megjelenéshez választható a zöld és a bordó téma.
+- A megjelenéshez választható a zöld és a bordó kiemelőszín, valamint a **Világos**, **Sötét** vagy **Rendszer** (a Windows beállítását követő) mód.
+- **Reszponzív elrendezés:** 1200 px felett teljes, feliratos oldalsáv (a felirat nélküli, ikonos változatra összecsukható, és az app megjegyzi a választást); 800–1200 px között ikonos sáv eszköztippekkel; ennél keskenyebb ablakban hamburger menü nyitja a navigációt. Ultraszéles ablakban a tartalom legfeljebb 1440 px széles, középre zárva. Az ablak legkisebb mérete kb. 800×600.
+- **Billentyűparancsok:** `Ctrl+F` keresés, `Esc` vagy `Alt+←` vissza a profilból (és párbeszédablak bezárása), `Ctrl+R` / `F5` frissítés (profil adatkártyái, hírek), `Ctrl+1…7` menüpontok, `Ctrl+N` új sportoló. A teljes lista a **Beállítások → Billentyűparancsok** alatt látható; billentyűzettel bejárva minden kártya, menüpont, chip és gomb jól látható fókuszkeretet kap.
+- A nyitólap **Mai fókusz** blokkja a profilokon már betöltött adatokból mutatja a legközelebbi eseményt vagy a legfrissebb eredményt; ha még nincs ilyen, a követett sportolók sportáganként összesítve és gyors műveletek jelennek meg. A kártyák a legutóbbi eredményt is jelzik (például „GY 118–104”), kitalált adat nélkül.
+- Az app a rendszer szövegméretét is követi; a fő oldalak 1,3-es nagyításnál sem vágnak le tartalmat.
 - Az Áttekintés kártyái és a Sportolók listája egymástól függetlenül rendezhető saját sorrend, név, sportág vagy csapat szerint.
 - A **Sportolók** oldalon név szerinti keresés és sportág szerinti szűrés használható.
 - A **Videók** médiatár az összes sportolóhoz mentett YouTube-videót egy helyen mutatja; cím, sportoló és sportág szerint szűrhető.
@@ -165,7 +175,9 @@ Az ESPN-tartalomnál a Courtboard csak a feed által átadott címet és metaada
 
 ## Profilképek és videók
 
-Új sportoló felvételekor a TheSportsDB név szerinti keresése próbál profilképet találni. Ha nincs találat, az app monogramot mutat.
+Új sportoló felvételekor a TheSportsDB név szerinti keresése próbál profilképet találni. Ha nincs találat, az app a sportoló színéből képzett, monogramos helyőrzőt mutat.
+
+A képek (profilfotók, videó-bélyegképek, hírképek) a megjelenített mérethez igazítva dekódolódnak, és lemezre mentve 30 napig offline is elérhetők (`%APPDATA%\Courtboard\cache\images`); letöltési hibánál a korábban mentett példány marad látható.
 
 A sportolói profilon a felhasználó YouTube URL-t vagy videóazonosítót adhat meg. A cím és bélyegkép a kulcs nélküli YouTube oEmbed válaszból érkezik. A mentések a központi **Videók** oldalon is megjelennek, ahol cím, sportoló és sportág szerint kereshetők, lejátszhatók vagy eltávolíthatók. A Courtboard nem ír a YouTube-fiókba, és nem hoz létre távoli playlistet. A YouTube Data API keresőadaptere létezik, de jelenleg nincs bekötve automatikus keresési felületre.
 
@@ -181,6 +193,8 @@ A sportolói profilon a felhasználó YouTube URL-t vagy videóazonosítót adha
 | `%APPDATA%\courtboard_cache\rapidapi_wnba` | WNBA bio és advanced stat | 7 nap; hibánál a régebbi mentés is használható |
 | `%APPDATA%\courtboard_cache\football_data\free_players.json` | football-data.org Free csapatkeretek és játékos-alapadatok | 7 nap; hálózati hibánál a régebbi mentés is használható |
 | `%APPDATA%\courtboard_cache\live_tennis` | teniszprofil, élő és közelgő mérkőzések, kvótaállapot | 10 perc |
+| `%APPDATA%\Courtboard\cache\images` | profilfotók, videó-bélyegképek és hírképek | 30 nap; hibánál a régebbi példány is használható, 90 nap után törlődik |
+| `%APPDATA%\Courtboard\cache\highlights` | a profilokon betöltött legutóbbi eredmény és következő esemény sportolónként (a nyitólaphoz) | a következő betöltésig |
 | `%APPDATA%\Courtboard\courtboard_news.sqlite` | letöltött hírek, sport- és forráskapcsolatok, feedbeállítások és frissítési állapot | tartós; nincs automatikus törlés |
 
 ## Hibaelhárítás

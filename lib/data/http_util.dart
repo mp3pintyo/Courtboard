@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 /// Kapcsolódási időkorlát minden Courtboard HTTP-klienshez.
 const httpConnectionTimeout = Duration(seconds: 10);
@@ -193,6 +194,64 @@ Future<HttpTextResponse> httpGetResponse(
       etag: etag,
       lastModified: lastModified,
     );
+  }
+
+  try {
+    return await run().timeout(timeout);
+  } on CourtboardHttpException {
+    rethrow;
+  } on TimeoutException {
+    throw CourtboardHttpException(provider: provider, uri: uri, timedOut: true);
+  } on IOException catch (error) {
+    throw CourtboardHttpException(
+      provider: provider,
+      uri: uri,
+      detail: _networkDetail(error),
+    );
+  }
+}
+
+/// Bináris GET (például kép) teljes időkorláttal és méretkorláttal.
+///
+/// 2xx-tól eltérő státusznál, időtúllépésnél, hálózati hibánál vagy a
+/// [maxBytes]-nál nagyobb válasznál [CourtboardHttpException] keletkezik.
+Future<Uint8List> httpGetBytes(
+  HttpClient client,
+  Uri uri, {
+  required String provider,
+  Map<String, String> headers = const {},
+  Duration timeout = httpRequestTimeout,
+  int maxBytes = 15 * 1024 * 1024,
+}) async {
+  Future<Uint8List> run() async {
+    final request = await client.getUrl(uri);
+    headers.forEach(request.headers.set);
+    final response = await request.close();
+    final code = response.statusCode;
+    if (code < 200 || code >= 300) {
+      await response.drain<void>().catchError((_) {});
+      throw CourtboardHttpException(
+        provider: provider,
+        statusCode: code,
+        uri: uri,
+        retryAfter: code == 429 || code == 503
+            ? parseRetryAfter(
+                response.headers.value(HttpHeaders.retryAfterHeader))
+            : null,
+      );
+    }
+    final builder = BytesBuilder(copy: false);
+    await for (final chunk in response) {
+      builder.add(chunk);
+      if (builder.length > maxBytes) {
+        throw CourtboardHttpException(
+          provider: provider,
+          uri: uri,
+          detail: 'túl nagy válasz',
+        );
+      }
+    }
+    return builder.takeBytes();
   }
 
   try {

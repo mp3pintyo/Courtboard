@@ -3,13 +3,20 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'common_ui.dart';
+import 'components.dart';
+import 'format.dart';
+import 'images.dart';
+import 'theme/courtboard_theme.dart';
 
 import 'data/api_key_id.dart';
 import 'data/api_key_store.dart';
 import 'data/api_sports.dart';
 import 'data/app_paths.dart';
+import 'data/athlete_highlights.dart';
 import 'data/basketball_reference.dart';
 import 'data/basketball_season.dart';
 import 'data/darts.dart';
@@ -50,13 +57,18 @@ part 'ui/athlete_directory_settings.dart';
 part 'ui/video_library.dart';
 part 'ui/data_sources.dart';
 part 'ui/navigation.dart';
+part 'ui/shortcuts.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // Magyar dátumformátumok (hónapnevek) az első képkocka előtt.
+  ensureHungarianDateFormatting();
   // Az állapotot egyszer, a futtatás előtt töltjük be, hogy a mentett téma
   // már az első képkockán érvényes legyen (nincs zöld villanás).
   // A 0.9.0 előtti, szétszórt gyorsítótár-könyvtárak egyszeri rendbetétele.
   unawaited(AppPaths.migrateLegacyCaches());
+  // A nagyon régi, lemezen tárolt képek takarítása (háttérben).
+  unawaited(ImageDiskCache.shared.pruneExpired());
   final store = LocalStateStore();
   // Az API-kulcsok a Windows biztonságos tárolójából jönnek; a régi,
   // titkosítatlan JSON-kulcsok itt költöznek át (lásd [ApiKeyStore.load]).

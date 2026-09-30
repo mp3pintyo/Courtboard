@@ -80,25 +80,18 @@ class _DataStatusPageState extends State<_DataStatusPage> {
               entry.key == ProviderKey.none,
         )
         .length;
-    return Container(
-      color: _canvas,
+    final cb = context.cb;
+    return ColoredBox(
+      color: cb.canvas,
       child: ListView(
         key: const Key('provider-documentation-list'),
         padding: const EdgeInsets.all(34),
         children: [
-          const Text(
-            'Adatforrás-kézikönyv',
-            style: TextStyle(
-              fontSize: 34,
-              fontWeight: FontWeight.w900,
-              letterSpacing: -1.5,
-            ),
-          ),
-          const SizedBox(height: 6),
-          const Text(
-            'Keresd ki, melyik szolgáltató mit ad az apphoz, hol jelenik meg, '
-            'milyen kulcs és kvóta tartozik hozzá, és mi történik hiba esetén.',
-            style: TextStyle(color: _muted),
+          const PageHeader(
+            title: 'Adatforrás-kézikönyv',
+            subtitle:
+                'Keresd ki, melyik szolgáltató mit ad az apphoz, hol jelenik meg, '
+                'milyen kulcs és kvóta tartozik hozzá, és mi történik hiba esetén.',
           ),
           const SizedBox(height: 18),
           Wrap(
@@ -107,17 +100,17 @@ class _DataStatusPageState extends State<_DataStatusPage> {
             children: [
               _SummaryBadge(
                 icon: Icons.hub_outlined,
-                value: '${providerCatalog.length}',
+                value: formatInt(providerCatalog.length),
                 label: 'dokumentált forrás',
               ),
               _SummaryBadge(
                 icon: Icons.check_circle_outline,
-                value: '$activeCount',
+                value: formatInt(activeCount),
                 label: 'most használható',
               ),
               _SummaryBadge(
                 icon: Icons.key_off_outlined,
-                value: '$noKeyCount',
+                value: formatInt(noKeyCount),
                 label: 'saját kulcs nélkül',
               ),
             ],
@@ -125,26 +118,18 @@ class _DataStatusPageState extends State<_DataStatusPage> {
           const SizedBox(height: 18),
           const _GettingStartedCard(),
           const SizedBox(height: 18),
-          Container(
-            padding: const EdgeInsets.all(18),
-            decoration: BoxDecoration(
-              color: _paper,
-              borderRadius: BorderRadius.circular(18),
-            ),
+          SurfaceCard(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'API-kulcsok',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
-                ),
+                Text('API-kulcsok', style: context.text.titleLarge),
                 const SizedBox(height: 5),
-                const Text(
+                Text(
                   'Mind opcionális. A kulcsok a Windows biztonságos tárolójában '
                   '(Hitelesítőadat-kezelő, titkosítva) kerülnek mentésre. '
                   'A közös RapidAPI kulcsot a Darts és a WNBA API is használja, '
                   'de mindkét API-ra külön fel kell iratkozni.',
-                  style: TextStyle(color: _muted),
+                  style: context.text.bodyMedium?.copyWith(color: cb.textMuted),
                 ),
                 if (!widget.secureStorageAvailable) ...[
                   const SizedBox(height: 12),
@@ -186,12 +171,6 @@ class _DataStatusPageState extends State<_DataStatusPage> {
                       },
                       icon: const Icon(Icons.close_rounded),
                     ),
-              filled: true,
-              fillColor: _paper,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(16),
-                borderSide: BorderSide.none,
-              ),
             ),
           ),
           const SizedBox(height: 12),
@@ -215,7 +194,7 @@ class _DataStatusPageState extends State<_DataStatusPage> {
           const SizedBox(height: 12),
           Text(
             '${rows.length} találat',
-            style: const TextStyle(color: _muted, fontWeight: FontWeight.w800),
+            style: context.text.titleSmall?.copyWith(color: cb.textMuted),
           ),
           const SizedBox(height: 8),
           if (rows.isEmpty)
@@ -289,14 +268,14 @@ class _SecureStorageWarning extends StatelessWidget {
     key: const Key('secure-storage-warning'),
     padding: const EdgeInsets.all(12),
     decoration: BoxDecoration(
-      color: Colors.orange.shade50,
+      color: context.cb.tint(context.cb.warning, .12),
       borderRadius: BorderRadius.circular(12),
-      border: Border.all(color: Colors.orange.shade300),
+      border: Border.all(color: context.cb.tint(context.cb.warning, .5)),
     ),
     child: Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(Icons.warning_amber_rounded, color: Colors.orange.shade800),
+        Icon(Icons.warning_amber_rounded, color: context.cb.warning),
         const SizedBox(width: 10),
         const Expanded(
           child: Text(
@@ -331,15 +310,12 @@ class _QuotaUsageLines extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Helyi kéréskeret',
-              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
-            ),
+            Text('HELYI KÉRÉSKERET', style: context.text.labelMedium),
             const SizedBox(height: 4),
             for (final usage in usages)
               Text(
                 '${usage.provider} · ${usage.label}',
-                style: const TextStyle(fontSize: 12, color: _muted),
+                style: context.text.bodySmall,
               ),
           ],
         ),
@@ -362,17 +338,21 @@ class _SummaryBadge extends StatelessWidget {
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
     decoration: BoxDecoration(
-      color: _paper,
+      color: context.cb.surface,
       borderRadius: BorderRadius.circular(14),
+      border: Border.all(color: context.cb.border),
     ),
     child: Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, size: 18, color: _moss),
+        Icon(icon, size: 18, color: context.cb.accent),
         const SizedBox(width: 8),
-        Text(value, style: const TextStyle(fontWeight: FontWeight.w900)),
+        Text(value, style: context.text.titleMedium),
         const SizedBox(width: 5),
-        Text(label, style: const TextStyle(color: _muted)),
+        Text(
+          label,
+          style: context.text.bodyMedium?.copyWith(color: context.cb.textMuted),
+        ),
       ],
     ),
   );
@@ -383,29 +363,34 @@ class _GettingStartedCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.all(18),
+    padding: const EdgeInsets.all(20),
     decoration: BoxDecoration(
-      color: _ink,
-      borderRadius: BorderRadius.circular(18),
+      color: context.cb.ink,
+      borderRadius: BorderRadius.circular(20),
+      border: context.cb.isDark ? Border.all(color: context.cb.border) : null,
     ),
-    child: const Column(
+    child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           'ELSŐ INDÍTÁS · 3 LÉPÉS',
-          style: TextStyle(
-            color: _olive,
+          style: context.text.labelMedium?.copyWith(
+            color: context.cb.highlight,
+            fontSize: 13,
             fontWeight: FontWeight.w900,
             letterSpacing: 1,
           ),
         ),
-        SizedBox(height: 12),
-        _SetupStep(number: '1', text: 'Indítsd a start-courtboard.ps1 fájlt.'),
-        _SetupStep(
+        const SizedBox(height: 12),
+        const _SetupStep(
+          number: '1',
+          text: 'Indítsd a start-courtboard.ps1 fájlt.',
+        ),
+        const _SetupStep(
           number: '2',
           text: 'Az opcionális kulcsokat itt add meg; nélkülük is elindul.',
         ),
-        _SetupStep(
+        const _SetupStep(
           number: '3',
           text:
               'Vegyél fel vagy nyiss meg egy sportolót; az elérhető források együtt töltik ki a kártyáját.',
@@ -430,18 +415,25 @@ class _SetupStep extends StatelessWidget {
           width: 23,
           height: 23,
           alignment: Alignment.center,
-          decoration: const BoxDecoration(
-            color: _olive,
+          decoration: BoxDecoration(
+            color: context.cb.highlight,
             shape: BoxShape.circle,
           ),
           child: Text(
             number,
-            style: const TextStyle(color: _ink, fontWeight: FontWeight.w900),
+            style: context.text.labelSmall?.copyWith(
+              color: context.cb.onHighlight,
+              fontSize: 12,
+              fontWeight: FontWeight.w900,
+            ),
           ),
         ),
         const SizedBox(width: 10),
         Expanded(
-          child: Text(text, style: const TextStyle(color: Colors.white)),
+          child: Text(
+            text,
+            style: context.text.bodyMedium?.copyWith(color: context.cb.onInk),
+          ),
         ),
       ],
     ),
@@ -468,15 +460,24 @@ class _ProviderDocumentationCard extends StatelessWidget {
         : configured
         ? 'BEKÖTVE'
         : 'KULCS HIÁNYZIK';
-    final statusColor = prepared
-        ? _muted
+    final cb = context.cb;
+    final tone = prepared
+        ? StatusTone.neutral
         : configured
-        ? _moss
-        : Colors.orange.shade800;
+        ? StatusTone.success
+        : StatusTone.warning;
+    final statusColor = prepared
+        ? cb.textMuted
+        : configured
+        ? cb.win
+        : cb.warning;
     return Material(
-      color: _paper,
-      borderRadius: BorderRadius.circular(16),
+      color: cb.surface,
       clipBehavior: Clip.antiAlias,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: cb.border),
+      ),
       child: ExpansionTile(
         key: Key('provider-${entry.name}'),
         tilePadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 4),
@@ -489,15 +490,15 @@ class _ProviderDocumentationCard extends StatelessWidget {
               : Icons.key_off_rounded,
           color: statusColor,
         ),
-        title: Text(
-          entry.name,
-          style: const TextStyle(fontWeight: FontWeight.w900),
-        ),
+        title: Text(entry.name, style: context.text.titleMedium),
         subtitle: Padding(
           padding: const EdgeInsets.only(top: 4),
-          child: Text(entry.role),
+          child: Text(
+            entry.role,
+            style: context.text.bodyMedium?.copyWith(color: cb.textMuted),
+          ),
         ),
-        trailing: _StatusLabel(text: status, color: statusColor),
+        trailing: StatusPill(status, tone: tone),
         children: [
           Align(
             alignment: Alignment.centerLeft,
@@ -505,12 +506,7 @@ class _ProviderDocumentationCard extends StatelessWidget {
               spacing: 6,
               runSpacing: 6,
               children: entry.sports
-                  .map(
-                    (sport) => Chip(
-                      visualDensity: VisualDensity.compact,
-                      label: Text(sport),
-                    ),
-                  )
+                  .map((sport) => StatusPill(sport, tone: StatusTone.accent))
                   .toList(),
             ),
           ),
@@ -542,25 +538,6 @@ class _ProviderDocumentationCard extends StatelessWidget {
   }
 }
 
-class _StatusLabel extends StatelessWidget {
-  const _StatusLabel({required this.text, required this.color});
-  final String text;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
-    decoration: BoxDecoration(
-      color: color.withValues(alpha: .12),
-      borderRadius: BorderRadius.circular(20),
-    ),
-    child: Text(
-      text,
-      style: TextStyle(color: color, fontSize: 10, fontWeight: FontWeight.w900),
-    ),
-  );
-}
-
 class _DocumentationSection extends StatelessWidget {
   const _DocumentationSection({required this.title, required this.items});
   final String title;
@@ -572,14 +549,7 @@ class _DocumentationSection extends StatelessWidget {
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          title,
-          style: const TextStyle(
-            fontSize: 11,
-            fontWeight: FontWeight.w900,
-            letterSpacing: .8,
-          ),
-        ),
+        Text(title, style: context.text.labelMedium),
         const SizedBox(height: 5),
         ...items.map(
           (item) => Padding(
@@ -587,8 +557,8 @@ class _DocumentationSection extends StatelessWidget {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('•  ', style: TextStyle(color: _moss)),
-                Expanded(child: Text(item)),
+                Text('•  ', style: TextStyle(color: context.cb.accent)),
+                Expanded(child: Text(item, style: context.text.bodyMedium)),
               ],
             ),
           ),
@@ -610,13 +580,15 @@ class _DocumentationFact extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         SizedBox(
-          width: 90,
+          width: 104,
           child: Text(
             label,
-            style: const TextStyle(color: _muted, fontWeight: FontWeight.w800),
+            style: context.text.titleSmall?.copyWith(
+              color: context.cb.textMuted,
+            ),
           ),
         ),
-        Expanded(child: Text(value)),
+        Expanded(child: Text(value, style: context.text.bodyMedium)),
       ],
     ),
   );
@@ -626,27 +598,12 @@ class _EmptyProviderSearch extends StatelessWidget {
   const _EmptyProviderSearch();
 
   @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.all(24),
-    decoration: BoxDecoration(
-      color: _paper,
-      borderRadius: BorderRadius.circular(16),
-    ),
-    child: const Column(
-      children: [
-        Icon(Icons.search_off_rounded, color: _muted),
-        SizedBox(height: 8),
-        Text(
-          'Nincs ilyen adatforrás vagy funkció.',
-          style: TextStyle(fontWeight: FontWeight.w800),
-        ),
-        SizedBox(height: 3),
-        Text(
-          'Próbálj sportágra, megjelenő adatra vagy kvótára keresni.',
-          textAlign: TextAlign.center,
-          style: TextStyle(color: _muted),
-        ),
-      ],
+  Widget build(BuildContext context) => const SurfaceCard(
+    padding: EdgeInsets.all(24),
+    child: EmptyState(
+      icon: Icons.search_off_rounded,
+      title: 'Nincs ilyen adatforrás vagy funkció.',
+      message: 'Próbálj sportágra, megjelenő adatra vagy kvótára keresni.',
     ),
   );
 }

@@ -56,12 +56,14 @@ class VideoLibraryPage extends StatefulWidget {
 
 class _VideoLibraryPageState extends State<VideoLibraryPage> {
   final _titleSearch = TextEditingController();
+  final _searchFocus = FocusNode(debugLabel: 'video-search');
   String _athlete = 'Mind';
   String _sport = 'Mind';
 
   @override
   void dispose() {
     _titleSearch.dispose();
+    _searchFocus.dispose();
     super.dispose();
   }
 
@@ -110,91 +112,96 @@ class _VideoLibraryPageState extends State<VideoLibraryPage> {
         .toSet()
         .length;
 
-    return Container(
-      color: _canvas,
-      padding: const EdgeInsets.fromLTRB(34, 28, 34, 34),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _VideoLibraryHeader(
-            videoCount: entries.length,
-            athleteCount: athletesWithVideos,
-            sportCount: sports.where((sport) => sport != 'Egyéb').length,
-          ),
-          const SizedBox(height: 22),
-          _VideoFilterBar(
-            controller: _titleSearch,
-            athlete: activeAthlete,
-            sport: activeSport,
-            athleteNames: athleteNames,
-            sports: sports,
-            onSearchChanged: (_) => setState(() {}),
-            onAthleteChanged: (value) => setState(() => _athlete = value),
-            onSportChanged: (value) => setState(() => _sport = value),
-            onClear: _clearFilters,
-          ),
-          const SizedBox(height: 20),
-          Row(
-            children: [
-              Text(
-                '${filtered.length} videó',
-                style: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w900,
+    final horizontal = MediaQuery.sizeOf(context).width < 800 ? 20.0 : 34.0;
+    return CommandListener(
+      onFocusSearch: () {
+        _searchFocus.requestFocus();
+        _titleSearch.selection = TextSelection(
+          baseOffset: 0,
+          extentOffset: _titleSearch.text.length,
+        );
+      },
+      child: Container(
+        color: context.cb.canvas,
+        padding: EdgeInsets.fromLTRB(horizontal, 28, horizontal, 34),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _VideoLibraryHeader(
+              videoCount: entries.length,
+              athleteCount: athletesWithVideos,
+              sportCount: sports.where((sport) => sport != 'Egyéb').length,
+            ),
+            const SizedBox(height: 22),
+            _VideoFilterBar(
+              controller: _titleSearch,
+              focusNode: _searchFocus,
+              athlete: activeAthlete,
+              sport: activeSport,
+              athleteNames: athleteNames,
+              sports: sports,
+              onSearchChanged: (_) => setState(() {}),
+              onAthleteChanged: (value) => setState(() => _athlete = value),
+              onSportChanged: (value) => setState(() => _sport = value),
+              onClear: _clearFilters,
+            ),
+            const SizedBox(height: 20),
+            Row(
+              children: [
+                Text(
+                  '${filtered.length} videó',
+                  style: context.text.titleLarge,
                 ),
-              ),
-              const Spacer(),
-              if (entries.isNotEmpty)
-                const Text(
-                  'Legújabb mentések elöl',
-                  style: TextStyle(color: _muted, fontSize: 12),
-                ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Expanded(
-            child: entries.isEmpty
-                ? _EmptyVideoLibrary(onOpenAthletes: widget.onOpenAthletes)
-                : filtered.isEmpty
-                ? _EmptyVideoSearch(onClear: _clearFilters)
-                : LayoutBuilder(
-                    builder: (context, constraints) {
-                      final columns = constraints.maxWidth >= 1120
-                          ? 3
-                          : constraints.maxWidth >= 720
-                          ? 2
-                          : 1;
-                      const gap = 16.0;
-                      final width =
-                          (constraints.maxWidth - gap * (columns - 1)) /
-                          columns;
-                      return SingleChildScrollView(
-                        child: Wrap(
-                          spacing: gap,
-                          runSpacing: gap,
-                          children: filtered
-                              .map(
-                                (entry) => SizedBox(
-                                  width: width,
-                                  child: _VideoLibraryCard(
-                                    entry: entry,
-                                    onOpenAthlete: entry.athlete == null
-                                        ? null
-                                        : () => widget.onOpenAthlete(
-                                            entry.athlete!,
-                                          ),
-                                    onRemove: () =>
-                                        widget.onRemoveVideo(entry.video),
+                const Spacer(),
+                if (entries.isNotEmpty)
+                  Text('Legújabb mentések elöl', style: context.text.bodySmall),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Expanded(
+              child: entries.isEmpty
+                  ? _EmptyVideoLibrary(onOpenAthletes: widget.onOpenAthletes)
+                  : filtered.isEmpty
+                  ? _EmptyVideoSearch(onClear: _clearFilters)
+                  : LayoutBuilder(
+                      builder: (context, constraints) {
+                        final columns = constraints.maxWidth >= 1120
+                            ? 3
+                            : constraints.maxWidth >= 720
+                            ? 2
+                            : 1;
+                        const gap = 16.0;
+                        final width =
+                            (constraints.maxWidth - gap * (columns - 1)) /
+                            columns;
+                        return SingleChildScrollView(
+                          child: Wrap(
+                            spacing: gap,
+                            runSpacing: gap,
+                            children: filtered
+                                .map(
+                                  (entry) => SizedBox(
+                                    width: width,
+                                    child: _VideoLibraryCard(
+                                      entry: entry,
+                                      onOpenAthlete: entry.athlete == null
+                                          ? null
+                                          : () => widget.onOpenAthlete(
+                                              entry.athlete!,
+                                            ),
+                                      onRemove: () =>
+                                          widget.onRemoveVideo(entry.video),
+                                    ),
                                   ),
-                                ),
-                              )
-                              .toList(),
-                        ),
-                      );
-                    },
-                  ),
-          ),
-        ],
+                                )
+                                .toList(),
+                          ),
+                        );
+                      },
+                    ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -211,43 +218,26 @@ class _VideoLibraryHeader extends StatelessWidget {
   final int sportCount;
 
   @override
-  Widget build(BuildContext context) => Row(
-    children: [
-      Container(
-        width: 58,
-        height: 58,
-        decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.secondary,
-          borderRadius: BorderRadius.circular(18),
-        ),
-        child: const Icon(Icons.video_library_rounded, size: 29),
+  Widget build(BuildContext context) => PageHeader(
+    title: 'Videók',
+    subtitle: 'A sportolóidhoz mentett videók egyetlen médiatárban.',
+    leading: Container(
+      width: 58,
+      height: 58,
+      decoration: BoxDecoration(
+        color: context.cb.accentSoft,
+        borderRadius: BorderRadius.circular(18),
       ),
-      const SizedBox(width: 16),
-      const Expanded(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Videók',
-              style: TextStyle(
-                fontSize: 34,
-                fontWeight: FontWeight.w900,
-                letterSpacing: -1.5,
-              ),
-            ),
-            SizedBox(height: 3),
-            Text(
-              'A sportolóidhoz mentett videók egyetlen médiatárban.',
-              style: TextStyle(color: _muted),
-            ),
-          ],
-        ),
+      child: Icon(
+        Icons.video_library_rounded,
+        size: 29,
+        color: context.cb.accent,
       ),
-      _VideoLibraryStat(value: '$videoCount', label: 'VIDEÓ'),
-      const SizedBox(width: 8),
-      _VideoLibraryStat(value: '$athleteCount', label: 'SPORTOLÓ'),
-      const SizedBox(width: 8),
-      _VideoLibraryStat(value: '$sportCount', label: 'SPORTÁG'),
+    ),
+    actions: [
+      _VideoLibraryStat(value: formatInt(videoCount), label: 'VIDEÓ'),
+      _VideoLibraryStat(value: formatInt(athleteCount), label: 'SPORTOLÓ'),
+      _VideoLibraryStat(value: formatInt(sportCount), label: 'SPORTÁG'),
     ],
   );
 }
@@ -259,29 +249,18 @@ class _VideoLibraryStat extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-    width: 86,
-    padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 11),
+    constraints: const BoxConstraints(minWidth: 92),
+    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
     decoration: BoxDecoration(
-      color: _paper,
+      color: context.cb.surface,
       borderRadius: BorderRadius.circular(16),
-      border: Border.all(color: const Color(0xFFD8D4C8)),
+      border: Border.all(color: context.cb.border),
     ),
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          value,
-          style: const TextStyle(fontSize: 21, fontWeight: FontWeight.w900),
-        ),
-        Text(
-          label,
-          style: const TextStyle(
-            color: _muted,
-            fontSize: 9,
-            fontWeight: FontWeight.w900,
-            letterSpacing: .6,
-          ),
-        ),
+        Text(value, style: context.text.titleLarge),
+        Text(label, style: context.text.labelMedium),
       ],
     ),
   );
@@ -290,6 +269,7 @@ class _VideoLibraryStat extends StatelessWidget {
 class _VideoFilterBar extends StatelessWidget {
   const _VideoFilterBar({
     required this.controller,
+    required this.focusNode,
     required this.athlete,
     required this.sport,
     required this.athleteNames,
@@ -301,6 +281,7 @@ class _VideoFilterBar extends StatelessWidget {
   });
 
   final TextEditingController controller;
+  final FocusNode focusNode;
   final String athlete;
   final String sport;
   final List<String> athleteNames;
@@ -311,13 +292,8 @@ class _VideoFilterBar extends StatelessWidget {
   final VoidCallback onClear;
 
   @override
-  Widget build(BuildContext context) => Container(
+  Widget build(BuildContext context) => SurfaceCard(
     padding: const EdgeInsets.all(16),
-    decoration: BoxDecoration(
-      color: _paper,
-      borderRadius: BorderRadius.circular(20),
-      border: Border.all(color: const Color(0xFFD8D4C8)),
-    ),
     child: Row(
       children: [
         Expanded(
@@ -325,11 +301,12 @@ class _VideoFilterBar extends StatelessWidget {
           child: TextField(
             key: const Key('video-title-search'),
             controller: controller,
+            focusNode: focusNode,
             onChanged: onSearchChanged,
             decoration: const InputDecoration(
               labelText: 'Keresés a videók címében',
+              hintText: 'Ctrl+F',
               prefixIcon: Icon(Icons.search_rounded),
-              border: OutlineInputBorder(),
             ),
           ),
         ),
@@ -338,13 +315,13 @@ class _VideoFilterBar extends StatelessWidget {
           key: const Key('video-athlete-filter'),
           flex: 2,
           child: DropdownButtonFormField<String>(
+            style: context.text.bodyLarge,
             key: ValueKey('video-athlete-filter-$athlete'),
             initialValue: athlete,
             isExpanded: true,
             decoration: const InputDecoration(
               labelText: 'Sportoló',
               prefixIcon: Icon(Icons.person_outline),
-              border: OutlineInputBorder(),
             ),
             items: ['Mind', ...athleteNames]
                 .map(
@@ -368,13 +345,13 @@ class _VideoFilterBar extends StatelessWidget {
           key: const Key('video-sport-filter'),
           flex: 2,
           child: DropdownButtonFormField<String>(
+            style: context.text.bodyLarge,
             key: ValueKey('video-sport-filter-$sport'),
             initialValue: sport,
             isExpanded: true,
             decoration: const InputDecoration(
               labelText: 'Sportág',
               prefixIcon: Icon(Icons.sports_basketball_outlined),
-              border: OutlineInputBorder(),
             ),
             items: ['Mind', ...sports]
                 .map((item) => DropdownMenuItem(value: item, child: Text(item)))
@@ -409,146 +386,151 @@ class _VideoLibraryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cb = context.cb;
     final athlete = entry.athlete;
-    final accent = athlete?.accent ?? Theme.of(context).colorScheme.secondary;
-    return Material(
-      key: ValueKey('video-${entry.video.videoId}-${entry.athleteName}'),
-      color: _paper,
+    final accent = athlete?.accent ?? cb.highlight;
+    return FocusRing(
       borderRadius: BorderRadius.circular(22),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: () => openExternalUrl(context, entry.video.watchUrl),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            AspectRatio(
-              aspectRatio: 16 / 9,
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  Image.network(
-                    entry.video.thumbnailUrl,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => Container(
-                      color: _ink,
-                      child: const Icon(
-                        Icons.video_library_outlined,
-                        color: Colors.white54,
-                        size: 44,
+      child: Material(
+        key: ValueKey('video-${entry.video.videoId}-${entry.athleteName}'),
+        color: cb.surface,
+        clipBehavior: Clip.antiAlias,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(22),
+          side: BorderSide(color: cb.border),
+        ),
+        child: InkWell(
+          onTap: () => openExternalUrl(context, entry.video.watchUrl),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              AspectRatio(
+                aspectRatio: 16 / 9,
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    CourtboardImage(
+                      url: entry.video.thumbnailUrl,
+                      semanticLabel: 'Videó bélyegképe: ${entry.video.title}',
+                      placeholder: Container(
+                        color: cb.ink,
+                        child: Icon(
+                          Icons.video_library_outlined,
+                          color: cb.onInkMuted,
+                          size: 44,
+                        ),
                       ),
                     ),
-                  ),
-                  const DecoratedBox(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [Colors.transparent, Color(0x99151815)],
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                      ),
-                    ),
-                  ),
-                  Positioned(
-                    top: 12,
-                    left: 12,
-                    child: _Pill(
-                      text: entry.sport.toUpperCase(),
-                      color: accent,
-                    ),
-                  ),
-                  Center(
-                    child: Container(
-                      width: 54,
-                      height: 54,
+                    DecoratedBox(
                       decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: .92),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(
-                        Icons.play_arrow_rounded,
-                        color: _ink,
-                        size: 34,
+                        gradient: LinearGradient(
+                          colors: [
+                            cb.ink.withValues(alpha: 0),
+                            cb.ink.withValues(alpha: .6),
+                          ],
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                        ),
                       ),
                     ),
-                  ),
-                ],
+                    Positioned(
+                      top: 12,
+                      left: 12,
+                      child: StatusPill.filled(
+                        entry.sport.toUpperCase(),
+                        color: accent,
+                      ),
+                    ),
+                    Center(
+                      child: Container(
+                        width: 54,
+                        height: 54,
+                        decoration: BoxDecoration(
+                          color: cb.onInk.withValues(alpha: .92),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          Icons.play_arrow_rounded,
+                          color: cb.ink,
+                          size: 34,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(17, 16, 12, 13),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    entry.video.title,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w900,
-                      height: 1.2,
+              Padding(
+                padding: const EdgeInsets.fromLTRB(17, 16, 12, 13),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      entry.video.title,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: context.text.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w900,
+                        height: 1.25,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 13),
-                  Row(
-                    children: [
-                      CircleAvatar(
-                        radius: 17,
-                        backgroundColor: accent,
-                        child: Text(
-                          entry.athleteName.substring(0, 1),
-                          style: const TextStyle(
-                            color: _ink,
-                            fontWeight: FontWeight.w900,
+                    const SizedBox(height: 13),
+                    Row(
+                      children: [
+                        SizedBox.square(
+                          dimension: 34,
+                          child: ClipOval(
+                            child: CourtboardImage(
+                              url: athlete?.photoUrl ?? '',
+                              alignment: const Alignment(0, -0.5),
+                              placeholder: InitialsPlaceholder(
+                                name: entry.athleteName,
+                                color: accent,
+                              ),
+                            ),
                           ),
                         ),
-                      ),
-                      const SizedBox(width: 9),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              entry.athleteName,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w800,
+                        const SizedBox(width: 9),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                entry.athleteName,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: context.text.titleSmall,
                               ),
-                            ),
-                            Text(
-                              _savedDate(entry.video.savedAt),
-                              style: const TextStyle(
-                                color: _muted,
-                                fontSize: 11,
+                              Text(
+                                _savedDate(entry.video.savedAt),
+                                style: context.text.bodySmall,
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
-                      ),
-                      if (onOpenAthlete != null)
+                        if (onOpenAthlete != null)
+                          IconButton(
+                            tooltip: 'Sportoló profilja',
+                            onPressed: onOpenAthlete,
+                            icon: const Icon(Icons.person_outline),
+                          ),
                         IconButton(
-                          tooltip: 'Sportoló profilja',
-                          onPressed: onOpenAthlete,
-                          icon: const Icon(Icons.person_outline),
+                          tooltip: 'Videó eltávolítása',
+                          onPressed: onRemove,
+                          icon: const Icon(Icons.delete_outline),
                         ),
-                      IconButton(
-                        tooltip: 'Videó eltávolítása',
-                        onPressed: onRemove,
-                        icon: const Icon(Icons.delete_outline),
-                      ),
-                    ],
-                  ),
-                ],
+                      ],
+                    ),
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
   }
 
-  static String _savedDate(DateTime date) =>
-      'Mentve: ${date.year}.${date.month.toString().padLeft(2, '0')}.${date.day.toString().padLeft(2, '0')}';
+  static String _savedDate(DateTime date) => 'Mentve: ${formatDate(date)}';
 }
 
 class _EmptyVideoLibrary extends StatelessWidget {
@@ -561,41 +543,24 @@ class _EmptyVideoLibrary extends StatelessWidget {
       child: ConstrainedBox(
         constraints: BoxConstraints(minHeight: constraints.maxHeight),
         child: Center(
-          child: Container(
+          child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 460),
-            margin: const EdgeInsets.symmetric(vertical: 12),
-            padding: const EdgeInsets.all(34),
-            decoration: BoxDecoration(
-              color: _paper,
-              borderRadius: BorderRadius.circular(24),
-              border: Border.all(color: const Color(0xFFD8D4C8)),
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  Icons.video_library_outlined,
-                  size: 48,
-                  color: Theme.of(context).colorScheme.primary,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              child: SurfaceCard(
+                padding: const EdgeInsets.all(34),
+                child: EmptyState(
+                  icon: Icons.video_library_outlined,
+                  title: 'Még nincs mentett videód',
+                  message:
+                      'Nyiss meg egy sportolói profilt, majd a videók résznél adj hozzá egy YouTube-linket.',
+                  action: FilledButton.icon(
+                    onPressed: onOpenAthletes,
+                    icon: const Icon(Icons.people_outline),
+                    label: const Text('Sportolók megnyitása'),
+                  ),
                 ),
-                const SizedBox(height: 14),
-                const Text(
-                  'Még nincs mentett videód',
-                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900),
-                ),
-                const SizedBox(height: 7),
-                const Text(
-                  'Nyiss meg egy sportolói profilt, majd a videók résznél adj hozzá egy YouTube-linket.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: _muted, height: 1.4),
-                ),
-                const SizedBox(height: 18),
-                FilledButton.icon(
-                  onPressed: onOpenAthletes,
-                  icon: const Icon(Icons.people_outline),
-                  label: const Text('Sportolók megnyitása'),
-                ),
-              ],
+              ),
             ),
           ),
         ),
@@ -610,22 +575,15 @@ class _EmptyVideoSearch extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Center(
-    child: Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        const Icon(Icons.search_off_rounded, size: 42, color: _muted),
-        const SizedBox(height: 10),
-        const Text(
-          'Nincs a szűrésnek megfelelő videó.',
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
-        ),
-        const SizedBox(height: 10),
-        TextButton.icon(
-          onPressed: onClear,
-          icon: const Icon(Icons.filter_alt_off_outlined),
-          label: const Text('Szűrők törlése'),
-        ),
-      ],
+    child: EmptyState(
+      icon: Icons.search_off_rounded,
+      title: 'Nincs a szűrésnek megfelelő videó.',
+      message: 'Próbálj más címet, sportolót vagy sportágat.',
+      action: TextButton.icon(
+        onPressed: onClear,
+        icon: const Icon(Icons.filter_alt_off_outlined),
+        label: const Text('Szűrők törlése'),
+      ),
     ),
   );
 }

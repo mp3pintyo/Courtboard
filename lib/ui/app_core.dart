@@ -1,14 +1,5 @@
 part of '../main.dart';
 
-const _ink = Color(0xFF151815);
-const _canvas = Color(0xFFECE9DF);
-const _paper = Color(0xFFF9F8F3);
-const _olive = Color(0xFFC5D48B);
-const _moss = Color(0xFF596B35);
-const _burgundy = Color(0xFF7A263A);
-const _burgundySoft = Color(0xFFE4B4BD);
-const _muted = Color(0xFF73766C);
-
 class Athlete {
   const Athlete({
     required this.name,
@@ -125,25 +116,20 @@ class CourtboardApp extends StatefulWidget {
 
 class _CourtboardAppState extends State<CourtboardApp> {
   late String _theme = widget.initialState.theme;
+  late String _themeMode = widget.initialState.themeMode;
 
   @override
   Widget build(BuildContext context) {
-    final burgundy = _theme == 'burgundy';
-    final seed = burgundy ? _burgundy : _moss;
-    final secondary = burgundy ? _burgundySoft : _olive;
-    final scheme = ColorScheme.fromSeed(
-      seedColor: seed,
-      brightness: Brightness.light,
-    ).copyWith(primary: seed, secondary: secondary);
+    final accent = CourtboardAccent.fromStorage(_theme);
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'Courtboard',
-      theme: ThemeData(
-        useMaterial3: true,
-        fontFamily: 'Segoe UI',
-        scaffoldBackgroundColor: _canvas,
-        colorScheme: scheme,
-      ),
+      theme: buildCourtboardTheme(accent, Brightness.light),
+      darkTheme: buildCourtboardTheme(accent, Brightness.dark),
+      themeMode: themeModeFromStorage(_themeMode),
+      locale: const Locale('hu'),
+      supportedLocales: const [Locale('hu')],
+      localizationsDelegates: GlobalMaterialLocalizations.delegates,
       home: CourtboardShell(
         initialState: widget.initialState,
         stateStore: widget.stateStore,
@@ -152,6 +138,7 @@ class _CourtboardAppState extends State<CourtboardApp> {
         apiKeyStore: widget.apiKeyStore,
         secureStorageAvailable: widget.secureStorageAvailable,
         onThemeChanged: (value) => setState(() => _theme = value),
+        onThemeModeChanged: (value) => setState(() => _themeMode = value),
       ),
     );
   }

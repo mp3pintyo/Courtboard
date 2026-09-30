@@ -23,12 +23,22 @@ class _AthleteDirectory extends StatefulWidget {
 
 class _AthleteDirectoryState extends State<_AthleteDirectory> {
   final _search = TextEditingController();
+  final _searchFocus = FocusNode(debugLabel: 'directory-search');
   String _sport = 'Mind';
 
   @override
   void dispose() {
     _search.dispose();
+    _searchFocus.dispose();
     super.dispose();
+  }
+
+  void _focusSearch() {
+    _searchFocus.requestFocus();
+    _search.selection = TextSelection(
+      baseOffset: 0,
+      extentOffset: _search.text.length,
+    );
   }
 
   @override
@@ -49,154 +59,140 @@ class _AthleteDirectoryState extends State<_AthleteDirectory> {
     // Húzással csak a teljes, szűretlen listát lehet átrendezni, különben az
     // indexek nem a tényleges sorrendre vonatkoznának.
     final reorderable = customOrder && query.isEmpty && _sport == 'Mind';
-    return Container(
-      color: _canvas,
-      padding: const EdgeInsets.all(34),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Sportolók',
-                      style: TextStyle(
-                        fontSize: 34,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                    SizedBox(height: 5),
-                    Text(
-                      'Névfeloldás, képkeresés és saját követési lista.',
-                      style: TextStyle(color: _muted),
-                    ),
-                  ],
+    final cb = context.cb;
+    final padding = MediaQuery.sizeOf(context).width < 800 ? 20.0 : 34.0;
+    return CommandListener(
+      onFocusSearch: _focusSearch,
+      child: Container(
+        color: cb.canvas,
+        padding: EdgeInsets.all(padding),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            PageHeader(
+              title: 'Sportolók',
+              subtitle: 'Névfeloldás, képkeresés és saját követési lista.',
+              actions: [
+                Tooltip(
+                  message: 'Új sportoló (Ctrl+N)',
+                  child: FilledButton.icon(
+                    onPressed: widget.onAdd,
+                    icon: const Icon(Icons.person_add_alt_1),
+                    label: const Text('Sportoló hozzáadása'),
+                  ),
                 ),
-              ),
-              FilledButton.icon(
-                onPressed: widget.onAdd,
-                icon: const Icon(Icons.person_add_alt_1),
-                label: const Text('Sportoló hozzáadása'),
-              ),
-            ],
-          ),
-          const SizedBox(height: 22),
-          Row(
-            children: [
-              Expanded(
-                child: TextField(
-                  key: const Key('athlete-directory-search'),
-                  controller: _search,
-                  onChanged: (_) => setState(() {}),
-                  decoration: InputDecoration(
-                    hintText: 'Keresés név alapján…',
-                    prefixIcon: const Icon(Icons.search),
-                    suffixIcon: _search.text.isEmpty
-                        ? null
-                        : IconButton(
-                            tooltip: 'Keresés törlése',
-                            onPressed: () {
-                              _search.clear();
-                              setState(() {});
-                            },
-                            icon: const Icon(Icons.close),
-                          ),
-                    filled: true,
-                    fillColor: _paper,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(16),
-                      borderSide: BorderSide.none,
+              ],
+            ),
+            const SizedBox(height: 22),
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    key: const Key('athlete-directory-search'),
+                    controller: _search,
+                    focusNode: _searchFocus,
+                    onChanged: (_) => setState(() {}),
+                    decoration: InputDecoration(
+                      hintText: 'Keresés név alapján… (Ctrl+F)',
+                      prefixIcon: const Icon(Icons.search),
+                      suffixIcon: _search.text.isEmpty
+                          ? null
+                          : IconButton(
+                              tooltip: 'Keresés törlése',
+                              onPressed: () {
+                                _search.clear();
+                                setState(() {});
+                              },
+                              icon: const Icon(Icons.close),
+                            ),
                     ),
                   ),
                 ),
-              ),
-              const SizedBox(width: 16),
-              Text(
-                '${athletes.length} sportoló',
-                style: const TextStyle(
-                  color: _muted,
-                  fontWeight: FontWeight.w700,
+                const SizedBox(width: 16),
+                Text(
+                  '${athletes.length} sportoló',
+                  style: context.text.titleSmall?.copyWith(color: cb.textMuted),
                 ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children:
+                    ['Mind', 'NBA', 'WNBA', 'Foci', 'Darts', 'Tenisz', 'NFL']
+                        .map(
+                          (sport) => Padding(
+                            padding: const EdgeInsets.only(right: 8),
+                            child: ChoiceChip(
+                              key: ValueKey('athlete-sport-$sport'),
+                              label: Text(sport),
+                              selected: _sport == sport,
+                              onSelected: (_) => setState(() => _sport = sport),
+                            ),
+                          ),
+                        )
+                        .toList(),
+              ),
+            ),
+            if (customOrder) ...[
+              const SizedBox(height: 10),
+              Text(
+                reorderable
+                    ? 'Saját sorrend: a fogantyúval húzva átrendezheted a listát.'
+                    : 'Az átrendezéshez töröld a keresést, és válaszd a „Mind” szűrőt.',
+                style: context.text.bodySmall,
               ),
             ],
-          ),
-          const SizedBox(height: 14),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children:
-                  ['Mind', 'NBA', 'WNBA', 'Foci', 'Darts', 'Tenisz', 'NFL']
-                      .map(
-                        (sport) => Padding(
-                          padding: const EdgeInsets.only(right: 8),
-                          child: ChoiceChip(
-                            key: ValueKey('athlete-sport-$sport'),
-                            label: Text(sport),
-                            selected: _sport == sport,
-                            selectedColor: Theme.of(
-                              context,
-                            ).colorScheme.secondaryContainer,
-                            onSelected: (_) => setState(() => _sport = sport),
+            const SizedBox(height: 18),
+            Expanded(
+              child: athletes.isEmpty
+                  ? const Center(
+                      child: EmptyState(
+                        icon: Icons.person_search_outlined,
+                        message: 'Nincs a keresésnek megfelelő sportoló.',
+                      ),
+                    )
+                  : reorderable
+                  ? ReorderableListView.builder(
+                      key: const Key('athlete-directory-reorderable'),
+                      buildDefaultDragHandles: false,
+                      itemCount: athletes.length,
+                      onReorderItem: widget.onReorder,
+                      itemBuilder: (context, index) => Padding(
+                        key: ValueKey('reorder-${athletes[index].name}'),
+                        padding: const EdgeInsets.only(bottom: 10),
+                        child: _DirectoryTile(
+                          athlete: athletes[index],
+                          onOpen: widget.onOpen,
+                          trailing: ReorderableDragStartListener(
+                            index: index,
+                            child: Tooltip(
+                              message: 'Húzd az átrendezéshez',
+                              child: Icon(
+                                Icons.drag_handle,
+                                color: cb.textMuted,
+                              ),
+                            ),
                           ),
                         ),
-                      )
-                      .toList(),
-            ),
-          ),
-          if (customOrder) ...[
-            const SizedBox(height: 10),
-            Text(
-              reorderable
-                  ? 'Saját sorrend: a fogantyúval húzva átrendezheted a listát.'
-                  : 'Az átrendezéshez töröld a keresést, és válaszd a „Mind” szűrőt.',
-              style: const TextStyle(color: _muted, fontSize: 12),
-            ),
-          ],
-          const SizedBox(height: 18),
-          Expanded(
-            child: athletes.isEmpty
-                ? const Center(
-                    child: Text(
-                      'Nincs a keresésnek megfelelő sportoló.',
-                      style: TextStyle(color: _muted),
-                    ),
-                  )
-                : reorderable
-                ? ReorderableListView.builder(
-                    key: const Key('athlete-directory-reorderable'),
-                    buildDefaultDragHandles: false,
-                    itemCount: athletes.length,
-                    onReorderItem: widget.onReorder,
-                    itemBuilder: (context, index) => Padding(
-                      key: ValueKey('reorder-${athletes[index].name}'),
-                      padding: const EdgeInsets.only(bottom: 10),
-                      child: _DirectoryTile(
+                      ),
+                    )
+                  : ListView.separated(
+                      itemCount: athletes.length,
+                      separatorBuilder: (_, __) => const SizedBox(height: 10),
+                      itemBuilder: (context, index) => _DirectoryTile(
                         athlete: athletes[index],
                         onOpen: widget.onOpen,
-                        trailing: ReorderableDragStartListener(
-                          index: index,
-                          child: const Tooltip(
-                            message: 'Húzd az átrendezéshez',
-                            child: Icon(Icons.drag_handle),
-                          ),
+                        trailing: Icon(
+                          Icons.arrow_forward,
+                          color: cb.textMuted,
                         ),
                       ),
                     ),
-                  )
-                : ListView.separated(
-                    itemCount: athletes.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 10),
-                    itemBuilder: (context, index) => _DirectoryTile(
-                      athlete: athletes[index],
-                      onOpen: widget.onOpen,
-                      trailing: const Icon(Icons.arrow_forward),
-                    ),
-                  ),
-          ),
-        ],
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -213,23 +209,46 @@ class _DirectoryTile extends StatelessWidget {
   final Widget trailing;
 
   @override
-  Widget build(BuildContext context) => Material(
-    color: _paper,
+  Widget build(BuildContext context) => FocusRing(
     borderRadius: BorderRadius.circular(16),
-    clipBehavior: Clip.antiAlias,
-    child: ListTile(
-      key: ValueKey('directory-athlete-${athlete.name}'),
-      onTap: () => onOpen(athlete),
-      leading: CircleAvatar(
-        backgroundColor: athlete.accent,
-        child: Text(athlete.name.substring(0, 1)),
+    child: Material(
+      color: context.cb.surface,
+      clipBehavior: Clip.antiAlias,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: context.cb.border),
       ),
-      title: Text(
-        athlete.name,
-        style: const TextStyle(fontWeight: FontWeight.w800),
+      child: ListTile(
+        key: ValueKey('directory-athlete-${athlete.name}'),
+        onTap: () => onOpen(athlete),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+        leading: SizedBox.square(
+          dimension: 42,
+          child: ClipOval(
+            child: CourtboardImage(
+              url: athlete.photoUrl,
+              alignment: const Alignment(0, -0.5),
+              semanticLabel: '${athlete.name} fotója',
+              placeholder: InitialsPlaceholder(
+                name: athlete.name,
+                color: athlete.accent,
+              ),
+            ),
+          ),
+        ),
+        title: Text(
+          athlete.name,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: context.text.titleMedium,
+        ),
+        subtitle: Text(
+          athlete.sportAndTeam,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+        trailing: trailing,
       ),
-      subtitle: Text(athlete.sportAndTeam),
-      trailing: trailing,
     ),
   );
 }
@@ -237,6 +256,8 @@ class _DirectoryTile extends StatelessWidget {
 class _SettingsPage extends StatelessWidget {
   const _SettingsPage({
     required this.theme,
+    required this.themeMode,
+    required this.onThemeModeChanged,
     required this.overviewSort,
     required this.athleteSort,
     required this.onThemeChanged,
@@ -245,6 +266,8 @@ class _SettingsPage extends StatelessWidget {
   });
 
   final String theme;
+  final String themeMode;
+  final ValueChanged<String> onThemeModeChanged;
   final String overviewSort;
   final String athleteSort;
   final ValueChanged<String> onThemeChanged;
@@ -260,42 +283,68 @@ class _SettingsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-    color: _canvas,
-    padding: const EdgeInsets.all(34),
+    color: context.cb.canvas,
+    padding: EdgeInsets.all(MediaQuery.sizeOf(context).width < 800 ? 20 : 34),
     child: ListView(
       children: [
-        const Text(
-          'Beállítások',
-          style: TextStyle(
-            fontSize: 34,
-            fontWeight: FontWeight.w900,
-            letterSpacing: -1.4,
-          ),
-        ),
-        const SizedBox(height: 6),
-        const Text(
-          'A módosításokat a Courtboard automatikusan elmenti.',
-          style: TextStyle(color: _muted),
+        const PageHeader(
+          title: 'Beállítások',
+          subtitle: 'A módosításokat a Courtboard automatikusan elmenti.',
         ),
         const SizedBox(height: 28),
         _SettingsCard(
           title: 'Megjelenés',
-          description: 'Válaszd ki az alkalmazás kiemelőszínét.',
-          child: SegmentedButton<String>(
-            segments: const [
-              ButtonSegment(
-                value: 'green',
-                icon: Icon(Icons.eco_outlined),
-                label: Text('Zöld téma'),
+          description:
+              'Válaszd ki a világos vagy sötét módot és az alkalmazás kiemelőszínét.',
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('MÓD', style: context.text.labelMedium),
+              const SizedBox(height: 8),
+              SegmentedButton<String>(
+                key: const Key('theme-mode-setting'),
+                segments: const [
+                  ButtonSegment(
+                    value: 'system',
+                    icon: Icon(Icons.brightness_auto_outlined),
+                    label: Text('Rendszer'),
+                  ),
+                  ButtonSegment(
+                    value: 'light',
+                    icon: Icon(Icons.light_mode_outlined),
+                    label: Text('Világos'),
+                  ),
+                  ButtonSegment(
+                    value: 'dark',
+                    icon: Icon(Icons.dark_mode_outlined),
+                    label: Text('Sötét'),
+                  ),
+                ],
+                selected: {themeMode},
+                onSelectionChanged: (values) =>
+                    onThemeModeChanged(values.first),
               ),
-              ButtonSegment(
-                value: 'burgundy',
-                icon: Icon(Icons.wine_bar_outlined),
-                label: Text('Bordó téma'),
+              const SizedBox(height: 20),
+              Text('KIEMELŐSZÍN', style: context.text.labelMedium),
+              const SizedBox(height: 8),
+              SegmentedButton<String>(
+                key: const Key('accent-setting'),
+                segments: const [
+                  ButtonSegment(
+                    value: 'green',
+                    icon: Icon(Icons.eco_outlined),
+                    label: Text('Zöld téma'),
+                  ),
+                  ButtonSegment(
+                    value: 'burgundy',
+                    icon: Icon(Icons.wine_bar_outlined),
+                    label: Text('Bordó téma'),
+                  ),
+                ],
+                selected: {theme},
+                onSelectionChanged: (values) => onThemeChanged(values.first),
               ),
             ],
-            selected: {theme},
-            onSelectionChanged: (values) => onThemeChanged(values.first),
           ),
         ),
         const SizedBox(height: 16),
@@ -306,11 +355,11 @@ class _SettingsPage extends StatelessWidget {
           child: Column(
             children: [
               DropdownButtonFormField<String>(
+                style: context.text.bodyLarge,
                 key: const Key('overview-sort-setting'),
                 initialValue: overviewSort,
                 decoration: const InputDecoration(
                   labelText: 'Áttekintés – sportolók sorrendje',
-                  border: OutlineInputBorder(),
                 ),
                 items: _sortOptions.entries
                     .map(
@@ -326,11 +375,11 @@ class _SettingsPage extends StatelessWidget {
               ),
               const SizedBox(height: 16),
               DropdownButtonFormField<String>(
+                style: context.text.bodyLarge,
                 key: const Key('athlete-sort-setting'),
                 initialValue: athleteSort,
                 decoration: const InputDecoration(
                   labelText: 'Sportolók oldal – lista sorrendje',
-                  border: OutlineInputBorder(),
                 ),
                 items: _sortOptions.entries
                     .map(
@@ -346,6 +395,14 @@ class _SettingsPage extends StatelessWidget {
               ),
             ],
           ),
+        ),
+        const SizedBox(height: 16),
+        const _SettingsCard(
+          title: 'Billentyűparancsok',
+          description:
+              'A leggyakoribb műveletek egér nélkül is elérhetők. '
+              'A gombok eszköztippje is jelzi a gyorsbillentyűt.',
+          child: _ShortcutList(),
         ),
       ],
     ),
@@ -363,26 +420,28 @@ class _SettingsCard extends StatelessWidget {
   final Widget child;
 
   @override
-  Widget build(BuildContext context) => Container(
-    constraints: const BoxConstraints(maxWidth: 760),
-    padding: const EdgeInsets.all(24),
-    decoration: BoxDecoration(
-      color: _paper,
-      borderRadius: BorderRadius.circular(22),
-      border: Border.all(color: const Color(0xFFD8D4C8)),
-    ),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          title,
-          style: const TextStyle(fontSize: 21, fontWeight: FontWeight.w900),
+  Widget build(BuildContext context) => Align(
+    alignment: Alignment.centerLeft,
+    child: ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 760),
+      child: SurfaceCard(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(title, style: context.text.titleLarge),
+            const SizedBox(height: 5),
+            Text(
+              description,
+              style: context.text.bodyMedium?.copyWith(
+                color: context.cb.textMuted,
+              ),
+            ),
+            const SizedBox(height: 20),
+            child,
+          ],
         ),
-        const SizedBox(height: 5),
-        Text(description, style: const TextStyle(color: _muted)),
-        const SizedBox(height: 20),
-        child,
-      ],
+      ),
     ),
   );
 }
@@ -390,46 +449,27 @@ class _SettingsCard extends StatelessWidget {
 class _CalendarPage extends StatelessWidget {
   const _CalendarPage();
   @override
-  Widget build(BuildContext context) => Container(
-    color: _canvas,
-    child: const Padding(
-      padding: EdgeInsets.all(34),
-      child: Column(
+  Widget build(BuildContext context) => ColoredBox(
+    color: context.cb.canvas,
+    child: Padding(
+      padding: EdgeInsets.all(MediaQuery.sizeOf(context).width < 800 ? 20 : 34),
+      child: const Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Naptár és mérkőzések',
-            style: TextStyle(
-              fontSize: 34,
-              fontWeight: FontWeight.w900,
-              letterSpacing: -1.5,
-            ),
-          ),
-          SizedBox(height: 6),
-          Text(
-            'Követett sportolóid következő eseményei és utolsó eredményei.',
-            style: TextStyle(color: _muted),
+          PageHeader(
+            title: 'Naptár és mérkőzések',
+            subtitle:
+                'Követett sportolóid következő eseményei és utolsó eredményei.',
           ),
           SizedBox(height: 28),
           Expanded(
             child: Center(
               key: Key('calendar-empty-state'),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.event_available_outlined, size: 46, color: _muted),
-                  SizedBox(height: 12),
-                  Text(
-                    'Még nincs megjeleníthető esemény.',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
-                  ),
-                  SizedBox(height: 6),
-                  Text(
+              child: EmptyState(
+                icon: Icons.event_available_outlined,
+                title: 'Még nincs megjeleníthető esemény.',
+                message:
                     'A naptár a követett sportolók közelgő eseményeiből épül fel — hamarosan.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: _muted),
-                  ),
-                ],
               ),
             ),
           ),

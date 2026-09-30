@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:courtboard/common_ui.dart';
+import 'package:courtboard/format.dart';
 import 'package:courtboard/data/api_key_id.dart';
 import 'package:courtboard/data/api_key_store.dart';
 import 'package:courtboard/data/secret_store.dart';
@@ -351,7 +352,8 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('athlete-Nikola Jokić')));
     await tester.pumpAndSettle();
 
-    expect(find.text('JÁTÉKOSPROFIL'), findsOneWidget);
+    expect(find.byKey(const Key('profile-hero')), findsOneWidget);
+    expect(find.byTooltip('Továbbiak'), findsOneWidget);
     expect(find.text('LEGUTÓBBI NBA MECCSEK · BASKETBALL REFERENCE'),
         findsOneWidget);
     expect(find.text('Szezon összesítő'), findsOneWidget);
@@ -555,7 +557,8 @@ void main() {
     ]) {
       expect(find.text(label), findsOneWidget);
     }
-    expect(find.text('56.9%'), findsOneWidget);
+    expect(find.text('56,9%'), findsOneWidget);
+    expect(find.text('27,7'), findsOneWidget);
     expect(find.text('Denver Nuggets'), findsOneWidget);
     expect(find.text('NBA · 2025/2026'), findsOneWidget);
   });
@@ -597,8 +600,9 @@ void main() {
     ]) {
       expect(find.text(label), findsOneWidget);
     }
-    expect(find.text('50.0%'), findsOneWidget);
-    expect(find.textContaining('Minnesota Lynx · WNBA 2026'), findsOneWidget);
+    expect(find.text('50,0%'), findsOneWidget);
+    expect(find.text('Minnesota Lynx'), findsOneWidget);
+    expect(find.textContaining('WNBA 2026'), findsOneWidget);
   });
 
   testWidgets('Basketball Reference WNBA games show score and box score',
@@ -627,7 +631,9 @@ void main() {
     expect(find.text('LEGUTÓBBI WNBA MECCSEK · BASKETBALL REFERENCE'),
         findsOneWidget);
     expect(find.text('Toronto Tempo'), findsOneWidget);
-    expect(find.text('104-72'), findsOneWidget);
+    expect(find.text('104–72'), findsOneWidget);
+    expect(find.byTooltip('Győzelem'), findsOneWidget);
+    expect(find.text('IDEGEN'), findsOneWidget);
     expect(find.text('12 PTS · 5 REB · 2 AST · 22 MIN'), findsOneWidget);
   });
 
@@ -654,7 +660,8 @@ void main() {
     expect(find.text('RapidAPI · Darts API'), findsOneWidget);
     expect(find.text('Luke Littler'), findsOneWidget);
     expect(find.text('Betfred World Matchplay Day 9'), findsOneWidget);
-    expect(find.text('GYŐZELEM'), findsOneWidget);
+    expect(find.byTooltip('Győzelem'), findsOneWidget);
+    expect(find.text(formatMatchDate(DateTime(2026, 7, 26))), findsOneWidget);
   });
 
   testWidgets('Liga F list shows Barcelona result and opponent',
@@ -672,7 +679,9 @@ void main() {
 
     expect(find.text('Espanyol'), findsOneWidget);
     expect(find.text('4–1'), findsOneWidget);
-    expect(find.text('IDEGEN · LIGA F'), findsOneWidget);
+    expect(find.text('IDEGEN'), findsOneWidget);
+    expect(find.text('Liga F'), findsOneWidget);
+    expect(find.byTooltip('Győzelem'), findsOneWidget);
   });
 
   testWidgets('RapidAPI WNBA facts show advanced stats and awards',
@@ -689,7 +698,7 @@ void main() {
             body: WnbaRapidProfileFacts(
                 profile: profile, accent: Colors.orange))));
 
-    expect(find.text('21.5'), findsOneWidget);
+    expect(find.text('21,5'), findsOneWidget);
     expect(find.text('PTS'), findsOneWidget);
     expect(find.text('1x Rookie of the Year'), findsOneWidget);
   });
@@ -746,7 +755,8 @@ void main() {
     expect(find.text('#2'), findsOneWidget);
     expect(find.text('vs. Coco Gauff'), findsOneWidget);
     expect(find.text('1–0 szett · 6–4, 2–1 · 15–0 pont'), findsOneWidget);
-    expect(find.text('Cincinnati'), findsOneWidget);
+    expect(find.textContaining('Cincinnati'), findsOneWidget);
+    expect(find.text('8 000'), findsOneWidget);
     expect(find.textContaining('MA 12/1000 KÉRÉS'), findsOneWidget);
   });
 }

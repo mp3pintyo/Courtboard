@@ -1,150 +1,177 @@
 part of '../main.dart';
 
+/// A profil fejléce (~220–240 px): bal oldalon név és sportág/csapat/ország,
+/// jobb oldalon az arcra igazított fotó (vagy a sportoló színéből képzett
+/// átmenet), sötét átmenettel a szöveg felé.
 class _ProfileHero extends StatelessWidget {
   const _ProfileHero({required this.athlete});
   final Athlete athlete;
+
   @override
-  Widget build(BuildContext context) => Container(
-    height: 380,
-    clipBehavior: Clip.antiAlias,
-    decoration: BoxDecoration(
-      borderRadius: BorderRadius.circular(32),
-      color: _ink,
-    ),
-    child: Stack(
-      children: [
-        Positioned.fill(
-          child: Image.network(
-            athlete.photoUrl,
-            fit: BoxFit.cover,
-            alignment: Alignment.topCenter,
-            errorBuilder: (_, __, ___) => Container(color: athlete.accent),
+  Widget build(BuildContext context) {
+    final cb = context.cb;
+    final details = athlete.showsCountry
+        ? '${athlete.sportAndTeam} · ${athlete.country}'
+        : athlete.sportAndTeam;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final narrow = constraints.maxWidth < 620;
+        final photoWidth = narrow
+            ? constraints.maxWidth * .5
+            : (constraints.maxWidth * .44).clamp(260.0, 560.0);
+        return Container(
+          key: const Key('profile-hero'),
+          width: double.infinity,
+          constraints: const BoxConstraints(minHeight: 220),
+          clipBehavior: Clip.antiAlias,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(28),
+            color: cb.ink,
+            // Sötét módban a hero finom kerettel válik el a vászontól.
+            border: cb.isDark ? Border.all(color: cb.border) : null,
           ),
-        ),
-        Positioned.fill(
-          child: const DecoratedBox(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [Color(0x00151815), Color(0xED151815)],
-                stops: [.22, 1],
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-              ),
-            ),
-          ),
-        ),
-        Positioned(
-          left: 28,
-          bottom: 25,
-          right: 28,
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
+          child: Stack(
+            alignment: Alignment.bottomLeft,
             children: [
-              Container(
-                width: 68,
-                height: 68,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: athlete.accent,
-                  shape: BoxShape.circle,
-                  border: Border.all(color: Colors.white, width: 3),
-                ),
-                child: Text(
-                  athlete.name.substring(0, 1),
-                  style: const TextStyle(
-                    fontSize: 30,
-                    fontWeight: FontWeight.w900,
+              Positioned(
+                top: 0,
+                right: 0,
+                bottom: 0,
+                width: photoWidth,
+                child: CourtboardImage(
+                  url: athlete.photoUrl,
+                  // Az álló portrékon az arc a kép felső harmadában van.
+                  alignment: const Alignment(0, -0.3),
+                  semanticLabel: '${athlete.name} fotója',
+                  placeholder: InitialsPlaceholder(
+                    name: athlete.name,
+                    color: athlete.accent,
+                    showInitials: false,
                   ),
                 ),
               ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      athlete.name,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 42,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: -2,
+              // A fotó bal széle beleolvad a sötét felületbe.
+              Positioned(
+                top: 0,
+                bottom: 0,
+                right: photoWidth - 200,
+                width: 200,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [cb.ink, cb.ink.withValues(alpha: 0)],
+                    ),
+                  ),
+                ),
+              ),
+              // Keskeny helyen a fotóra is kerülhet szöveg: alul sötétítünk.
+              if (narrow)
+                Positioned.fill(
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          cb.ink.withValues(alpha: 0),
+                          cb.ink.withValues(alpha: .85),
+                        ],
+                        stops: const [.3, 1],
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
                       ),
                     ),
-                    const SizedBox(height: 5),
+                  ),
+                ),
+              Padding(
+                padding: EdgeInsets.fromLTRB(
+                  28,
+                  28,
+                  narrow ? 28 : photoWidth * .7,
+                  26,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 36,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: athlete.accent,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    Semantics(
+                      header: true,
+                      child: Text(
+                        athlete.name,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: context.text.displayLarge?.copyWith(
+                          color: cb.onInk,
+                          fontSize: narrow ? 34 : 42,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
                     Text(
-                      athlete.showsCountry
-                          ? '${athlete.sportAndTeam} · ${athlete.country}'
-                          : athlete.sportAndTeam,
-                      style: const TextStyle(
-                        color: Colors.white70,
+                      details,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: context.text.bodyLarge?.copyWith(
+                        color: cb.onInkMuted,
                         fontSize: 16,
                       ),
                     ),
                   ],
                 ),
               ),
-              _Pill(text: 'KÖVETVE', color: _olive),
             ],
           ),
-        ),
-      ],
-    ),
-  );
+        );
+      },
+    );
+  }
 }
 
-class _MetricCard extends StatelessWidget {
-  const _MetricCard({required this.metric, required this.accent});
-  final Metric metric;
-  final Color accent;
-  @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.all(18),
-    decoration: BoxDecoration(
-      color: _paper,
-      borderRadius: BorderRadius.circular(20),
-      border: Border.all(color: const Color(0xFFD8D4C8)),
-    ),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          metric.label,
-          style: const TextStyle(
-            fontSize: 10,
-            color: _muted,
-            fontWeight: FontWeight.w900,
-            letterSpacing: .9,
-          ),
-        ),
-        const SizedBox(height: 15),
-        Text(
-          metric.value,
-          style: const TextStyle(
-            fontSize: 31,
-            fontWeight: FontWeight.w900,
-            letterSpacing: -1.3,
-          ),
-        ),
-        const SizedBox(height: 5),
-        Text(
-          metric.note,
-          style: TextStyle(
-            color: accent,
-            fontWeight: FontWeight.w700,
-            fontSize: 12,
-          ),
-        ),
-      ],
-    ),
-  );
+/// A profil adatkártyái a betöltött mérkőzésekből kiemelést mentenek a
+/// nyitóoldal számára (legutóbbi eredmény, következő esemény). A mentés
+/// háttérben fut, és a hibája soha nem érinti a kártyát.
+Future<T> _withHighlights<T>(
+  String athleteName,
+  Future<T> future,
+  Iterable<HighlightEvent> Function(T value) events,
+) async {
+  final value = await future;
+  try {
+    unawaited(
+      AthleteHighlightStore.shared.record(athleteName, events(value).toList()),
+    );
+  } catch (_) {
+    // Kényelmi adat: hibánál egyszerűen nem mentünk.
+  }
+  return value;
 }
+
+HighlightEvent _highlight(
+  DateTime date,
+  String title,
+  MatchOutcome outcome, [
+  String? score,
+]) => HighlightEvent(
+  date: date,
+  title: title,
+  outcome: outcome == MatchOutcome.unknown ? '' : outcome.name,
+  score: score == null ? '' : normalizeScore(score),
+);
 
 class _SportTemplate extends StatelessWidget {
   const _SportTemplate({required this.athlete});
   final Athlete athlete;
+
   @override
   Widget build(BuildContext context) {
+    final cb = context.cb;
     final content = switch (athlete.sport) {
       'NBA' || 'WNBA' => (
         'JÁTÉKINTELLIGENCIA',
@@ -177,24 +204,33 @@ class _SportTemplate extends StatelessWidget {
         ['Forma', 'Hatékonyság', 'Hatás'],
       ),
     };
+    // A sportoló színe halványan a felülethez keverve: a szöveg mindkét
+    // módban a normál szövegtokenekkel olvasható.
+    final background = Color.alphaBlend(
+      athlete.accent.withValues(alpha: cb.isDark ? .16 : .32),
+      cb.surface,
+    );
     return Container(
+      width: double.infinity,
       padding: const EdgeInsets.all(22),
       decoration: BoxDecoration(
-        color: athlete.accent.withValues(alpha: .4),
-        borderRadius: BorderRadius.circular(26),
+        color: background,
+        borderRadius: BorderRadius.circular(24),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             content.$1,
-            style: const TextStyle(
+            style: context.text.labelMedium?.copyWith(
+              color: cb.textPrimary,
+              fontSize: 13,
               fontWeight: FontWeight.w900,
               letterSpacing: 1,
             ),
           ),
           const SizedBox(height: 7),
-          Text(content.$2, style: const TextStyle(color: Color(0xFF3F4538))),
+          Text(content.$2, style: context.text.bodyMedium),
           // Formamutatót csak valós adatból rajzolunk; amíg nincs ilyen
           // forrás, a jelzők neve szerepel, kitalált százalék nélkül.
           const SizedBox(height: 14),
@@ -202,13 +238,13 @@ class _SportTemplate extends StatelessWidget {
             spacing: 8,
             runSpacing: 8,
             children: content.$3
-                .map((label) => _Pill(text: label.toUpperCase(), color: _paper))
+                .map((label) => StatusPill(label.toUpperCase()))
                 .toList(),
           ),
           const SizedBox(height: 10),
-          const Text(
+          Text(
             'Formaadat még nem érhető el ehhez a sportolóhoz.',
-            style: TextStyle(fontSize: 12, color: Color(0xFF3F4538)),
+            style: context.text.bodySmall?.copyWith(color: cb.textPrimary),
           ),
         ],
       ),
@@ -216,144 +252,76 @@ class _SportTemplate extends StatelessWidget {
   }
 }
 
-class _MatchRow extends StatelessWidget {
-  const _MatchRow({required this.match, required this.accent});
-  final MatchLine match;
-  final Color accent;
-  @override
-  Widget build(BuildContext context) => Container(
-    margin: const EdgeInsets.only(bottom: 10),
-    padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
-    decoration: BoxDecoration(
-      color: _paper,
-      borderRadius: BorderRadius.circular(18),
-      border: Border.all(color: const Color(0xFFD8D4C8)),
-    ),
-    child: Row(
-      children: [
-        SizedBox(
-          width: 62,
-          child: Text(
-            match.date,
-            style: const TextStyle(
-              fontSize: 11,
-              color: _muted,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-        ),
-        Expanded(
-          flex: 2,
-          child: Text(
-            match.opponent,
-            style: const TextStyle(fontWeight: FontWeight.w800),
-          ),
-        ),
-        Expanded(
-          child: Text(
-            match.result,
-            style: TextStyle(
-              color: accent,
-              fontSize: 11,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-        ),
-        SizedBox(
-          width: 88,
-          child: Text(
-            match.score,
-            style: const TextStyle(fontWeight: FontWeight.w900),
-          ),
-        ),
-        Expanded(
-          flex: 2,
-          child: Text(
-            match.performance,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(color: _muted, fontSize: 12),
-          ),
-        ),
-        Container(
-          width: 34,
-          height: 34,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(color: accent, shape: BoxShape.circle),
-          child: Text(
-            match.grade,
-            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w900),
-          ),
-        ),
-      ],
-    ),
-  );
-}
-
 class _ClipCard extends StatelessWidget {
   const _ClipCard({required this.video, required this.onRemove});
   final SavedYouTubeVideo video;
   final VoidCallback onRemove;
+
   @override
-  Widget build(BuildContext context) => Container(
-    width: 305,
-    padding: const EdgeInsets.all(16),
-    decoration: BoxDecoration(
-      color: _ink,
-      borderRadius: BorderRadius.circular(20),
-    ),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        ClipRRect(
-          borderRadius: BorderRadius.circular(14),
-          child: Image.network(
-            video.thumbnailUrl,
-            height: 106,
-            width: double.infinity,
-            fit: BoxFit.cover,
-            errorBuilder: (_, __, ___) => const SizedBox(
-              height: 106,
-              child: Center(
-                child: Icon(Icons.broken_image, color: Colors.white),
+  Widget build(BuildContext context) {
+    final cb = context.cb;
+    return Container(
+      width: 305,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: cb.ink,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(14),
+            child: AspectRatio(
+              aspectRatio: 16 / 9,
+              child: CourtboardImage(
+                url: video.thumbnailUrl,
+                semanticLabel: 'Videó bélyegképe: ${video.title}',
+                placeholder: ColoredBox(
+                  color: cb.inkRaised,
+                  child: Center(
+                    child: Icon(
+                      Icons.video_library_outlined,
+                      color: cb.onInkMuted,
+                    ),
+                  ),
+                ),
               ),
             ),
           ),
-        ),
-        const SizedBox(height: 14),
-        Text(
-          video.title,
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-          style: const TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.w800,
+          const SizedBox(height: 14),
+          Text(
+            video.title,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: context.text.titleSmall?.copyWith(color: cb.onInk),
           ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          'Mentve: ${video.savedAt.year}.${video.savedAt.month.toString().padLeft(2, '0')}.${video.savedAt.day.toString().padLeft(2, '0')}',
-          style: const TextStyle(color: Colors.white60, fontSize: 12),
-        ),
-        const SizedBox(height: 8),
-        Row(
-          children: [
-            TextButton.icon(
-              onPressed: () => openExternalUrl(context, video.watchUrl),
-              icon: const Icon(Icons.play_arrow),
-              label: const Text('Lejátszás'),
-            ),
-            const Spacer(),
-            IconButton(
-              tooltip: 'Videó eltávolítása',
-              onPressed: onRemove,
-              icon: const Icon(Icons.delete_outline, color: Colors.white),
-            ),
-          ],
-        ),
-      ],
-    ),
-  );
+          const SizedBox(height: 4),
+          Text(
+            'Mentve: ${formatDate(video.savedAt)}',
+            style: context.text.bodySmall?.copyWith(color: cb.onInkMuted),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              TextButton.icon(
+                style: TextButton.styleFrom(foregroundColor: cb.highlight),
+                onPressed: () => openExternalUrl(context, video.watchUrl),
+                icon: const Icon(Icons.play_arrow),
+                label: const Text('Lejátszás'),
+              ),
+              const Spacer(),
+              IconButton(
+                tooltip: 'Videó eltávolítása',
+                onPressed: onRemove,
+                icon: Icon(Icons.delete_outline, color: cb.onInk),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _PersonalTools extends StatelessWidget {
@@ -367,63 +335,79 @@ class _PersonalTools extends StatelessWidget {
   final bool alertEnabled;
   final ValueChanged<String> onSaveNote;
   final VoidCallback onToggleAlert;
+
   @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.all(16),
-    decoration: BoxDecoration(
-      color: _paper,
-      borderRadius: BorderRadius.circular(18),
-      border: Border.all(color: const Color(0xFFD8D4C8)),
-    ),
-    child: Row(
+  Widget build(BuildContext context) {
+    final text = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'SAJÁT JEGYZET',
-                style: TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w900,
-                  color: _muted,
-                ),
-              ),
-              const SizedBox(height: 5),
-              Text(
-                note.isEmpty ? 'Még nincs jegyzet ehhez a sportolóhoz.' : note,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ],
-          ),
-        ),
-        TextButton.icon(
-          onPressed: () async {
-            final value = await showDialog<String>(
-              context: context,
-              builder: (_) => _NoteDialog(initialValue: note),
-            );
-            if (value != null) onSaveNote(value);
-          },
-          icon: const Icon(Icons.edit_outlined),
-          label: const Text('Szerkesztés'),
-        ),
-        const SizedBox(width: 8),
-        FilterChip(
-          label: Text(alertEnabled ? 'Értesítés aktív' : 'Értesítés ki'),
-          selected: alertEnabled,
-          onSelected: (_) => onToggleAlert(),
-          avatar: Icon(
-            alertEnabled
-                ? Icons.notifications_active
-                : Icons.notifications_off_outlined,
-            size: 16,
+        Text('SAJÁT JEGYZET', style: context.text.labelMedium),
+        const SizedBox(height: 5),
+        Text(
+          note.isEmpty ? 'Még nincs jegyzet ehhez a sportolóhoz.' : note,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          style: context.text.bodyMedium?.copyWith(
+            color: note.isEmpty ? context.cb.textMuted : null,
           ),
         ),
       ],
+    );
+    final actions = _actions(context);
+    return SurfaceCard(
+      padding: const EdgeInsets.all(16),
+      child: LayoutBuilder(
+        // Keskeny helyen a gombok a jegyzet alá kerülnek.
+        builder: (context, constraints) => constraints.maxWidth < 560
+            ? Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  text,
+                  const SizedBox(height: 10),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: actions,
+                  ),
+                ],
+              )
+            : Row(
+                children: [
+                  Expanded(child: text),
+                  const SizedBox(width: 8),
+                  ...actions,
+                ],
+              ),
+      ),
+    );
+  }
+
+  List<Widget> _actions(BuildContext context) => [
+    TextButton.icon(
+      onPressed: () async {
+        final value = await showDialog<String>(
+          context: context,
+          builder: (_) => _NoteDialog(initialValue: note),
+        );
+        if (value != null) onSaveNote(value);
+      },
+      icon: const Icon(Icons.edit_outlined),
+      label: const Text('Szerkesztés'),
     ),
-  );
+    FilterChip(
+      label: Text(alertEnabled ? 'Értesítés aktív' : 'Értesítés ki'),
+      selected: alertEnabled,
+      showCheckmark: false,
+      onSelected: (_) => onToggleAlert(),
+      avatar: Icon(
+        alertEnabled
+            ? Icons.notifications_active
+            : Icons.notifications_off_outlined,
+        size: 16,
+      ),
+    ),
+  ];
 }
 
 /// Jegyzetszerkesztő párbeszédablak; a vezérlőt a saját állapota birtokolja
