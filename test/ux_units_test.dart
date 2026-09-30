@@ -1,7 +1,9 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:courtboard/data/athlete_highlights.dart';
@@ -167,6 +169,49 @@ void main() {
         error = e;
       }
       expect(error, isNotNull);
+    });
+
+    testWidgets('images load through the ProviderScope cache', (tester) async {
+      final requested = <String>[];
+      final scoped = ImageDiskCache(
+        loader: (url) {
+          requested.add(url);
+          return Completer<Uint8List>().future;
+        },
+      );
+      final bridged = <String>[];
+      final previous = ImageDiskCache.shared;
+      ImageDiskCache.shared = ImageDiskCache(
+        loader: (url) {
+          bridged.add(url);
+          return Completer<Uint8List>().future;
+        },
+      );
+      addTearDown(() => ImageDiskCache.shared = previous);
+      Widget image(String url) => SizedBox(
+        width: 40,
+        height: 40,
+        child: CourtboardImage(url: url, placeholder: const SizedBox()),
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [imageDiskCacheProvider.overrideWithValue(scoped)],
+          child: Directionality(
+            textDirection: TextDirection.ltr,
+            child: image('https://example.com/scoped.jpg'),
+          ),
+        ),
+      );
+      await tester.pumpWidget(
+        Directionality(
+          textDirection: TextDirection.ltr,
+          child: image('https://example.com/bridged.jpg'),
+        ),
+      );
+
+      expect(requested, ['https://example.com/scoped.jpg']);
+      expect(bridged, ['https://example.com/bridged.jpg']);
     });
 
     test('initials come from the first and last name', () {

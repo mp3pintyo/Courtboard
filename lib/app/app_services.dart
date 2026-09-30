@@ -59,7 +59,7 @@ class AppServices {
   /// tároló).
   final ApiKeyStore apiKeyStore;
 
-  /// A futó alkalmazás verziója (`0.13.0`); `null`, ha nem ismert.
+  /// A futó alkalmazás verziója (`0.14.0`); `null`, ha nem ismert.
   final String? appVersion;
 
   /// A GitHub-kiadások figyelője; `null` esetén nincs frissítés-ellenőrzés.

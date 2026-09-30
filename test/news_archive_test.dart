@@ -1,6 +1,5 @@
 import 'package:courtboard/data/news.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 void main() {
   const fox = NewsSource(
@@ -29,7 +28,7 @@ void main() {
   });
 
   test('undated articles keep their first stored date on refresh', () async {
-    final store = NewsStore(path: inMemoryDatabasePath);
+    final store = NewsStore(path: NewsStore.inMemoryPath);
     addTearDown(store.close);
     final first = DateTime(2026, 8, 1, 10);
     final later = DateTime(2026, 8, 1, 18);
@@ -55,7 +54,7 @@ void main() {
   });
 
   test('concurrent first callers share one database connection', () async {
-    final store = NewsStore(path: inMemoryDatabasePath);
+    final store = NewsStore(path: NewsStore.inMemoryPath);
     addTearDown(store.close);
 
     final databases = await Future.wait([

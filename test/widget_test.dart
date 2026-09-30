@@ -52,7 +52,7 @@ void _desktopView(WidgetTester tester) {
 
 /// A lekérdezéskor mindig hibát dobó hírtár a hibaállapot teszteléséhez.
 class _FailingNewsStore extends NewsStore {
-  _FailingNewsStore() : super(path: ':memory:');
+  _FailingNewsStore() : super(path: NewsStore.inMemoryPath);
 
   @override
   Future<List<NewsArticle>> query({
@@ -63,6 +63,10 @@ class _FailingNewsStore extends NewsStore {
     int limit = 500,
     int offset = 0,
   }) async => throw const SocketException('offline');
+
+  /// A hibás tár élő cikkszáma sem érhető el (az adatbázis nem nyílik meg).
+  @override
+  Stream<int> watchCount() => Stream.error(const SocketException('offline'));
 }
 
 void main() {

@@ -6,6 +6,11 @@
 /// kicsi, saját [ImageProvider] tölti a képeket a közös HTTP-rétegen át, és
 /// menti őket a `%APPDATA%\Courtboard\cache\images` alá (30 napos élettartam,
 /// hiba esetén a lejárt példány is használható).
+///
+/// A tár Riverpod-szolgáltatás ([imageDiskCacheProvider]); a
+/// [CourtboardImage] a legközelebbi `ProviderScope`-ból kéri. Az
+/// [ImageDiskCache.shared] a provider alapértéke és híd a `ProviderScope`
+/// nélküli helyekre (indítás előtti takarítás, scope nélküli widgetek).
 library;
 
 import 'dart:async';
@@ -15,6 +20,7 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:courtboard/data/app_paths.dart';
 import 'package:courtboard/data/file_util.dart' show fnv1a32Hex;
@@ -38,7 +44,9 @@ class ImageDiskCache {
 
   static ImageDiskCache? _shared;
 
-  /// Az alkalmazás közös példánya.
+  /// Az alkalmazás közös példánya: az [imageDiskCacheProvider] alapértéke,
+  /// és híd a `ProviderScope`-on kívüli helyekre (például a `main` indítás
+  /// előtti takarítása).
   static ImageDiskCache get shared => _shared ??= ImageDiskCache();
 
   @visibleForTesting
@@ -164,6 +172,26 @@ class ImageDiskCache {
   }
 }
 
+/// A képek lemezes tára. Alapból az [ImageDiskCache.shared]; a
+/// `ProviderScope` `overrides` listájával cserélhető (például egy
+/// widgettesztben).
+final imageDiskCacheProvider = Provider<ImageDiskCache>(
+  (ref) => ImageDiskCache.shared,
+  name: 'imageDiskCacheProvider',
+);
+
+/// A [context] feletti `ProviderScope` képtára; scope nélkül (például egy
+/// önálló widgettesztben) az [ImageDiskCache.shared].
+ImageDiskCache imageDiskCacheOf(BuildContext context) {
+  final ProviderContainer container;
+  try {
+    container = ProviderScope.containerOf(context, listen: false);
+  } on StateError {
+    return ImageDiskCache.shared;
+  }
+  return container.read(imageDiskCacheProvider);
+}
+
 /// Lemezes gyorsítótárat használó hálózati kép.
 @immutable
 class CourtboardNetworkImage extends ImageProvider<CourtboardNetworkImage> {
@@ -172,7 +200,9 @@ class CourtboardNetworkImage extends ImageProvider<CourtboardNetworkImage> {
   final String url;
   final double scale;
 
-  /// Alapból az [ImageDiskCache.shared].
+  /// A képtár; alapból az [ImageDiskCache.shared]. Az [ImageProvider]
+  /// nem éri el a Riverpodot, ezért a widget adja át
+  /// ([imageDiskCacheOf]).
   final ImageDiskCache? cache;
 
   @override
@@ -335,7 +365,7 @@ class CourtboardImage extends StatelessWidget {
         final provider = ResizeImage.resizeIfNeeded(
           cacheWidth,
           null,
-          CourtboardNetworkImage(url.trim()),
+          CourtboardNetworkImage(url.trim(), cache: imageDiskCacheOf(context)),
         );
         return Image(
           image: provider,

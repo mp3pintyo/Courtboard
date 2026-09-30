@@ -66,6 +66,10 @@ class _NewsPageState extends ConsumerState<NewsPage> {
   int _storedCount = 0;
   String _status = '';
 
+  /// A tárolt cikkek számának figyelése: ha az oldalon kívül (például a
+  /// háttérfigyelő) ment új cikket, az első oldal magától frissül.
+  StreamSubscription<int>? _countSubscription;
+
   @override
   void initState() {
     super.initState();
@@ -75,7 +79,26 @@ class _NewsPageState extends ConsumerState<NewsPage> {
 
   Future<void> _initialize() async {
     await _reload();
+    if (!mounted) return;
+    _countSubscription = _repository.store.watchCount().listen(
+      _storedCountChanged,
+      onError: (Object _) {
+        // A betöltési hibát a _reload már megjeleníti.
+      },
+    );
     if (widget.autoRefresh) unawaited(_refresh());
+  }
+
+  /// Külső mentés után újratölt, ha a felhasználó nem lapozott tovább (a
+  /// saját frissítés végén a [_refresh] tölt újra).
+  void _storedCountChanged(int count) {
+    if (!mounted || count == _storedCount) return;
+    if (_loading || _refreshing || _loadError != null) return;
+    if (_articles.length > _pageSize) {
+      setState(() => _storedCount = count);
+      return;
+    }
+    _scheduleReload();
   }
 
   Future<List<NewsArticle>> _queryPage(int offset) => _repository.store.query(
@@ -255,6 +278,7 @@ class _NewsPageState extends ConsumerState<NewsPage> {
 
   @override
   void dispose() {
+    unawaited(_countSubscription?.cancel());
     _debounce?.cancel();
     _search.dispose();
     _searchFocus.dispose();

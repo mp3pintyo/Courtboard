@@ -44,6 +44,12 @@ class ActivityController extends ChangeNotifier {
   bool _upcomingWasLoading = false;
   bool _disposed = false;
 
+  /// A hírarchívum cikkszámának figyelése: ha egy másik frissítés (például
+  /// a háttérfigyelő vagy a Hírek oldal) új cikket ment, a hírfolyam
+  /// magától újratöltődik.
+  StreamSubscription<int>? _newsCount;
+  int? _lastNewsCount;
+
   /// A profil adatkártyái által legutóbb mentett eredmények és események
   /// sportolónként.
   Map<String, AthleteHighlight> get highlights => _highlights;
@@ -62,6 +68,20 @@ class ActivityController extends ChangeNotifier {
     unawaited(loadHighlights());
     unawaited(loadFeedNews());
     unawaited(loadUpcoming());
+    _newsCount = news.store.watchCount().listen(
+      _newsCountChanged,
+      onError: (Object _) {
+        // A hírarchívum hibáját a hírfolyam betöltése már elnyeli.
+      },
+    );
+  }
+
+  void _newsCountChanged(int count) {
+    final previous = _lastNewsCount;
+    _lastNewsCount = count;
+    if (previous != null && previous != count && !_disposed) {
+      unawaited(loadFeedNews());
+    }
   }
 
   Future<void> loadHighlights() async {
@@ -136,6 +156,7 @@ class ActivityController extends ChangeNotifier {
   @override
   void dispose() {
     _disposed = true;
+    unawaited(_newsCount?.cancel());
     upcoming.removeListener(_upcomingChanged);
     super.dispose();
   }

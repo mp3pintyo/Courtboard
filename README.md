@@ -302,10 +302,11 @@ A **Hírek** oldal alapból a FOX Sports és a CBS Sports NBA-, WNBA-, foci- és
 A helyi adatbázis mindig azonnal betöltődik, a hálózati frissítés csak utána fut, ezért egy hibás vagy átmenetileg nem elérhető forrás nem tünteti el a korábbi híreket. A kártyán mindig a cikk publikálási dátuma jelenik meg, nem a letöltés ideje. Az adatbázis-migráció eltávolítja az első kiadás FOX-elemeit, amelyeknél a hibás időzóna-feldolgozás miatt a lekérési idő került publikálási dátumként tárolásra; a következő frissítés helyes dátummal tölti vissza őket.
 
 - Az automatikus frissítési ablak 20 perc; a Frissítés gomb tudatosan megkerüli ezt az időkorlátot.
-- A letöltött hírek SQLite-adatbázisba kerülnek, és az app nem törli őket automatikusan. Így hónapokkal később és hálózat nélkül is kereshetők maradnak.
+- A letöltött hírek helyi SQLite-adatbázisba kerülnek (`%APPDATA%\Courtboard\courtboard_news.sqlite`), így hónapokkal később és hálózat nélkül is kereshetők maradnak. Takarítás csak a megőrzési szabály szerint van: egy cikk akkor törlődik, ha egy évnél régebbi **és** nincs a legújabb 5000 között (a sport- és forráskapcsolatok és a keresőindex vele együtt törlődnek).
+- Az adatbázist a 0.14.0 óta a [drift](https://drift.simonbinder.eu/) kezeli (típusos, reaktív lekérdezések, háttér-isolate). A séma a korábbi (sqflite) tárral azonos, ezért a meglévő archívum frissítéskor adatvesztés és átalakítás nélkül nyílik meg: a drift az 5-ös sémaverzióval csak átveszi a 4-es sémát, a régebbi (2–3-as) adatbázisokon pedig a korábbi migrációs lépések futnak le. A Hírek oldal és a Követés hírfolyam élőben frissül, ha a háttérfigyelő új cikket ment.
 - A deduplikáció elsősorban kanonizált URL, ennek hiányában GUID alapján történik. Egy hír több sportághoz és több feedhez is kapcsolódhat anélkül, hogy duplán jelenne meg.
 - A feldolgozó kezeli az RSS, Atom és FOX JSON eltéréseit, az RFC 822 numerikus időzóna-eltolásokat, valamint az ESPN `EST`/`EDT` jelöléseit. A leírás HTML-entitásait dekódolja, eltávolítja a `script`, `style`, `noscript` elemeket és a tageket, normalizálja a whitespace-t, majd legfeljebb 350 karaktert tárol.
-- A keresés a címben és az összefoglalóban fut. A sportoló szerinti illesztés ékezet- és névsorrend-független tokenekkel működik.
+- A keresés a címben és az összefoglalóban fut, SQLite FTS5 `trigram` indexszel (részszó-keresés, legalább 3 karakter); rövidebb keresésnél, vagy ha a beépített SQLite nem ismerné az FTS5-öt, `LIKE` keresés fut. A sportoló szerinti illesztés ékezet- és névsorrend-független tokenekkel működik.
 - A tárolt kép az RSS-ben kapott külső kép-URL; maga a képfájl nincs archiválva. A cím, összefoglaló, dátum, forrás és eredeti link viszont tartósan megmarad.
 - A hírmodell egy `NewsProvider` interfészen keresztül kap adatot, ezért később RSS mellett hírszolgáltatói API vagy más importforrás is hozzáadható az adatbázis és a felület átírása nélkül.
 
@@ -342,7 +343,7 @@ A sportolói profilon a felhasználó YouTube URL-t vagy videóazonosítót adha
 | `%APPDATA%\Courtboard\cache\openligadb` | OpenLigaDB csapatlisták és szezon-meccslisták | csapatlista 7 nap, meccslista 1 óra |
 | `%APPDATA%\Courtboard\cache\watcher` | a háttérfigyelő emlékezete: már jelzett meccskezdések, látott eredmények és hírek | a jelzett események 2 napig; törlés után az első ellenőrzés csak újra megjegyzi a meglévőt |
 | `%APPDATA%\Courtboard\cache\update_check` | a legfrissebb GitHub-kiadás adatai | 12 óra |
-| `%APPDATA%\Courtboard\courtboard_news.sqlite` | letöltött hírek, sport- és forráskapcsolatok, feedbeállítások és frissítési állapot | tartós; nincs automatikus törlés |
+| `%APPDATA%\Courtboard\courtboard_news.sqlite` | letöltött hírek, sport- és forráskapcsolatok, feedbeállítások és frissítési állapot (drift / SQLite, FTS5 keresőindex) | tartós; csak az egy évnél régebbi, a legújabb 5000-en kívüli cikkek törlődnek |
 
 ## Hibaelhárítás
 
@@ -376,10 +377,14 @@ A **Hírek → Források** ablakban ellenőrizd, hogy a feed be van-e kapcsolva,
 
 ```powershell
 dart format lib test
+# csak a lib/data/news/news_database.drift vagy news_database.dart módosításakor:
+dart run build_runner build
 flutter analyze
 flutter test
 flutter build windows --release
 ```
+
+A drift generált kódja (`lib/data/news/news_database.g.dart`) a tárolóban van, ezért a fordításhoz nem kell a kódgenerátort futtatni; a beállítása a `build.yaml`-ban van.
 
 Az adatforrások központi, kereshető leírása a `lib/data/provider_catalog.dart` fájlban van. Új integráció felvételekor ezt a katalógust és a README mátrixát együtt kell frissíteni.
 
@@ -426,9 +431,16 @@ lib/
       profile_providers.dart   sportolónkénti adatok (FutureProvider / AsyncNotifier családok)
       sports/              sportágankénti adatkártyák (NBA, WNBA, foci, tenisz, darts, NFL)
   shared/              közös UI: components (DataSourceCard, AsyncDataSourceCard …),
-                       charts, format, images, common_ui, theme/
+                       charts, format, images (imageDiskCacheProvider), common_ui, theme/
   data/                adatforrások, gyorsítótárak, tárolók (UI nélkül)
     providers.dart         az adatréteg providerei (HTTP, gyorsítótárak, repositoryk)
+    news/                  hírarchívum: modellek, forráslista, feldolgozók, repository
+      news_store.dart          NewsStore: mentés (upsert), megőrzés, FTS5/LIKE keresés,
+                               lapozás, watchArticles / watchCount / watchSourceStates
+      news_database.drift      a séma (a régi sqflite-tárral azonos nevek) és a típusos
+                               lekérdezések (upsert, kapcsolósorok, megőrzés)
+      news_database.dart       NewsDatabase (drift): migráció 2/3/4 → 5, FTS5 index és
+                               triggerek, forráslista; news_database.g.dart: generált
   desktop/             Windows-integráció (ablak, tálca, értesítések, indítás)
 ```
 
@@ -452,11 +464,13 @@ Az app `ProviderScope`-ban fut (`flutter_riverpod`, kódgenerálás nélkül). A
 | `espnAthleteRepositoryProvider`, `espnScheduleRepositoryProvider`, `espnSoccerTeamRepositoryProvider`, `liveScoresRepositoryProvider`, `matchTimelineRepositoryProvider`, `headToHeadRepositoryProvider`, `upcomingEventsRepositoryProvider`, `basketballReferenceRepositoryProvider`, `wnbaWehoopRepositoryProvider`, `openLigaDbRepositoryProvider` | `data/providers.dart` | kulcs nélküli repositoryk |
 | `apiSportsRepositoryProvider`, `multiProviderAthleteRepositoryProvider`, `dartsRepositoryProvider`, `footballSeasonRepositoryProvider`, `footballDataRepositoryProvider`, `footballDataPlayerRepositoryProvider`, `tennisRepositoryProvider`, `wnbaRapidApiRepositoryProvider` | `data/providers.dart` | kulcsos repositoryk (kulcsmentéskor újak) |
 | `profileImageResolverProvider` | `data/providers.dart` | profilkép keresése új sportolóhoz |
+| `imageDiskCacheProvider` | `shared/images.dart` | a képek lemezes tára (alapból `ImageDiskCache.shared`, amely híd a `ProviderScope` nélküli helyekre) |
 | `compareSourceProvider` | `features/compare/compare_data.dart` | az Összehasonlítás szezonadat-forrása |
 | `nextEventsProvider` (FutureProvider család) | `features/profile/profile_providers.dart` | „Következő mérkőzés” sportolónként |
-| `nbaSeasonSummaryProvider`, `nflGameLogProvider`, `nflTeamFormProvider`, `espnSoccerTeamGamesProvider` (AsyncNotifier családok) | `features/profile/profile_providers.dart` | adatkártyák; `refresh()` kényszerít, `ref.invalidate` gyorsítótárból épít újra |
+| `nbaSeasonSummaryProvider`, `nflGameLogProvider`, `nflTeamFormProvider`, `espnSoccerTeamGamesProvider`, `tennisProfileProvider`, `wnbaGamesProvider` (AsyncNotifier családok) | `features/profile/profile_providers.dart` | adatkártyák; `refresh()` kényszerít (gyorsítótár nélkül), `ref.invalidate` gyorsítótárból épít újra |
+| `apiSportsCardProvider`, `dartsProfileProvider`, `footballSeasonProvider`, `footballTeamGamesProvider`, `footballDataPlayerProvider`, `wnbaBasketballReferenceProvider`, `wnbaRapidProfileProvider` (FutureProvider családok) | `features/profile/profile_providers.dart` | adatkártyák kényszerített betöltés nélkül; a frissítés `ref.invalidate` |
 
-A többi adatkártya a `DataSourceCard` jövőalapú betöltőjét használja, a repositoryt a providerből olvasva; a provideres kártyák ugyanazt a megjelenést kapják (`AsyncDataSourceCard`, `AsyncValue`-ból).
+A 0.14.0 óta minden profilkártya providerből kapja az adatát, és `AsyncDataSourceCard`-dal jelenik meg; az API-kulcstól függő kártyák a kulcsot `select`-tel figyelik, így csak annak változásakor töltenek újra. A jövőalapú `DataSourceCard` az Összehasonlítás oldalon és önálló kártyákhoz maradt meg.
 
 ### Útvonalak (go_router)
 

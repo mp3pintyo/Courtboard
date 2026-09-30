@@ -4,25 +4,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:courtboard/shared/components.dart';
 import 'package:courtboard/shared/format.dart';
 import 'package:courtboard/data/api_sports.dart';
-import 'package:courtboard/data/providers.dart';
-import 'package:courtboard/data/athlete_highlights.dart';
 import 'package:courtboard/data/basketball_season.dart';
-import 'package:courtboard/data/multi_provider.dart';
-import 'package:courtboard/features/profile/profile_common.dart';
 import 'package:courtboard/features/profile/profile_providers.dart';
 import 'package:courtboard/features/profile/sports/profile_nba_facts.dart';
 import 'package:courtboard/domain/sport.dart';
 
-/// Az NBA-profil élő adatai: az egyesített játékosadat (meccsnaplóval) és —
-/// a formagörbe átlagvonalához — a szezonösszesítő, ha elérhető. A
-/// szezonösszesítő ugyanabból a gyorsítótárból jön, mint a „Szezon
-/// összesítő” kártyáé (az egyidejű kérést a gyorsítótár összevonja).
-class _NbaProfileBundle {
-  const _NbaProfileBundle(this.data, this.season);
-  final UnifiedAthleteData data;
-  final BasketballSeasonStat? season;
-}
-
+/// „Játékosadatok” kártya: NBA-nál az egyesített játékosadat (meccsnapló,
+/// szezonátlag), fociban és NFL-ben az API-Sports; az adat az
+/// [apiSportsCardProvider]-ből jön.
 class ApiSportsCard extends ConsumerWidget {
   const ApiSportsCard({
     super.key,
@@ -36,75 +25,24 @@ class ApiSportsCard extends ConsumerWidget {
   final String teamName;
   final Color accent;
 
-  Future<Object> _load(WidgetRef ref) {
-    final repo = ref.read(apiSportsRepositoryProvider);
-    return switch (sport) {
-      Sport.football => repo.footballRecent(teamName),
-      Sport.nba => _loadNba(ref),
-      _ => repo.nflPlayer(athleteName),
-    };
-  }
-
-  Future<_NbaProfileBundle> _loadNba(WidgetRef ref) async {
-    final season = ref
-        .read(basketballReferenceRepositoryProvider)
-        .seasonSummary(athleteName)
-        .then<BasketballSeasonStat?>(
-          (value) => value,
-          onError: (Object _) => null,
-        );
-    final data = await ref
-        .read(multiProviderAthleteRepositoryProvider)
-        .fetchNbaPlayer(athleteName);
-    // A Basketball Reference szezonátlaga, tartalékként az ESPN-é.
-    return _NbaProfileBundle(data, await season ?? data.espnSeason);
-  }
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final nba = sport == Sport.nba;
-    final config = ref.watch(apiConfigProvider);
-    return DataSourceCard<Object>(
+    final provider = apiSportsCardProvider((
+      sport: sport,
+      athlete: athleteName,
+      team: teamName,
+    ));
+    return AsyncDataSourceCard<Object>(
       title: nba
           ? 'Játékosadatok és meccsnapló'
           : '${sport.shortLabel} játékosadat',
       provider: nba ? 'Egyesített források' : 'API-Sports',
       icon: nba ? Icons.sports_basketball : Icons.sports_football,
       accent: accent,
-      reloadKey: (
-        sport,
-        athleteName,
-        teamName,
-        config.apiSportsKey,
-        config.balldontlieKey,
-      ),
+      value: ref.watch(provider),
+      onRefresh: () => ref.invalidate(provider),
       loadingLabel: 'Játékosadatok betöltése…',
-      load: ({required force}) => withHighlights(
-        athleteName,
-        _load(ref),
-        (data) => switch (data) {
-          final List<ApiSportsGame> games => [
-            for (final game in games)
-              highlightEvent(
-                game.date,
-                game.opponent,
-                MatchOutcome.parse(game.result),
-                game.score,
-              ),
-          ],
-          final _NbaProfileBundle bundle => [
-            for (final game in bundle.data.games)
-              highlightEvent(
-                game.date,
-                game.opponent,
-                MatchOutcome.parse(game.outcome),
-                game.score,
-              ),
-          ],
-          _ => const <HighlightEvent>[],
-        },
-        store: ref.read(highlightStoreProvider),
-      ),
       builder: (context, data) => switch (data) {
         final List<ApiSportsGame> games => Column(
           children: [
@@ -117,7 +55,7 @@ class ApiSportsCard extends ConsumerWidget {
               ),
           ],
         ),
-        final _NbaProfileBundle bundle => UnifiedAthleteFacts(
+        final NbaProfileBundle bundle => UnifiedAthleteFacts(
           data: bundle.data,
           accent: accent,
           season: bundle.season,

@@ -2,9 +2,10 @@ import 'dart:io';
 
 import 'package:courtboard/data/news.dart';
 import 'package:courtboard/features/news/news_page.dart';
+import 'package:drift/drift.dart' show Variable;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+import 'package:sqlite3/sqlite3.dart';
 
 class _FakeNewsProvider implements NewsProvider {
   int calls = 0;
@@ -189,12 +190,9 @@ void main() {
   test(
     'SQLite archive survives reopening and never drops old articles',
     () async {
-      sqfliteFfiInit();
       final path =
           '${Directory.systemTemp.path}/courtboard_news_${DateTime.now().microsecondsSinceEpoch}.sqlite';
-      addTearDown(() async {
-        await databaseFactoryFfi.deleteDatabase(path);
-      });
+      addTearDown(() => _deleteFile(path));
       final oldDate = DateTime.now().subtract(const Duration(days: 100));
       final article = NewsArticle(
         dedupeKey: 'url:https://foxsports.com/old-story',
@@ -226,100 +224,115 @@ void main() {
   test(
     'database migration removes only corrupted fallback-date articles',
     () async {
-      sqfliteFfiInit();
       final path =
           '${Directory.systemTemp.path}/courtboard_news_migration_${DateTime.now().microsecondsSinceEpoch}.sqlite';
-      addTearDown(() async => databaseFactoryFfi.deleteDatabase(path));
-      final oldDb = await databaseFactoryFfi.openDatabase(
-        path,
-        options: OpenDatabaseOptions(
-          version: 2,
-          onCreate: (db, version) async {
-            await db.execute('''
-            CREATE TABLE news_sources (
-              id TEXT PRIMARY KEY, name TEXT NOT NULL, sport TEXT NOT NULL,
-              url TEXT NOT NULL, homepage TEXT NOT NULL, enabled INTEGER NOT NULL,
-              terms_note TEXT NOT NULL DEFAULT '', last_attempt_at INTEGER,
-              last_success_at INTEGER, last_error TEXT NOT NULL DEFAULT '',
-              etag TEXT NOT NULL DEFAULT '', last_modified TEXT NOT NULL DEFAULT ''
-            )
-          ''');
-            await db.execute('''
-            CREATE TABLE news_items (
-              id INTEGER PRIMARY KEY AUTOINCREMENT, dedupe_key TEXT NOT NULL UNIQUE,
-              source_id TEXT NOT NULL, source_name TEXT NOT NULL,
-              external_id TEXT NOT NULL DEFAULT '', title TEXT NOT NULL,
-              summary TEXT NOT NULL DEFAULT '', url TEXT NOT NULL,
-              image_url TEXT NOT NULL DEFAULT '', author TEXT NOT NULL DEFAULT '',
-              search_text TEXT NOT NULL, published_at INTEGER NOT NULL,
-              fetched_at INTEGER NOT NULL
-            )
-          ''');
-          },
-        ),
-      );
+      addTearDown(() => _deleteFile(path));
+      final oldDb = sqlite3.open(path);
+      oldDb.execute('''
+        CREATE TABLE news_sources (
+          id TEXT PRIMARY KEY, name TEXT NOT NULL, sport TEXT NOT NULL,
+          url TEXT NOT NULL, homepage TEXT NOT NULL, enabled INTEGER NOT NULL,
+          terms_note TEXT NOT NULL DEFAULT '', last_attempt_at INTEGER,
+          last_success_at INTEGER, last_error TEXT NOT NULL DEFAULT '',
+          etag TEXT NOT NULL DEFAULT '', last_modified TEXT NOT NULL DEFAULT ''
+        )
+      ''');
+      oldDb.execute('''
+        CREATE TABLE news_items (
+          id INTEGER PRIMARY KEY AUTOINCREMENT, dedupe_key TEXT NOT NULL UNIQUE,
+          source_id TEXT NOT NULL, source_name TEXT NOT NULL,
+          external_id TEXT NOT NULL DEFAULT '', title TEXT NOT NULL,
+          summary TEXT NOT NULL DEFAULT '', url TEXT NOT NULL,
+          image_url TEXT NOT NULL DEFAULT '', author TEXT NOT NULL DEFAULT '',
+          search_text TEXT NOT NULL, published_at INTEGER NOT NULL,
+          fetched_at INTEGER NOT NULL
+        )
+      ''');
       final fallbackTime = DateTime(2026, 8, 2).millisecondsSinceEpoch;
-      await oldDb.insert('news_sources', {
-        'id': 'fox_nba',
-        'name': 'FOX Sports',
-        'sport': 'NBA',
-        'url': 'https://old-rss.test',
-        'homepage': 'https://foxsports.com/nba',
-        'enabled': 1,
-        'last_success_at': fallbackTime,
-        'etag': 'old-etag',
-        'last_modified': 'old-modified',
-      });
-      await oldDb.insert('news_sources', {
-        'id': 'espn_nba',
-        'name': 'ESPN',
-        'sport': 'NBA',
-        'url': 'https://espn.test',
-        'homepage': 'https://espn.com/nba',
-        'enabled': 0,
-      });
-      Future<void> insertItem(String sourceId, String key, int published) =>
-          oldDb.insert('news_items', {
-            'dedupe_key': key,
-            'source_id': sourceId,
-            'source_name': sourceId,
-            'title': key,
-            'url': 'https://example.com/$key',
-            'search_text': key,
-            'published_at': published,
-            'fetched_at': fallbackTime,
-          });
-      await insertItem('fox_nba', 'corrupt-fox', fallbackTime);
-      await insertItem('espn_nba', 'corrupt-espn', fallbackTime);
-      await insertItem(
+      const insertSource =
+          'INSERT INTO news_sources (id, name, sport, url, homepage, enabled, '
+          'last_success_at, etag, last_modified) '
+          'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)';
+      oldDb.execute(insertSource, [
+        'fox_nba',
+        'FOX Sports',
+        'NBA',
+        'https://old-rss.test',
+        'https://foxsports.com/nba',
+        1,
+        fallbackTime,
+        'old-etag',
+        'old-modified',
+      ]);
+      oldDb.execute(insertSource, [
+        'espn_nba',
+        'ESPN',
+        'NBA',
+        'https://espn.test',
+        'https://espn.com/nba',
+        0,
+        null,
+        '',
+        '',
+      ]);
+      void insertItem(String sourceId, String key, int published) =>
+          oldDb.execute(
+            'INSERT INTO news_items (dedupe_key, source_id, source_name, '
+            'title, url, search_text, published_at, fetched_at) '
+            'VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+            [
+              key,
+              sourceId,
+              sourceId,
+              key,
+              'https://example.com/$key',
+              key,
+              published,
+              fallbackTime,
+            ],
+          );
+      insertItem('fox_nba', 'corrupt-fox', fallbackTime);
+      insertItem('espn_nba', 'corrupt-espn', fallbackTime);
+      insertItem(
         'guardian_football',
         'valid-guardian',
         fallbackTime - const Duration(days: 2).inMilliseconds,
       );
-      await oldDb.close();
+      oldDb.execute('PRAGMA user_version = 2');
+      oldDb.close();
 
       final store = NewsStore(path: path);
       final upgraded = await store.database;
-      final remaining = await upgraded.query('news_items', orderBy: 'id');
-      final foxRow = (await upgraded.query(
-        'news_sources',
-        where: 'id = ?',
-        whereArgs: ['fox_nba'],
-      )).single;
+      final remaining = await upgraded
+          .customSelect('SELECT dedupe_key FROM news_items ORDER BY id')
+          .get();
+      final foxRow = await upgraded
+          .customSelect(
+            'SELECT * FROM news_sources WHERE id = ?',
+            variables: [Variable.withString('fox_nba')],
+          )
+          .getSingle();
+      final espn = (await store.sourceStates()).singleWhere(
+        (state) => state.source.id == 'espn_nba',
+      );
 
-      expect(remaining.map((row) => row['dedupe_key']), ['valid-guardian']);
+      expect(remaining.map((row) => row.read<String>('dedupe_key')), [
+        'valid-guardian',
+      ]);
       expect(
-        foxRow['url'],
+        foxRow.read<String>('url'),
         startsWith('https://prod-api.foxsports.com/fs/feed'),
       );
-      expect(foxRow['last_success_at'], isNull);
-      expect(foxRow['etag'], isEmpty);
+      expect(foxRow.data['last_success_at'], isNull);
+      expect(foxRow.read<String>('etag'), isEmpty);
+      // A felhasználó kikapcsolása megmarad a forráslista újraírása után is.
+      expect(espn.enabled, isFalse);
       await store.close();
     },
   );
 
   test('URL deduplication keeps every sport and source relationship', () async {
-    final store = NewsStore(path: inMemoryDatabasePath);
+    final store = NewsStore(path: NewsStore.inMemoryPath);
     addTearDown(store.close);
     final now = DateTime.now();
     NewsArticle article(String sourceId, String sourceName, String sport) =>
@@ -348,7 +361,7 @@ void main() {
   test(
     'archive search supports title text and accented athlete names',
     () async {
-      final store = NewsStore(path: inMemoryDatabasePath);
+      final store = NewsStore(path: NewsStore.inMemoryPath);
       addTearDown(store.close);
       final now = DateTime.now();
       await store.saveArticles([
@@ -373,7 +386,7 @@ void main() {
 
   test('automatic refresh respects the twenty minute window', () async {
     final provider = _FakeNewsProvider();
-    final store = NewsStore(path: inMemoryDatabasePath);
+    final store = NewsStore(path: NewsStore.inMemoryPath);
     final repository = NewsRepository(store: store, provider: provider);
     addTearDown(repository.close);
 
@@ -397,7 +410,7 @@ void main() {
   });
 
   test('parallel refresh reports the exact number of saved articles', () async {
-    final store = NewsStore(path: inMemoryDatabasePath);
+    final store = NewsStore(path: NewsStore.inMemoryPath);
     final repository = NewsRepository(
       store: store,
       provider: _ArticleNewsProvider(),
@@ -446,4 +459,9 @@ void main() {
     expect(find.text('FOX Sports'), findsOneWidget);
     expect(find.text('Eredeti cikk'), findsOneWidget);
   });
+}
+
+Future<void> _deleteFile(String path) async {
+  final file = File(path);
+  if (file.existsSync()) await file.delete();
 }

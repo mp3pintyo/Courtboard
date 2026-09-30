@@ -7,8 +7,8 @@ import 'package:courtboard/shared/format.dart';
 import 'package:courtboard/shared/theme/courtboard_theme.dart';
 import 'package:courtboard/data/live_tennis.dart';
 import 'package:courtboard/data/providers.dart';
-import 'package:courtboard/features/profile/profile_common.dart';
 import 'package:courtboard/features/profile/profile_form.dart';
+import 'package:courtboard/features/profile/profile_providers.dart';
 import 'package:courtboard/domain/sport.dart';
 import 'package:courtboard/features/profile/sport_profile_spec.dart';
 
@@ -22,45 +22,20 @@ class TennisDataCard extends ConsumerWidget {
   final String athleteName;
   final Color accent;
 
-  /// A profil betöltése, majd a mai ranglista-mérés rögzítése a helyi
-  /// történetbe (hálózati kérés nélkül; hibája nem érinti a kártyát).
-  Future<TennisProfileData> _fetchWithHistory(
-    WidgetRef ref, {
-    required bool force,
-  }) async {
-    final data = await ref
-        .read(tennisRepositoryProvider)
-        .fetch(athleteName, forceRefresh: force);
-    final history = await ref
-        .read(rankingHistoryStoreProvider)
-        .record(
-          athleteName,
-          ranking: data.player.ranking,
-          points: data.player.rankingPoints,
-        );
-    return TennisProfileData(
-      player: data.player,
-      liveMatches: data.liveMatches,
-      upcomingMatches: data.upcomingMatches,
-      fixtures: data.fixtures,
-      usage: data.usage,
-      fetchedAt: data.fetchedAt,
-      fromCache: data.fromCache,
-      rankingHistory: history,
-    );
-  }
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final liveTennisKey = ref.watch(
       apiConfigProvider.select((config) => config.liveTennisKey),
     );
     final hasKey = liveTennisKey.trim().isNotEmpty;
-    return DataSourceCard<TennisProfileData>(
+    final provider = tennisProfileProvider(athleteName);
+    return AsyncDataSourceCard<TennisProfileData>(
       title: 'Teniszprofil',
       icon: Icons.sports_tennis_rounded,
       accent: accent,
-      reloadKey: (athleteName, liveTennisKey),
+      // Kulcs nélkül nincs betöltés: a kártya a helyőrzőt mutatja.
+      value: hasKey ? ref.watch(provider) : const AsyncLoading(),
+      onRefresh: () => unawaited(ref.read(provider.notifier).refresh()),
       refreshTooltip: 'Frissítés az API-ból',
       loadingLabel: 'Teniszprofil és aktuális meccsek betöltése…',
       headerTrailing: ProviderChip(
@@ -78,27 +53,6 @@ class TennisDataCard extends ConsumerWidget {
               message:
                   'Add meg a Live Tennis API ingyenes kulcsát az Adatforrások oldalon. Ezután a profil automatikusan megkapja a ranglistát, az élő állást és a következő mérkőzéseket.',
             ),
-      load: ({required force}) => withHighlights(
-        athleteName,
-        _fetchWithHistory(ref, force: force),
-        (data) => [
-          for (final match in data.upcomingMatches)
-            if (match.scheduledTime != null)
-              highlightEvent(
-                match.scheduledTime!,
-                'vs. ${match.opponentOf(data.player)}',
-                MatchOutcome.upcoming,
-              ),
-          for (final fixture in data.fixtures)
-            if (fixture.eventDate != null)
-              highlightEvent(
-                fixture.eventDate!,
-                'vs. ${fixture.opponentOf(data.player)}',
-                MatchOutcome.upcoming,
-              ),
-        ],
-        store: ref.read(highlightStoreProvider),
-      ),
       freshness: (data) => data.fetchedAt == null
           ? null
           : DataFreshness(data.fetchedAt!, fromCache: data.fromCache),

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:courtboard/shared/common_ui.dart';
@@ -11,7 +13,7 @@ import 'package:courtboard/data/json_file_cache.dart';
 import 'package:courtboard/data/rapidapi_wnba.dart';
 import 'package:courtboard/data/wehoop_wnba.dart';
 import 'package:courtboard/features/profile/form_data.dart';
-import 'package:courtboard/features/profile/profile_common.dart';
+import 'package:courtboard/features/profile/profile_providers.dart';
 import 'package:courtboard/features/profile/profile_form.dart';
 import 'package:courtboard/features/profile/sport_profile_spec.dart';
 import 'package:courtboard/features/profile/sports/profile_nba_facts.dart';
@@ -28,7 +30,7 @@ class WnbaWehoopCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) =>
-      DataSourceCard<WnbaGamesResult>(
+      AsyncDataSourceCard<WnbaGamesResult>(
         title: 'WNBA meccsnapló',
         provider: 'wehoop · ESPN',
         subtitle:
@@ -36,38 +38,16 @@ class WnbaWehoopCard extends ConsumerWidget {
             'tartalék: ESPN játékos-meccsnapló',
         icon: Icons.data_usage_rounded,
         accent: accent,
-        reloadKey: athleteName,
+        value: ref.watch(wnbaGamesProvider(athleteName)),
+        onRefresh: () => unawaited(
+          ref.read(wnbaGamesProvider(athleteName).notifier).refresh(),
+        ),
         refreshTooltip: 'Újratöltés',
         loadingLabel: 'WNBA box score-ok letöltése és helyi gyorsítótárazása…',
         errorPrefix: 'A wehoop WNBA-adat most nem érhető el. ',
         emptyMessage:
             'Ehhez a játékoshoz nem érkezett 2026-os wehoop box score rekord.',
         isEmpty: (result) => result.games.isEmpty,
-        load: ({required force}) => withHighlights(
-          athleteName,
-          wnbaGamesWithFallback(
-            athleteName,
-            forceRefresh: force,
-            wehoop: ref.read(wnbaWehoopRepositoryProvider),
-            espn: ref.read(espnAthleteRepositoryProvider),
-          ),
-          (result) => [
-            for (final game in result.games)
-              highlightEvent(
-                game.date,
-                game.opponent,
-                switch (game.result) {
-                  WnbaResult.win => MatchOutcome.win,
-                  WnbaResult.loss => MatchOutcome.loss,
-                  WnbaResult.unknown => MatchOutcome.unknown,
-                },
-                game.teamScore == 0 && game.opponentScore == 0
-                    ? null
-                    : game.score,
-              ),
-          ],
-          store: ref.read(highlightStoreProvider),
-        ),
         builder: (context, result) => _WnbaLiveData(
           games: result.games,
           accent: accent,
@@ -91,32 +71,18 @@ class WnbaBasketballReferenceCard extends ConsumerWidget {
   Widget build(
     BuildContext context,
     WidgetRef ref,
-  ) => DataSourceCard<CachedValue<List<NbaGameLog>>>(
+  ) => AsyncDataSourceCard<CachedValue<List<NbaGameLog>>>(
     title: 'Kiegészítő meccsnapló',
     provider: 'Basketball Reference',
     subtitle:
         'A wehoop mellett közvetlen Basketball Reference játékos-meccsnapló.',
     icon: Icons.fact_check_outlined,
     accent: accent,
-    reloadKey: athleteName,
+    value: ref.watch(wnbaBasketballReferenceProvider(athleteName)),
+    onRefresh: () =>
+        ref.invalidate(wnbaBasketballReferenceProvider(athleteName)),
     refreshTooltip: 'Újratöltés',
     loadingLabel: 'Basketball Reference WNBA-adatok letöltése…',
-    load: ({required force}) => withHighlights(
-      athleteName,
-      ref
-          .read(basketballReferenceRepositoryProvider)
-          .recentGamesCached(athleteName, league: 'wnba'),
-      (cached) => [
-        for (final game in cached.value)
-          highlightEvent(
-            game.date,
-            game.opponent,
-            MatchOutcome.parse(game.outcome),
-            game.score,
-          ),
-      ],
-      store: ref.read(highlightStoreProvider),
-    ),
     freshness: (cached) => cached.value.isEmpty
         ? null
         : DataFreshness(
@@ -153,12 +119,16 @@ class WnbaRapidApiCard extends ConsumerWidget {
   Widget _rapidCard(
     WidgetRef ref,
     String rapidApiKey,
-  ) => DataSourceCard<WnbaRapidProfile?>(
+  ) => AsyncDataSourceCard<WnbaRapidProfile?>(
     title: 'Játékosbio és haladó statisztika',
     provider: 'RapidAPI · 7 napos cache',
     icon: Icons.analytics_outlined,
     accent: accent,
-    reloadKey: (athleteName, rapidApiKey),
+    // Kulcs nélkül nincs betöltés: a kártya a helyőrzőt mutatja.
+    value: rapidApiKey.isEmpty
+        ? const AsyncLoading()
+        : ref.watch(wnbaRapidProfileProvider(athleteName)),
+    onRefresh: () => ref.invalidate(wnbaRapidProfileProvider(athleteName)),
     refreshTooltip: 'Újratöltés',
     loadingLabel: 'WNBA játékosadatok betöltése…',
     emptyMessage: 'A játékos ESPN-azonosítója nem található.',
@@ -171,8 +141,6 @@ class WnbaRapidApiCard extends ConsumerWidget {
                 'A RapidAPI-kulcs nincs beállítva. Az Adatforrások oldalon adható meg.',
           )
         : null,
-    load: ({required force}) =>
-        ref.read(wnbaRapidApiRepositoryProvider).playerProfile(athleteName),
     freshness: (profile) => profile?.fetchedAt == null
         ? null
         : DataFreshness(profile!.fetchedAt!, fromCache: profile.fromCache),

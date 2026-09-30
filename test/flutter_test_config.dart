@@ -7,6 +7,7 @@ import 'package:courtboard/data/json_file_cache.dart';
 import 'package:courtboard/data/rate_limit.dart';
 import 'package:courtboard/data/secret_store.dart';
 import 'package:courtboard/shared/images.dart';
+import 'package:drift/drift.dart' show driftRuntimeOptions;
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -25,6 +26,9 @@ Future<void> testExecutable(FutureOr<void> Function() testMain) async {
   ImageDiskCache.shared = ImageDiskCache(
     loader: (_) => Completer<Uint8List>().future,
   );
+  // A tesztek sok, egymástól független hírtárat nyitnak (memóriában vagy
+  // külön ideiglenes fájlban); a drift figyelmeztetése itt nem releváns.
+  driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
   HttpService.shared = HttpService(
     networkEnabled: false,
     quota: QuotaTracker(storage: MemoryCacheStorage()),

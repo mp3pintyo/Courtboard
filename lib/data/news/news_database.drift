@@ -1,0 +1,109 @@
+-- A hírarchívum sémája (drift). A táblák, oszlopok és indexek neve és
+-- tárolási formátuma megegyezik a 0.13.0-ig használt sqflite-tár 4-es
+-- sémaverziójával, így a meglévő adatbázist a drift átalakítás nélkül veszi
+-- át (lásd NewsDatabase.migration). Az FTS5 trigram index és a
+-- szinkronizáló triggerek nincsenek itt: azokat a NewsDatabase futás közben
+-- hozza létre, mert ha a beépített SQLite nem ismeri az FTS5-öt, a tár
+-- LIKE-keresésre vált.
+
+import 'package:courtboard/data/news/news_db_converters.dart';
+
+CREATE TABLE news_sources (
+  id TEXT NOT NULL PRIMARY KEY,
+  name TEXT NOT NULL,
+  sport TEXT NOT NULL,
+  url TEXT NOT NULL,
+  homepage TEXT NOT NULL,
+  enabled INTEGER NOT NULL MAPPED BY `const IntBoolConverter()`,
+  terms_note TEXT NOT NULL DEFAULT '',
+  last_attempt_at INTEGER MAPPED BY `const EpochMillisConverter()`,
+  last_success_at INTEGER MAPPED BY `const EpochMillisConverter()`,
+  last_error TEXT NOT NULL DEFAULT '',
+  etag TEXT NOT NULL DEFAULT '',
+  last_modified TEXT NOT NULL DEFAULT ''
+) AS NewsSourceRow;
+
+CREATE TABLE news_items (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  dedupe_key TEXT NOT NULL UNIQUE,
+  source_id TEXT NOT NULL,
+  source_name TEXT NOT NULL,
+  external_id TEXT NOT NULL DEFAULT '',
+  title TEXT NOT NULL,
+  summary TEXT NOT NULL DEFAULT '',
+  url TEXT NOT NULL,
+  image_url TEXT NOT NULL DEFAULT '',
+  author TEXT NOT NULL DEFAULT '',
+  search_text TEXT NOT NULL,
+  published_at INTEGER NOT NULL MAPPED BY `const EpochMillisConverter()`,
+  fetched_at INTEGER NOT NULL MAPPED BY `const EpochMillisConverter()`,
+  FOREIGN KEY(source_id) REFERENCES news_sources(id)
+) AS NewsItemRow;
+
+CREATE TABLE news_item_sports (
+  item_id INTEGER NOT NULL,
+  sport TEXT NOT NULL,
+  PRIMARY KEY(item_id, sport),
+  FOREIGN KEY(item_id) REFERENCES news_items(id) ON DELETE CASCADE
+) AS NewsItemSportRow;
+
+CREATE TABLE news_item_sources (
+  item_id INTEGER NOT NULL,
+  source_id TEXT NOT NULL,
+  PRIMARY KEY(item_id, source_id),
+  FOREIGN KEY(item_id) REFERENCES news_items(id) ON DELETE CASCADE,
+  FOREIGN KEY(source_id) REFERENCES news_sources(id)
+) AS NewsItemSourceRow;
+
+CREATE INDEX IF NOT EXISTS idx_news_items_published
+  ON news_items(published_at DESC);
+CREATE INDEX IF NOT EXISTS idx_news_sports_sport
+  ON news_item_sports(sport);
+CREATE INDEX IF NOT EXISTS idx_news_sources_source
+  ON news_item_sources(source_id);
+
+-- Cikk upsert: meglévőnél a cím, a keresőszöveg és a letöltési idő
+-- frissül; az összefoglaló, kép és szerző csak nem üres új értékkel; a
+-- megjelenési dátum csak értelmezett dátummal (:published_at_parsed).
+upsertItem(:published_at_parsed AS BOOLEAN): INSERT INTO news_items (
+  dedupe_key, source_id, source_name, external_id, title, summary, url,
+  image_url, author, search_text, published_at, fetched_at
+)
+VALUES (
+  :dedupe_key, :source_id, :source_name, :external_id, :title, :summary,
+  :url, :image_url, :author, :search_text, :published_at, :fetched_at
+)
+ON CONFLICT(dedupe_key) DO UPDATE SET
+  title = excluded.title,
+  summary = CASE WHEN excluded.summary <> ''
+    THEN excluded.summary ELSE news_items.summary END,
+  image_url = CASE WHEN excluded.image_url <> ''
+    THEN excluded.image_url ELSE news_items.image_url END,
+  author = CASE WHEN excluded.author <> ''
+    THEN excluded.author ELSE news_items.author END,
+  search_text = excluded.search_text,
+  published_at = CASE WHEN :published_at_parsed
+    THEN excluded.published_at ELSE news_items.published_at END,
+  fetched_at = excluded.fetched_at;
+
+-- Kapcsolósorok a cikk azonosítója alapján (a meglévő sor megmarad).
+linkItemSport(:sport AS TEXT): INSERT OR IGNORE INTO news_item_sports
+  (item_id, sport)
+SELECT id, :sport FROM news_items WHERE dedupe_key = :dedupe_key;
+
+linkItemSource(:source_id AS TEXT): INSERT OR IGNORE INTO news_item_sources
+  (item_id, source_id)
+SELECT id, :source_id FROM news_items WHERE dedupe_key = :dedupe_key;
+
+countItems: SELECT COUNT(*) FROM news_items;
+
+-- Megőrzési szabály: csak a :cutoff-nál régebbi ÉS a legújabb :keep
+-- cikken kívüli sorok törlődnek; a kapcsolósorok ON DELETE CASCADE-del,
+-- az FTS-index triggerrel követi.
+deleteExpiredItems(:keep AS INTEGER): DELETE FROM news_items
+WHERE published_at < :cutoff
+  AND id NOT IN (
+    SELECT id FROM news_items
+    ORDER BY published_at DESC, id DESC
+    LIMIT :keep
+  );

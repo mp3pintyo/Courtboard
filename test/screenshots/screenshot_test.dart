@@ -42,6 +42,8 @@ import 'package:courtboard/desktop/startup_registration.dart';
 import 'package:courtboard/features/compare/compare_data.dart';
 import 'package:courtboard/features/profile/form_data.dart';
 import 'package:courtboard/app/courtboard_app.dart';
+import 'package:courtboard/app/providers.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:courtboard/features/profile/profile_form.dart';
 import 'package:courtboard/features/profile/sports/profile_api_basketball.dart';
 import 'package:courtboard/features/profile/sports/profile_darts.dart';
@@ -141,6 +143,19 @@ Future<void> _settle(WidgetTester tester, {int rounds = 4}) async {
     );
     await tester.pump(const Duration(milliseconds: 400));
   }
+}
+
+/// Legfeljebb [maxRounds] további [_settle] kör, amíg a [ready] igaz nem
+/// lesz (valós idejű, aszinkron betöltésekhez).
+Future<void> _settleUntil(
+  WidgetTester tester,
+  bool Function() ready, {
+  int maxRounds = 20,
+}) async {
+  for (var i = 0; i < maxRounds && !ready(); i++) {
+    await _settle(tester, rounds: 1);
+  }
+  await _settle(tester, rounds: 1);
 }
 
 Future<void> _seedNews() async {
@@ -351,6 +366,16 @@ Future<void> _shootApp(
     ),
   );
   await _settle(tester);
+  // A hírarchívum (drift, háttér-isolate) megnyitása néhány oda-vissza
+  // üzenet; a „Legfrissebb a követettektől” hírei csak utána töltődnek be.
+  await _settleUntil(
+    tester,
+    () => tester
+        .container()
+        .read(activityControllerProvider)
+        .feedArticles
+        .isNotEmpty,
+  );
   await _capture(tester, '${prefix}01_attekintes');
   if (focusDemo) {
     // Billentyűzetes bejárás: a fókuszkeret az első sportolókártyán.

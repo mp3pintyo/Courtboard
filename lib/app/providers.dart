@@ -63,7 +63,7 @@ final appLaunchProvider = Provider<AppLaunchState>(
   name: 'appLaunchProvider',
 );
 
-/// A futó alkalmazás verziója (`0.13.0`); `null`, ha nem ismert.
+/// A futó alkalmazás verziója (`0.14.0`); `null`, ha nem ismert.
 final appVersionProvider = Provider<String?>(
   (ref) => ref.watch(appServicesProvider).appVersion,
   name: 'appVersionProvider',

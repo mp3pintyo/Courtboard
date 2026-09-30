@@ -1,0 +1,25 @@
+# A drift kódgenerátora (dart run build_runner build). A generált
+# lib/data/news/news_database.g.dart a tárolóban van, így a buildhez nem kell
+# futtatni; csak a news_database.drift vagy a news_database.dart
+# módosításakor.
+targets:
+  $default:
+    builders:
+      drift_dev:
+        generate_for:
+          - lib/data/news/news_database.dart
+          - lib/data/news/news_database.drift
+          - lib/data/news/news_db_converters.dart
+        options:
+          sql:
+            dialect: sqlite
+            options:
+              version: "3.45"
+              modules:
+                - fts5
+          store_date_time_values_as_text: false
+          # Csak a tábla- és lekérdezés-API kell, a „manager” réteg nem.
+          generate_manager: false
+          # A .drift lekérdezések Dart-metódusai nevesített paraméterekkel.
+          named_parameters: true
+          named_parameters_always_required: true

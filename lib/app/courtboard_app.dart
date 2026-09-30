@@ -81,7 +81,7 @@ class CourtboardApp extends StatefulWidget {
   /// A háttérfigyelő emlékezete (tesztekhez); `null` esetén a gyorsítótár.
   final WatcherMemoryStore? watcherMemoryStore;
 
-  /// A futó alkalmazás verziója (`0.13.0`); `null`, ha nem ismert.
+  /// A futó alkalmazás verziója (`0.14.0`); `null`, ha nem ismert.
   final String? appVersion;
 
   /// A GitHub-kiadások figyelője; `null` esetén (például tesztben) nincs

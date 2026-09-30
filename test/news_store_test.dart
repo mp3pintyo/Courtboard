@@ -2,7 +2,7 @@ import 'dart:io';
 
 import 'package:courtboard/data/news.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+import 'package:sqlite3/sqlite3.dart';
 
 NewsArticle _article(
   String slug, {
@@ -31,7 +31,7 @@ void main() {
   final now = DateTime(2026, 9, 30, 12);
 
   test('upsert counts only new articles and keeps non-empty fields', () async {
-    final store = NewsStore(path: inMemoryDatabasePath);
+    final store = NewsStore(path: NewsStore.inMemoryPath);
     addTearDown(store.close);
 
     final added = await store.saveArticles([
@@ -62,7 +62,7 @@ void main() {
   test(
     'retention keeps the newest articles and anything younger than a year',
     () async {
-      final store = NewsStore(path: inMemoryDatabasePath);
+      final store = NewsStore(path: NewsStore.inMemoryPath);
       addTearDown(store.close);
       await store.saveArticles([
         for (var i = 0; i < 4; i++)
@@ -85,18 +85,20 @@ void main() {
       expect(await store.query(sport: 'NBA'), hasLength(2));
       expect(await store.query(text: 'old1'), isEmpty);
       final db = await store.database;
-      final orphans = await db.rawQuery(
-        'SELECT COUNT(*) AS count FROM news_item_sports '
-        'WHERE item_id NOT IN (SELECT id FROM news_items)',
-      );
-      expect(orphans.single['count'], 0);
+      final orphans = await db
+          .customSelect(
+            'SELECT COUNT(*) AS count FROM news_item_sports '
+            'WHERE item_id NOT IN (SELECT id FROM news_items)',
+          )
+          .getSingle();
+      expect(orphans.read<int>('count'), 0);
     },
   );
 
   test(
     'full-text search matches substrings like the former LIKE query',
     () async {
-      final store = NewsStore(path: inMemoryDatabasePath);
+      final store = NewsStore(path: NewsStore.inMemoryPath);
       addTearDown(store.close);
       await store.saveArticles([
         _article(
@@ -128,75 +130,86 @@ void main() {
   test(
     'version 3 databases are upgraded and indexed without data loss',
     () async {
-      sqfliteFfiInit();
       final path =
           '${Directory.systemTemp.path}/courtboard_news_v3_${DateTime.now().microsecondsSinceEpoch}.sqlite';
-      addTearDown(() => databaseFactoryFfi.deleteDatabase(path));
-      final old = await databaseFactoryFfi.openDatabase(
-        path,
-        options: OpenDatabaseOptions(
-          version: 3,
-          onCreate: (db, version) async {
-            await db.execute('''
-            CREATE TABLE news_sources (
-              id TEXT PRIMARY KEY, name TEXT NOT NULL, sport TEXT NOT NULL,
-              url TEXT NOT NULL, homepage TEXT NOT NULL, enabled INTEGER NOT NULL,
-              terms_note TEXT NOT NULL DEFAULT '', last_attempt_at INTEGER,
-              last_success_at INTEGER, last_error TEXT NOT NULL DEFAULT '',
-              etag TEXT NOT NULL DEFAULT '', last_modified TEXT NOT NULL DEFAULT ''
-            )
-          ''');
-            await db.execute('''
-            CREATE TABLE news_items (
-              id INTEGER PRIMARY KEY AUTOINCREMENT, dedupe_key TEXT NOT NULL UNIQUE,
-              source_id TEXT NOT NULL, source_name TEXT NOT NULL,
-              external_id TEXT NOT NULL DEFAULT '', title TEXT NOT NULL,
-              summary TEXT NOT NULL DEFAULT '', url TEXT NOT NULL,
-              image_url TEXT NOT NULL DEFAULT '', author TEXT NOT NULL DEFAULT '',
-              search_text TEXT NOT NULL, published_at INTEGER NOT NULL,
-              fetched_at INTEGER NOT NULL
-            )
-          ''');
-            await db.execute('''
-            CREATE TABLE news_item_sports (
-              item_id INTEGER NOT NULL, sport TEXT NOT NULL,
-              PRIMARY KEY(item_id, sport)
-            )
-          ''');
-            await db.execute('''
-            CREATE TABLE news_item_sources (
-              item_id INTEGER NOT NULL, source_id TEXT NOT NULL,
-              PRIMARY KEY(item_id, source_id)
-            )
-          ''');
-          },
-        ),
+      addTearDown(() async {
+        final file = File(path);
+        if (file.existsSync()) await file.delete();
+      });
+      final old = sqlite3.open(path);
+      old.execute('''
+        CREATE TABLE news_sources (
+          id TEXT PRIMARY KEY, name TEXT NOT NULL, sport TEXT NOT NULL,
+          url TEXT NOT NULL, homepage TEXT NOT NULL, enabled INTEGER NOT NULL,
+          terms_note TEXT NOT NULL DEFAULT '', last_attempt_at INTEGER,
+          last_success_at INTEGER, last_error TEXT NOT NULL DEFAULT '',
+          etag TEXT NOT NULL DEFAULT '', last_modified TEXT NOT NULL DEFAULT ''
+        )
+      ''');
+      old.execute('''
+        CREATE TABLE news_items (
+          id INTEGER PRIMARY KEY AUTOINCREMENT, dedupe_key TEXT NOT NULL UNIQUE,
+          source_id TEXT NOT NULL, source_name TEXT NOT NULL,
+          external_id TEXT NOT NULL DEFAULT '', title TEXT NOT NULL,
+          summary TEXT NOT NULL DEFAULT '', url TEXT NOT NULL,
+          image_url TEXT NOT NULL DEFAULT '', author TEXT NOT NULL DEFAULT '',
+          search_text TEXT NOT NULL, published_at INTEGER NOT NULL,
+          fetched_at INTEGER NOT NULL
+        )
+      ''');
+      old.execute('''
+        CREATE TABLE news_item_sports (
+          item_id INTEGER NOT NULL, sport TEXT NOT NULL,
+          PRIMARY KEY(item_id, sport)
+        )
+      ''');
+      old.execute('''
+        CREATE TABLE news_item_sources (
+          item_id INTEGER NOT NULL, source_id TEXT NOT NULL,
+          PRIMARY KEY(item_id, source_id)
+        )
+      ''');
+      old.execute(
+        'INSERT INTO news_items (dedupe_key, source_id, source_name, title, '
+        'url, search_text, published_at, fetched_at) '
+        'VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+        [
+          'url:https://example.com/legacy',
+          'fox_nba',
+          'FOX Sports',
+          'Legacy Jokic story',
+          'https://example.com/legacy',
+          'legacy jokic story',
+          now.millisecondsSinceEpoch,
+          now.millisecondsSinceEpoch,
+        ],
       );
-      final id = await old.insert('news_items', {
-        'dedupe_key': 'url:https://example.com/legacy',
-        'source_id': 'fox_nba',
-        'source_name': 'FOX Sports',
-        'title': 'Legacy Jokic story',
-        'url': 'https://example.com/legacy',
-        'search_text': 'legacy jokic story',
-        'published_at': now.millisecondsSinceEpoch,
-        'fetched_at': now.millisecondsSinceEpoch,
-      });
-      await old.insert('news_item_sports', {'item_id': id, 'sport': 'NBA'});
-      await old.insert('news_item_sources', {
-        'item_id': id,
-        'source_id': 'fox_nba',
-      });
-      await old.close();
+      final id = old.lastInsertRowId;
+      old.execute(
+        'INSERT INTO news_item_sports (item_id, sport) VALUES (?, ?)',
+        [id, 'NBA'],
+      );
+      old.execute(
+        'INSERT INTO news_item_sources (item_id, source_id) VALUES (?, ?)',
+        [id, 'fox_nba'],
+      );
+      old.execute('PRAGMA user_version = 3');
+      old.close();
 
       final store = NewsStore(path: path);
       addTearDown(store.close);
       final db = await store.database;
-      final indexes = (await db.rawQuery(
-        "SELECT name FROM sqlite_master WHERE type = 'index'",
-      )).map((row) => row['name']).toSet();
+      final indexes =
+          (await db
+                  .customSelect(
+                    "SELECT name FROM sqlite_master WHERE type = 'index'",
+                  )
+                  .get())
+              .map((row) => row.read<String>('name'))
+              .toSet();
+      final version = await db.customSelect('PRAGMA user_version').getSingle();
 
-      expect(await db.getVersion(), NewsStore.schemaVersion);
+      expect(version.data.values.single, NewsStore.schemaVersion);
       expect(indexes, contains('idx_news_sources_source'));
       expect(await store.query(text: 'jokic'), hasLength(1));
       expect(await store.query(sourceId: 'fox_nba'), hasLength(1));
@@ -204,7 +217,7 @@ void main() {
   );
 
   test('refresh applies the retention policy after saving', () async {
-    final store = NewsStore(path: inMemoryDatabasePath);
+    final store = NewsStore(path: NewsStore.inMemoryPath);
     final repository = NewsRepository(
       store: store,
       provider: _OldArticleProvider(now),

@@ -12,10 +12,8 @@ import 'package:courtboard/data/football_data_players.dart';
 import 'package:courtboard/data/football_season.dart';
 import 'package:courtboard/data/football_season_repository.dart';
 import 'package:courtboard/data/match_timeline.dart';
-import 'package:courtboard/data/providers.dart';
 import 'package:courtboard/features/profile/form_data.dart';
 import 'package:courtboard/features/profile/match_details.dart';
-import 'package:courtboard/features/profile/profile_common.dart';
 import 'package:courtboard/features/profile/profile_form.dart';
 import 'package:courtboard/features/profile/profile_providers.dart';
 import 'package:courtboard/domain/sport.dart';
@@ -33,17 +31,17 @@ class FootballSeasonSummaryCard extends ConsumerWidget {
   final String teamName;
   final Color accent;
 
+  FutureProvider<FootballSeasonResult> get _seasonProvider =>
+      footballSeasonProvider((athlete: athleteName, team: teamName));
+
   @override
   Widget build(BuildContext context, WidgetRef ref) =>
-      DataSourceCard<FootballSeasonResult>(
+      AsyncDataSourceCard<FootballSeasonResult>(
         title: 'Szezon összesítő',
         icon: Icons.leaderboard_outlined,
         accent: accent,
-        reloadKey: (
-          athleteName,
-          teamName,
-          ref.watch(apiConfigProvider.select((config) => config.apiSportsKey)),
-        ),
+        value: ref.watch(_seasonProvider),
+        onRefresh: () => ref.invalidate(_seasonProvider),
         refreshTooltip: 'Szezonadatok frissítése',
         loadingLabel: 'Szezonadatok betöltése…',
         errorPrefix: 'Nem érkezett friss szezonadat. ',
@@ -53,9 +51,6 @@ class FootballSeasonSummaryCard extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [for (final error in result.errors) CourtboardNote(error)],
         ),
-        load: ({required force}) => ref
-            .read(footballSeasonRepositoryProvider)
-            .fetchWithStatus(athleteName, teamName),
         freshness: (result) => result.fetchedAt == null
             ? null
             : DataFreshness(result.fetchedAt!, fromCache: result.fromCache),
@@ -118,12 +113,8 @@ class FootballDataCard extends ConsumerWidget {
   final String teamName;
   final Color accent;
 
-  static MatchOutcome _outcome(FootballResult result) => switch (result) {
-    FootballResult.win => MatchOutcome.win,
-    FootballResult.loss => MatchOutcome.loss,
-    FootballResult.draw => MatchOutcome.draw,
-    FootballResult.unknown => MatchOutcome.upcoming,
-  };
+  FutureProvider<FootballTeamGames> get _gamesProvider =>
+      footballTeamGamesProvider((athlete: athleteName, team: teamName));
 
   Widget _gameRow(FootballGame game) => MatchRow(
     date: game.date,
@@ -138,7 +129,7 @@ class FootballDataCard extends ConsumerWidget {
       if (game.source.isNotEmpty) game.source,
     ].join(' · '),
     score: game.score,
-    outcome: _outcome(game.result),
+    outcome: footballMatchOutcome(game.result),
     footer:
         MatchTimelineExpander.available(
           match: game.espnMatch,
@@ -149,63 +140,47 @@ class FootballDataCard extends ConsumerWidget {
   );
 
   @override
-  Widget build(
-    BuildContext context,
-    WidgetRef ref,
-  ) => DataSourceCard<FootballTeamGames>(
-    title: 'Csapatmérkőzések',
-    provider: 'Élő adatforrás',
-    subtitle: '$teamName · valódi eredmények',
-    icon: Icons.sports_soccer,
-    accent: accent,
-    reloadKey: (
-      teamName,
-      ref.watch(apiConfigProvider.select((config) => config.footballDataKey)),
-    ),
-    refreshTooltip: 'Mérkőzések frissítése',
-    loadingLabel: 'Mérkőzések lekérése…',
-    emptyMessage: 'Nem található friss vagy közelgő csapatmérkőzés.',
-    emptyIcon: Icons.event_busy_outlined,
-    isEmpty: (data) => data.recent.isEmpty && data.upcoming.isEmpty,
-    emptyFooter: (context, data) => Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [for (final warning in data.warnings) CourtboardNote(warning)],
-    ),
-    load: ({required force}) => withHighlights(
-      athleteName,
-      ref.read(footballDataRepositoryProvider).fetchTeamGames(teamName),
-      (data) => [
-        for (final game in [...data.recent, ...data.upcoming])
-          highlightEvent(
-            game.date,
-            'vs. ${game.opponent}',
-            _outcome(game.result),
-            game.result == FootballResult.unknown ? null : game.score,
-          ),
-      ],
-      store: ref.read(highlightStoreProvider),
-    ),
-    builder: (context, data) => Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        if (ResultStrip.canShow(footballTeamResultMarks(data.recent))) ...[
-          const SubsectionLabel('CSAPATFORMA'),
-          ResultStrip(results: footballTeamResultMarks(data.recent)),
-          const SizedBox(height: 18),
-        ],
-        if (data.recent.isNotEmpty) ...[
-          const SubsectionLabel('LEJÁTSZOTT MÉRKŐZÉSEK'),
-          ...data.recent.map(_gameRow),
-        ],
-        if (data.upcoming.isNotEmpty) ...[
-          const SizedBox(height: 12),
-          const SubsectionLabel('KÖVETKEZŐ MÉRKŐZÉSEK'),
-          ...data.upcoming.map(_gameRow),
-        ],
-        for (final warning in data.warnings) CourtboardNote(warning),
-      ],
-    ),
-  );
+  Widget build(BuildContext context, WidgetRef ref) =>
+      AsyncDataSourceCard<FootballTeamGames>(
+        title: 'Csapatmérkőzések',
+        provider: 'Élő adatforrás',
+        subtitle: '$teamName · valódi eredmények',
+        icon: Icons.sports_soccer,
+        accent: accent,
+        value: ref.watch(_gamesProvider),
+        onRefresh: () => ref.invalidate(_gamesProvider),
+        refreshTooltip: 'Mérkőzések frissítése',
+        loadingLabel: 'Mérkőzések lekérése…',
+        emptyMessage: 'Nem található friss vagy közelgő csapatmérkőzés.',
+        emptyIcon: Icons.event_busy_outlined,
+        isEmpty: (data) => data.recent.isEmpty && data.upcoming.isEmpty,
+        emptyFooter: (context, data) => Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            for (final warning in data.warnings) CourtboardNote(warning),
+          ],
+        ),
+        builder: (context, data) => Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (ResultStrip.canShow(footballTeamResultMarks(data.recent))) ...[
+              const SubsectionLabel('CSAPATFORMA'),
+              ResultStrip(results: footballTeamResultMarks(data.recent)),
+              const SizedBox(height: 18),
+            ],
+            if (data.recent.isNotEmpty) ...[
+              const SubsectionLabel('LEJÁTSZOTT MÉRKŐZÉSEK'),
+              ...data.recent.map(_gameRow),
+            ],
+            if (data.upcoming.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              const SubsectionLabel('KÖVETKEZŐ MÉRKŐZÉSEK'),
+              ...data.upcoming.map(_gameRow),
+            ],
+            for (final warning in data.warnings) CourtboardNote(warning),
+          ],
+        ),
+      );
 }
 
 class FootballDataPlayerCard extends ConsumerWidget {
@@ -220,28 +195,25 @@ class FootballDataPlayerCard extends ConsumerWidget {
   final String teamName;
   final Color accent;
 
+  FutureProvider<FootballDataPlayerProfile?> get _playerProvider =>
+      footballDataPlayerProvider((athlete: athleteName, team: teamName));
+
   @override
   Widget build(
     BuildContext context,
     WidgetRef ref,
-  ) => DataSourceCard<FootballDataPlayerProfile?>(
+  ) => AsyncDataSourceCard<FootballDataPlayerProfile?>(
     title: 'Játékosprofil',
     provider: 'football-data.org',
     icon: Icons.badge_outlined,
     accent: accent,
-    reloadKey: (
-      athleteName,
-      teamName,
-      ref.watch(apiConfigProvider.select((config) => config.footballDataKey)),
-    ),
+    value: ref.watch(_playerProvider),
+    onRefresh: () => ref.invalidate(_playerProvider),
     refreshTooltip: 'Játékosadat frissítése',
     loadingLabel: 'Játékosadat lekérése…',
     emptyMessage:
         'A játékos nem található az ingyenes versenysorozatok aktuális kereteiben.',
     emptyIcon: Icons.person_search_outlined,
-    load: ({required force}) => ref
-        .read(footballDataPlayerRepositoryProvider)
-        .findPlayer(athleteName, teamName),
     builder: (context, profile) => _FootballDataPlayerFacts(profile: profile!),
   );
 }

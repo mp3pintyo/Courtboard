@@ -4,8 +4,7 @@ import 'package:courtboard/shared/components.dart';
 import 'package:courtboard/shared/format.dart';
 import 'package:courtboard/shared/theme/courtboard_theme.dart';
 import 'package:courtboard/data/darts.dart';
-import 'package:courtboard/data/providers.dart';
-import 'package:courtboard/features/profile/profile_common.dart';
+import 'package:courtboard/features/profile/profile_providers.dart';
 import 'package:courtboard/features/profile/profile_form.dart';
 import 'package:courtboard/domain/sport.dart';
 import 'package:courtboard/features/profile/sport_profile_spec.dart';
@@ -22,30 +21,15 @@ class DartsDataCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) =>
-      DataSourceCard<DartsProfileData>(
+      AsyncDataSourceCard<DartsProfileData>(
         title: 'Darts profil és eredmények',
         provider: 'Egyesített források',
         icon: Icons.adjust_rounded,
         accent: accent,
-        reloadKey: (
-          athleteName,
-          ref.watch(apiConfigProvider.select((config) => config.rapidApiKey)),
-        ),
+        value: ref.watch(dartsProfileProvider(athleteName)),
+        onRefresh: () => ref.invalidate(dartsProfileProvider(athleteName)),
         refreshTooltip: 'Újratöltés',
         loadingLabel: 'Darts adatok betöltése…',
-        load: ({required force}) => withHighlights(
-          athleteName,
-          ref.read(dartsRepositoryProvider).fetch(athleteName),
-          (data) => [
-            for (final result in data.results)
-              highlightEvent(
-                result.date,
-                result.event,
-                MatchOutcome.parse(result.detail),
-              ),
-          ],
-          store: ref.read(highlightStoreProvider),
-        ),
         freshness: (data) =>
             data.fetchedAt == null ? null : DataFreshness(data.fetchedAt!),
         builder: (context, data) =>
