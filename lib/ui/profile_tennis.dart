@@ -11,6 +11,29 @@ class _TennisDataCard extends StatelessWidget {
   final Color accent;
   final SportsApiConfig config;
 
+  /// A profil betöltése, majd a mai ranglista-mérés rögzítése a helyi
+  /// történetbe (hálózati kérés nélkül; hibája nem érinti a kártyát).
+  Future<TennisProfileData> _fetchWithHistory({required bool force}) async {
+    final data = await TennisRepository(
+      config,
+    ).fetch(athleteName, forceRefresh: force);
+    final history = await RankingHistoryStore.shared.record(
+      athleteName,
+      ranking: data.player.ranking,
+      points: data.player.rankingPoints,
+    );
+    return TennisProfileData(
+      player: data.player,
+      liveMatches: data.liveMatches,
+      upcomingMatches: data.upcomingMatches,
+      fixtures: data.fixtures,
+      usage: data.usage,
+      fetchedAt: data.fetchedAt,
+      fromCache: data.fromCache,
+      rankingHistory: history,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final hasKey = config.liveTennisKey.trim().isNotEmpty;
@@ -38,7 +61,7 @@ class _TennisDataCard extends StatelessWidget {
             ),
       load: ({required force}) => _withHighlights(
         athleteName,
-        TennisRepository(config).fetch(athleteName, forceRefresh: force),
+        _fetchWithHistory(force: force),
         (data) => [
           for (final match in data.upcomingMatches)
             if (match.scheduledTime != null)
@@ -116,6 +139,11 @@ class TennisProfileFacts extends StatelessWidget {
               MetricTile(label: label, value: value),
           ],
         ),
+        if (tennisRankingPointsForm(data.rankingHistory).length >=
+            minChartPoints) ...[
+          const SizedBox(height: 22),
+          TennisRankingForm(history: data.rankingHistory, accent: accent),
+        ],
         const SizedBox(height: 22),
         const SubsectionLabel('ÉLŐ MÉRKŐZÉS'),
         if (data.liveMatches.isEmpty)

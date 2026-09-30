@@ -1,0 +1,653 @@
+{
+ "labels": [
+  "MIN",
+  "PTS",
+  "REB",
+  "AST",
+  "STL",
+  "BLK",
+  "TO",
+  "FG",
+  "FG%",
+  "3PT",
+  "3P%",
+  "FT",
+  "FT%",
+  "PF"
+ ],
+ "names": [
+  "minutes",
+  "points",
+  "totalRebounds",
+  "assists",
+  "steals",
+  "blocks",
+  "turnovers",
+  "fieldGoalsMade-fieldGoalsAttempted",
+  "fieldGoalPct",
+  "threePointFieldGoalsMade-threePointFieldGoalsAttempted",
+  "threePointPct",
+  "freeThrowsMade-freeThrowsAttempted",
+  "freeThrowPct",
+  "fouls"
+ ],
+ "displayNames": [
+  "Minutes",
+  "Points",
+  "Rebounds",
+  "Assists",
+  "Steals",
+  "Blocks",
+  "Turnovers",
+  "Field Goals Made-Attempted",
+  "Field Goal Percentage",
+  "3-Point Field Goals Made-Attempted",
+  "3-Point Field Goal Percentage",
+  "Free Throws Made-Attempted",
+  "Free Throw Percentage",
+  "Fouls"
+ ],
+ "filters": [
+  {
+   "displayName": "Season",
+   "name": "season",
+   "value": "2026",
+   "options": [
+    {
+     "value": "2026",
+     "displayValue": "2026"
+    },
+    {
+     "value": "2025",
+     "displayValue": "2025"
+    }
+   ]
+  }
+ ],
+ "seasonTypes": [
+  {
+   "displayName": "2026 Postseason",
+   "categories": [
+    {
+     "displayName": "Postseason",
+     "type": "event",
+     "splitType": "3",
+     "events": [
+      {
+       "eventId": "401918018",
+       "stats": [
+        "33",
+        "27",
+        "7",
+        "15",
+        "0",
+        "0",
+        "5",
+        "9-18",
+        "50.0",
+        "5-11",
+        "45.5",
+        "4-4",
+        "100.0",
+        "6"
+       ]
+      },
+      {
+       "eventId": "401918015",
+       "stats": [
+        "34",
+        "15",
+        "3",
+        "10",
+        "0",
+        "0",
+        "6",
+        "6-17",
+        "35.3",
+        "3-10",
+        "30.0",
+        "0-0",
+        "0.0",
+        "5"
+       ]
+      }
+     ],
+     "totals": [
+      "33.5",
+      "21.0",
+      "5.0",
+      "12.5",
+      "0.0",
+      "0.0",
+      "5.5",
+      "7.5-17.5",
+      "42.9",
+      "4.0-10.5",
+      "38.1",
+      "2.0-2.0",
+      "100.0",
+      "5.5"
+     ]
+    }
+   ],
+   "summary": {
+    "displayName": "Postseason",
+    "stats": [
+     {
+      "displayName": "Totals",
+      "stats": [
+       "34",
+       "15",
+       "3",
+       "10",
+       "0",
+       "0",
+       "6",
+       "6-17",
+       "35.3",
+       "3-10",
+       "30.0",
+       "0-0",
+       "0.0",
+       "5"
+      ],
+      "type": "total"
+     }
+    ]
+   }
+  },
+  {
+   "displayName": "2026 Regular Season",
+   "categories": [
+    {
+     "displayName": "september",
+     "type": "event",
+     "splitType": "september",
+     "events": [
+      {
+       "eventId": "401857217",
+       "stats": [
+        "18",
+        "2",
+        "4",
+        "3",
+        "1",
+        "0",
+        "1",
+        "1-12",
+        "8.3",
+        "0-7",
+        "0.0",
+        "0-0",
+        "0.0",
+        "1"
+       ]
+      },
+      {
+       "eventId": "401857209",
+       "stats": [
+        "33",
+        "27",
+        "7",
+        "9",
+        "4",
+        "0",
+        "5",
+        "9-18",
+        "50.0",
+        "3-7",
+        "42.9",
+        "6-6",
+        "100.0",
+        "3"
+       ]
+      },
+      {
+       "eventId": "401857203",
+       "stats": [
+        "34",
+        "25",
+        "2",
+        "5",
+        "2",
+        "1",
+        "5",
+        "6-20",
+        "30.0",
+        "3-10",
+        "30.0",
+        "10-10",
+        "100.0",
+        "1"
+       ]
+      },
+      {
+       "eventId": "401857195",
+       "stats": [
+        "34",
+        "28",
+        "6",
+        "14",
+        "0",
+        "0",
+        "6",
+        "7-15",
+        "46.7",
+        "2-8",
+        "25.0",
+        "12-12",
+        "100.0",
+        "5"
+       ]
+      }
+     ]
+    },
+    {
+     "displayName": "august",
+     "type": "event",
+     "splitType": "august",
+     "events": [
+      {
+       "eventId": "401857181",
+       "stats": [
+        "34",
+        "34",
+        "5",
+        "12",
+        "3",
+        "0",
+        "5",
+        "12-19",
+        "63.2",
+        "6-12",
+        "50.0",
+        "4-6",
+        "66.7",
+        "4"
+       ]
+      },
+      {
+       "eventId": "401857168",
+       "stats": [
+        "32",
+        "37",
+        "3",
+        "10",
+        "1",
+        "0",
+        "5",
+        "13-24",
+        "54.2",
+        "8-12",
+        "66.7",
+        "3-4",
+        "75.0",
+        "0"
+       ]
+      },
+      {
+       "eventId": "401857164",
+       "stats": [
+        "35",
+        "21",
+        "4",
+        "7",
+        "1",
+        "0",
+        "2",
+        "9-18",
+        "50.0",
+        "2-6",
+        "33.3",
+        "1-4",
+        "25.0",
+        "4"
+       ]
+      },
+      {
+       "eventId": "401857158",
+       "stats": [
+        "35",
+        "10",
+        "4",
+        "9",
+        "1",
+        "1",
+        "3",
+        "4-15",
+        "26.7",
+        "2-8",
+        "25.0",
+        "0-1",
+        "0.0",
+        "4"
+       ]
+      },
+      {
+       "eventId": "401857153",
+       "stats": [
+        "33",
+        "24",
+        "3",
+        "7",
+        "0",
+        "0",
+        "7",
+        "7-16",
+        "43.8",
+        "4-9",
+        "44.4",
+        "6-7",
+        "85.7",
+        "3"
+       ]
+      }
+     ]
+    }
+   ],
+   "summary": {
+    "displayName": "Regular Season Stats",
+    "stats": [
+     {
+      "displayName": "Averages",
+      "stats": [
+       "31.1",
+       "22.3",
+       "4.0",
+       "8.3",
+       "1.1",
+       "0.5",
+       "4.6",
+       "7.1-15.8",
+       "44.6",
+       "2.9-7.9",
+       "36.1",
+       "5.3-6.3",
+       "85.2",
+       "3.1"
+      ],
+      "type": "avg"
+     },
+     {
+      "displayName": "Totals",
+      "stats": [
+       "1244",
+       "891",
+       "158",
+       "333",
+       "42",
+       "19",
+       "183",
+       "282-633",
+       "44.6",
+       "114-316",
+       "36.1",
+       "213-250",
+       "85.2",
+       "125"
+      ],
+      "type": "total"
+     }
+    ]
+   }
+  }
+ ],
+ "events": {
+  "401918018": {
+   "id": "401918018",
+   "atVs": "vs",
+   "gameDate": "2026-09-29T22:30:00.000+00:00",
+   "score": "99-89",
+   "homeTeamId": "5",
+   "awayTeamId": "17",
+   "homeTeamScore": "99",
+   "awayTeamScore": "89",
+   "gameResult": "W",
+   "opponent": {
+    "id": "17",
+    "displayName": "Las Vegas Aces",
+    "abbreviation": "LV"
+   },
+   "leagueName": "Women's National Basketball Association",
+   "leagueAbbreviation": "WNBA",
+   "leagueShortName": "WNBA",
+   "eventNote": "First Round - Game 2",
+   "team": {
+    "id": "5",
+    "abbreviation": "IND"
+   }
+  },
+  "401918015": {
+   "id": "401918015",
+   "atVs": "@",
+   "gameDate": "2026-09-27T20:00:00.000+00:00",
+   "score": "102-85",
+   "homeTeamId": "17",
+   "awayTeamId": "5",
+   "homeTeamScore": "102",
+   "awayTeamScore": "85",
+   "gameResult": "L",
+   "opponent": {
+    "id": "17",
+    "displayName": "Las Vegas Aces",
+    "abbreviation": "LV"
+   },
+   "leagueName": "Women's National Basketball Association",
+   "leagueAbbreviation": "WNBA",
+   "leagueShortName": "WNBA",
+   "eventNote": "First Round - Game 1",
+   "team": {
+    "id": "5",
+    "abbreviation": "IND"
+   }
+  },
+  "401857217": {
+   "id": "401857217",
+   "atVs": "@",
+   "gameDate": "2026-09-25T00:00:00.000+00:00",
+   "score": "86-66",
+   "homeTeamId": "8",
+   "awayTeamId": "5",
+   "homeTeamScore": "86",
+   "awayTeamScore": "66",
+   "gameResult": "L",
+   "opponent": {
+    "id": "8",
+    "displayName": "Minnesota Lynx",
+    "abbreviation": "MIN"
+   },
+   "leagueName": "Women's National Basketball Association",
+   "leagueAbbreviation": "WNBA",
+   "leagueShortName": "WNBA",
+   "team": {
+    "id": "5",
+    "abbreviation": "IND"
+   }
+  },
+  "401857209": {
+   "id": "401857209",
+   "atVs": "vs",
+   "gameDate": "2026-09-23T00:00:00.000+00:00",
+   "score": "96-77",
+   "homeTeamId": "5",
+   "awayTeamId": "8",
+   "homeTeamScore": "96",
+   "awayTeamScore": "77",
+   "gameResult": "W",
+   "opponent": {
+    "id": "8",
+    "displayName": "Minnesota Lynx",
+    "abbreviation": "MIN"
+   },
+   "leagueName": "Women's National Basketball Association",
+   "leagueAbbreviation": "WNBA",
+   "leagueShortName": "WNBA",
+   "team": {
+    "id": "5",
+    "abbreviation": "IND"
+   }
+  },
+  "401857203": {
+   "id": "401857203",
+   "atVs": "vs",
+   "gameDate": "2026-09-20T20:00:00.000+00:00",
+   "score": "93-77",
+   "homeTeamId": "5",
+   "awayTeamId": "16",
+   "homeTeamScore": "77",
+   "awayTeamScore": "93",
+   "gameResult": "L",
+   "opponent": {
+    "id": "16",
+    "displayName": "Washington Mystics",
+    "abbreviation": "WSH"
+   },
+   "leagueName": "Women's National Basketball Association",
+   "leagueAbbreviation": "WNBA",
+   "leagueShortName": "WNBA",
+   "team": {
+    "id": "5",
+    "abbreviation": "IND"
+   }
+  },
+  "401857195": {
+   "id": "401857195",
+   "atVs": "@",
+   "gameDate": "2026-09-18T23:30:00.000+00:00",
+   "score": "103-85",
+   "homeTeamId": "131935",
+   "awayTeamId": "5",
+   "homeTeamScore": "85",
+   "awayTeamScore": "103",
+   "gameResult": "W",
+   "opponent": {
+    "id": "131935",
+    "displayName": "Toronto Tempo",
+    "abbreviation": "TOR"
+   },
+   "leagueName": "Women's National Basketball Association",
+   "leagueAbbreviation": "WNBA",
+   "leagueShortName": "WNBA",
+   "team": {
+    "id": "5",
+    "abbreviation": "IND"
+   }
+  },
+  "401857181": {
+   "id": "401857181",
+   "atVs": "vs",
+   "gameDate": "2026-08-28T23:30:00.000+00:00",
+   "score": "111-91",
+   "homeTeamId": "5",
+   "awayTeamId": "18",
+   "homeTeamScore": "111",
+   "awayTeamScore": "91",
+   "gameResult": "W",
+   "opponent": {
+    "id": "18",
+    "displayName": "Connecticut Sun",
+    "abbreviation": "CON"
+   },
+   "leagueName": "Women's National Basketball Association",
+   "leagueAbbreviation": "WNBA",
+   "leagueShortName": "WNBA",
+   "team": {
+    "id": "5",
+    "abbreviation": "IND"
+   }
+  },
+  "401857168": {
+   "id": "401857168",
+   "atVs": "@",
+   "gameDate": "2026-08-23T23:00:00.000+00:00",
+   "score": "113-90",
+   "homeTeamId": "19",
+   "awayTeamId": "5",
+   "homeTeamScore": "90",
+   "awayTeamScore": "113",
+   "gameResult": "W",
+   "opponent": {
+    "id": "19",
+    "displayName": "Chicago Sky",
+    "abbreviation": "CHI"
+   },
+   "leagueName": "Women's National Basketball Association",
+   "leagueAbbreviation": "WNBA",
+   "leagueShortName": "WNBA",
+   "team": {
+    "id": "5",
+    "abbreviation": "IND"
+   }
+  },
+  "401857164": {
+   "id": "401857164",
+   "atVs": "@",
+   "gameDate": "2026-08-22T23:00:00.000+00:00",
+   "score": "109-102",
+   "homeTeamId": "9",
+   "awayTeamId": "5",
+   "homeTeamScore": "109",
+   "awayTeamScore": "102",
+   "gameResult": "L",
+   "opponent": {
+    "id": "9",
+    "displayName": "New York Liberty",
+    "abbreviation": "NY"
+   },
+   "leagueName": "Women's National Basketball Association",
+   "leagueAbbreviation": "WNBA",
+   "leagueShortName": "WNBA",
+   "team": {
+    "id": "5",
+    "abbreviation": "IND"
+   }
+  },
+  "401857158": {
+   "id": "401857158",
+   "atVs": "@",
+   "gameDate": "2026-08-21T00:00:00.000+00:00",
+   "score": "91-85",
+   "homeTeamId": "3",
+   "awayTeamId": "5",
+   "homeTeamScore": "91",
+   "awayTeamScore": "85",
+   "gameResult": "L",
+   "opponent": {
+    "id": "3",
+    "displayName": "Dallas Wings",
+    "abbreviation": "DAL"
+   },
+   "leagueName": "Women's National Basketball Association",
+   "leagueAbbreviation": "WNBA",
+   "leagueShortName": "WNBA",
+   "team": {
+    "id": "5",
+    "abbreviation": "IND"
+   }
+  },
+  "401857153": {
+   "id": "401857153",
+   "atVs": "@",
+   "gameDate": "2026-08-18T23:00:00.000+00:00",
+   "score": "101-95",
+   "homeTeamId": "131935",
+   "awayTeamId": "5",
+   "homeTeamScore": "95",
+   "awayTeamScore": "101",
+   "gameResult": "W",
+   "opponent": {
+    "id": "131935",
+    "displayName": "Toronto Tempo",
+    "abbreviation": "TOR"
+   },
+   "leagueName": "Women's National Basketball Association",
+   "leagueAbbreviation": "WNBA",
+   "leagueShortName": "WNBA",
+   "team": {
+    "id": "5",
+    "abbreviation": "IND"
+   }
+  }
+ },
+ "_fixtureNote": "Trimmed live response of .../basketball/wnba/athletes/4433403/gamelog (2026-09-30)."
+}

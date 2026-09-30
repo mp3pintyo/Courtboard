@@ -60,6 +60,7 @@ class CourtboardLocalState {
     this.startMinimized = false,
     this.notifications = const NotificationSettings(),
     this.notificationsPausedUntil,
+    this.pinnedAthletes = const [],
   });
 
   final Map<String, String> notes;
@@ -112,6 +113,10 @@ class CourtboardLocalState {
   /// „Értesítések szüneteltetése 1 órára” pontja); `null`: nincs szünet.
   final DateTime? notificationsPausedUntil;
 
+  /// A kitűzött („Kitűzés”) sportolók neve a kitűzés sorrendjében; a
+  /// nyitóoldalon a saját sorrend előtt, jelvénnyel jelennek meg (0.12.0-tól).
+  final List<String> pinnedAthletes;
+
   /// Másolat, amelyben a régi, titkosítatlan kulcsok helyén [keys] áll.
   CourtboardLocalState withLegacyApiKeys(Map<ApiKeyId, String> keys) =>
       CourtboardLocalState(
@@ -133,6 +138,7 @@ class CourtboardLocalState {
         startMinimized: startMinimized,
         notifications: notifications,
         notificationsPausedUntil: notificationsPausedUntil,
+        pinnedAthletes: pinnedAthletes,
       );
 
   /// Másolat új ablakhelyzettel (a többi mező változatlan).
@@ -156,6 +162,7 @@ class CourtboardLocalState {
         startMinimized: startMinimized,
         notifications: notifications,
         notificationsPausedUntil: notificationsPausedUntil,
+        pinnedAthletes: pinnedAthletes,
       );
 
   Map<String, dynamic> toJson() => {
@@ -183,6 +190,7 @@ class CourtboardLocalState {
       'notificationsPausedUntil': notificationsPausedUntil!
           .toUtc()
           .toIso8601String(),
+    'pinnedAthletes': pinnedAthletes,
   };
 
   factory CourtboardLocalState.fromJson(Map<String, dynamic> json) {
@@ -191,6 +199,7 @@ class CourtboardLocalState {
     final rawRemoved = json['removedAthleteNames'];
     final rawAthletes = json['customAthletes'];
     final rawOrder = json['athleteOrder'];
+    final rawPinned = json['pinnedAthletes'];
     return CourtboardLocalState(
       notes: rawNotes is Map
           ? rawNotes.map((key, value) => MapEntry('$key', '$value'))
@@ -233,6 +242,13 @@ class CourtboardLocalState {
         final String value => DateTime.tryParse(value)?.toLocal(),
         _ => null,
       },
+      pinnedAthletes: rawPinned is List
+          ? rawPinned
+                .whereType<String>()
+                .where((name) => name.trim().isNotEmpty)
+                .toSet()
+                .toList()
+          : const [],
     );
   }
 }

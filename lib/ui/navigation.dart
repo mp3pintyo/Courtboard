@@ -30,12 +30,27 @@ abstract final class _Layout {
       : _RailMode.drawer;
 }
 
+/// A menüpontok indexei (a Ctrl+1…9 sorrendje is ez).
+abstract final class _Nav {
+  static const overview = 0;
+  static const athletes = 1;
+  static const calendar = 2;
+  static const news = 3;
+  static const videos = 4;
+  static const feed = 5;
+  static const compare = 6;
+  static const dataSources = 7;
+  static const settings = 8;
+}
+
 const _navItems = [
   (Icons.grid_view_rounded, 'Áttekintés'),
   (Icons.person_add_alt_1_outlined, 'Sportolók'),
   (Icons.calendar_month_outlined, 'Naptár'),
   (Icons.newspaper_outlined, 'Hírek'),
   (Icons.video_library_outlined, 'Videók'),
+  (Icons.dynamic_feed_outlined, 'Követés'),
+  (Icons.compare_arrows_rounded, 'Összehasonlítás'),
   (Icons.cloud_sync_outlined, 'Adatforrások'),
   (Icons.settings_outlined, 'Beállítások'),
 ];
@@ -72,12 +87,18 @@ class _SideRail extends StatelessWidget {
           ? const EdgeInsets.fromLTRB(12, 26, 12, 20)
           : const EdgeInsets.fromLTRB(22, 30, 22, 24),
       child: LayoutBuilder(
-        builder: (context, constraints) => _content(
-          context,
-          // Alacsony ablakban a promóciós doboz elmarad, hogy a menü férjen.
-          showPromo: !compact && constraints.maxHeight >= 700,
-          scroll: constraints.maxHeight < 560,
-        ),
+        builder: (context, constraints) {
+          // A menüpontok magassága a szövegnagyítással nő.
+          final scale = MediaQuery.textScalerOf(context).scale(100) / 100;
+          return _content(
+            context,
+            // Alacsony ablakban a promóciós doboz elmarad, hogy a menü
+            // férjen; még alacsonyabbnál a menü görgethető (9 menüpont
+            // ≈ 590 px 1,0-s nagyításnál).
+            showPromo: !compact && constraints.maxHeight >= 740 * scale,
+            scroll: constraints.maxHeight < 610 * scale,
+          );
+        },
       ),
     );
   }

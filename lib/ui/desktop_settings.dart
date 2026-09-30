@@ -158,9 +158,22 @@ class _NotificationSettingsCardState extends State<_NotificationSettingsCard> {
           _SettingSwitch(
             settingKey: const Key('notify-results-setting'),
             title: 'Új eredmény',
-            subtitle: 'NBA-, WNBA- és NFL-játékosoknál az ESPN menetrendjéből.',
+            subtitle:
+                'NBA-, WNBA- és NFL-játékosoknál az ESPN menetrendjéből; a mai '
+                'végeredmény az élő scoreboardról gyorsabban jelez (focinál is).',
             value: settings.results,
             onChanged: typeToggle((value) => settings.copyWith(results: value)),
+          ),
+          _SettingSwitch(
+            settingKey: const Key('notify-live-scores-setting'),
+            title: 'Élő eredményváltozás',
+            subtitle:
+                'Zajló meccsen az állás változásakor, ellenőrzésenként '
+                'legfeljebb egyszer. Alapból kikapcsolva.',
+            value: settings.liveScores,
+            onChanged: typeToggle(
+              (value) => settings.copyWith(liveScores: value),
+            ),
           ),
           _SettingSwitch(
             settingKey: const Key('notify-news-setting'),
@@ -188,8 +201,9 @@ class _NotificationSettingsCardState extends State<_NotificationSettingsCard> {
           const SizedBox(height: 6),
           const CourtboardNote(
             'Az adatforrások gyorsítótára és kvótája érvényes: a hírek '
-            'legfeljebb 20 percenként, az eredmények óránként, a menetrend '
-            '6 óránként frissül a háttérben.',
+            'legfeljebb 20 percenként, az eredmények óránként (az élő '
+            'scoreboard 45 mp-es gyorsítótárral), a menetrend 6 óránként '
+            'frissül a háttérben.',
           ),
           const SizedBox(height: 12),
           _SettingSwitch(

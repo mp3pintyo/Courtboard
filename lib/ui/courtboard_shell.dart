@@ -17,6 +17,7 @@ class CourtboardShell extends StatefulWidget {
     this.startupRegistration,
     this.watcherSource,
     this.watcherMemoryStore,
+    this.compareSource,
     required this.onThemeChanged,
     this.onThemeModeChanged,
   });
@@ -35,6 +36,9 @@ class CourtboardShell extends StatefulWidget {
 
   /// Lásd [CourtboardApp.watcherMemoryStore].
   final WatcherMemoryStore? watcherMemoryStore;
+
+  /// Lásd [CourtboardApp.compareSource].
+  final CompareDataSource? compareSource;
 
   /// Lásd [CourtboardApp.appVersion].
   final String? appVersion;
@@ -83,6 +87,18 @@ class _CourtboardShellState extends State<CourtboardShell> {
   Map<String, String> _notes = {};
   Map<String, bool> _alerts = {};
   Set<String> _removedAthleteNames = {};
+
+  /// A kitűzött sportolók neve a kitűzés sorrendjében (a nyitóoldalon elöl).
+  List<String> _pinned = [];
+
+  /// A „Követés” hírfolyam hírei: a hírarchívumból (helyi SQLite) a
+  /// követett sportolókat említő cikkek; hálózati kérés nélkül töltődik.
+  List<NewsArticle> _feedArticles = const [];
+  bool _feedLoading = false;
+
+  /// Az Összehasonlítás oldal előre kiválasztott sportolója (a profil
+  /// „Összehasonlítás…” menüpontjából).
+  String? _compareFocus;
   SportsApiConfig _apiConfig = SportsApiConfig.fromEnvironment();
   late final ApiKeyStore _apiKeyStore = widget.apiKeyStore ?? ApiKeyStore();
 
@@ -226,6 +242,7 @@ class _CourtboardShellState extends State<CourtboardShell> {
     _applyState(widget.initialState);
     unawaited(_loadPlaylist());
     unawaited(_loadHighlights());
+    unawaited(_loadFeedNews());
     FocusManager.instance.addListener(_keepShellFocus);
     _upcoming.addListener(_upcomingChanged);
     // Háttérben (6 órás gyorsítótárral) betöltjük a közelgő eseményeket, hogy
@@ -392,7 +409,7 @@ class _CourtboardShellState extends State<CourtboardShell> {
     if (athlete != null) {
       _openProfile(athlete);
     } else if (notification.kind == CourtboardNotificationKind.news) {
-      _navigate(3);
+      _navigate(_Nav.news);
     }
   }
 
@@ -525,6 +542,7 @@ class _CourtboardShellState extends State<CourtboardShell> {
       ...widget.apiKeys,
     });
     _removedAthleteNames = {...state.removedAthleteNames};
+    _pinned = [...state.pinnedAthletes];
     _overviewSort = state.overviewSort;
     _athleteSort = state.athleteSort;
     _selectedTheme = state.theme;
@@ -605,6 +623,10 @@ class _CourtboardShellState extends State<CourtboardShell> {
     startMinimized: _startMinimized,
     notifications: _notificationSettings,
     notificationsPausedUntil: _notificationsPausedUntil,
+    pinnedAthletes: [
+      for (final name in _pinned)
+        if (_athletes.any((athlete) => athlete.name == name)) name,
+    ],
     customAthletes: _athletes
         .where((a) => a.isCustom)
         .map(
@@ -647,6 +669,83 @@ class _CourtboardShellState extends State<CourtboardShell> {
   void _setNote(Athlete athlete, String value) {
     setState(() => _notes = {..._notes, athlete.name: value});
     _saveLocalState();
+  }
+
+  bool _isPinned(Athlete athlete) => _pinned.contains(athlete.name);
+
+  /// „Kitűzés” / „Kitűzés megszüntetése”: a kitűzött sportolók a
+  /// nyitóoldalon a saját sorrend előtt, jelvénnyel jelennek meg.
+  void _togglePin(Athlete athlete) {
+    final pinned = _isPinned(athlete);
+    setState(
+      () => _pinned = pinned
+          ? [
+              for (final name in _pinned)
+                if (name != athlete.name) name,
+            ]
+          : [..._pinned, athlete.name],
+    );
+    _saveLocalState();
+    _showSnack(
+      pinned
+          ? '${athlete.name} kitűzése megszűnt.'
+          : '${athlete.name} kitűzve: a nyitóoldalon elöl jelenik meg.',
+    );
+  }
+
+  /// Az Összehasonlítás oldal megnyitása a sportolóval előre kiválasztva.
+  void _openCompare(Athlete athlete) {
+    setState(() => _compareFocus = athlete.name);
+    _navigate(_Nav.compare);
+  }
+
+  /// A hírfolyam hírei a helyi hírarchívumból (hálózat nélkül).
+  Future<void> _loadFeedNews() async {
+    if (_feedLoading) return;
+    _feedLoading = true;
+    try {
+      final articles = await _newsRepository.store.query(limit: 400);
+      final names = _athletes.map((athlete) => athlete.name).toList();
+      final related = [
+        for (final article in articles)
+          if (names.any((name) => newsMatchesAthlete(article, name))) article,
+      ];
+      if (mounted) setState(() => _feedArticles = related);
+    } catch (_) {
+      // A hírarchívum hibája nem akaszthatja meg a hírfolyam többi részét.
+    } finally {
+      _feedLoading = false;
+    }
+  }
+
+  /// A hírfolyam frissítése a meglévő szabályok szerint: a hírforrások csak
+  /// a frissítési időközük lejárta után, a naptár a gyorsítótárból (6 óra),
+  /// a kiemelések helyből töltődnek.
+  Future<void> _refreshFeed() async {
+    await Future.wait<void>([
+      _newsRepository.refresh().then<void>((_) {}, onError: (Object _) {}),
+      _loadUpcoming(),
+    ]);
+    await _loadHighlights();
+    await _loadFeedNews();
+  }
+
+  /// A hírfolyam elemei a shell már betöltött állapotából.
+  List<FeedItem> _feedItems() {
+    final now = DateTime.now();
+    final names = _athletes.map((athlete) => athlete.name).toList();
+    final followed = names.toSet();
+    return mergeFeed([
+      ...feedFromUpcoming(
+        _upcoming.events().where(
+          (event) => followed.contains(event.athleteName),
+        ),
+        now,
+      ),
+      ...feedFromHighlights(_highlights, now),
+      ...feedFromNews(_feedArticles, names),
+      ...feedFromVideos(_playlist.videos, names),
+    ]);
   }
 
   void _toggleAlert(Athlete athlete) {
@@ -759,6 +858,10 @@ class _CourtboardShellState extends State<CourtboardShell> {
             setState(() {
               _removedAthleteNames.add(athlete.name);
               _athletes.removeWhere((item) => item.name == athlete.name);
+              _pinned = [
+                for (final name in _pinned)
+                  if (name != athlete.name) name,
+              ];
               _openAthlete = null;
             });
             _saveLocalState();
@@ -772,8 +875,10 @@ class _CourtboardShellState extends State<CourtboardShell> {
 
   /// A profil „Vissza” gombjának felirata a megnyitás helye szerint.
   String get _backLabel => switch (_activeNav) {
-    1 => 'Vissza: Sportolók',
-    4 => 'Vissza: Videók',
+    _Nav.athletes => 'Vissza: Sportolók',
+    _Nav.videos => 'Vissza: Videók',
+    _Nav.feed => 'Vissza: Követés',
+    _Nav.compare => 'Vissza: Összehasonlítás',
     _ => 'Vissza: Áttekintés',
   };
 
@@ -792,7 +897,11 @@ class _CourtboardShellState extends State<CourtboardShell> {
       _openAthlete = null;
       _activeNav = index;
     });
-    if (wasProfile || index == 0) unawaited(_loadHighlights());
+    if (wasProfile || index == _Nav.overview) unawaited(_loadHighlights());
+    // A Hírek oldalon közben érkezett cikkek a hírfolyamba is bekerülnek.
+    if (index == _Nav.overview || index == _Nav.feed) {
+      unawaited(_loadFeedNews());
+    }
   }
 
   Future<void> _loadHighlights() async {
@@ -830,11 +939,18 @@ class _CourtboardShellState extends State<CourtboardShell> {
 
   /// A látható oldal címe (keskeny ablak felső sávjához).
   String get _pageTitle =>
-      _openAthlete?.name ?? _navItems[_activeNav.clamp(0, 6)].$2;
+      _openAthlete?.name ??
+      _navItems[_activeNav.clamp(0, _navItems.length - 1)].$2;
 
   /// Oldalak, amelyeken van keresőmező (Ctrl+F).
   bool get _pageHasSearch =>
-      _openAthlete == null && const {0, 1, 3, 4}.contains(_activeNav);
+      _openAthlete == null &&
+      const {
+        _Nav.overview,
+        _Nav.athletes,
+        _Nav.news,
+        _Nav.videos,
+      }.contains(_activeNav);
 
   void _focusSearch() {
     if (_pageHasSearch && _commands.hasSearchHandler) {
@@ -842,7 +958,7 @@ class _CourtboardShellState extends State<CourtboardShell> {
       return;
     }
     // Keresőmező nélküli oldalról az Áttekintés keresőjére ugrunk.
-    _navigate(0);
+    _navigate(_Nav.overview);
     WidgetsBinding.instance.addPostFrameCallback(
       (_) => _commands.requestSearchFocus(),
     );
@@ -913,6 +1029,9 @@ class _CourtboardShellState extends State<CourtboardShell> {
             onDelete: () => unawaited(_confirmDeleteAthlete(_openAthlete!)),
             onSaveNote: _setNote,
             onToggleAlert: _toggleAlert,
+            pinned: _isPinned(_openAthlete!),
+            onTogglePin: () => _togglePin(_openAthlete!),
+            onCompare: () => _openCompare(_openAthlete!),
           )
         : _buildPage();
 
@@ -992,32 +1111,38 @@ class _CourtboardShellState extends State<CourtboardShell> {
   }
 
   Widget _buildPage() => switch (_activeNav) {
-    0 => _Dashboard(
+    _Nav.overview => _Dashboard(
       athletes: _athletes,
       highlights: _highlights,
       search: _search,
       sort: _overviewSort,
       filter: _dashboardFilter,
       onFilterChanged: (value) => setState(() => _dashboardFilter = value),
-      onOpenSettings: () => _navigate(6),
+      onOpenSettings: () => _navigate(_Nav.settings),
       onOpen: _openProfile,
       onAddAthlete: _openAddAthlete,
-      onOpenNews: () => _navigate(3),
-      onOpenVideos: () => _navigate(4),
+      onOpenNews: () => _navigate(_Nav.news),
+      onOpenVideos: () => _navigate(_Nav.videos),
+      pinned: _pinned.toSet(),
+      onTogglePin: _togglePin,
+      onCompare: _openCompare,
+      feed: _feedItems(),
+      onOpenFeed: () => _navigate(_Nav.feed),
+      liveTargets: _calendarTargets(_athletes),
     ),
-    1 => _AthleteDirectory(
+    _Nav.athletes => _AthleteDirectory(
       athletes: _athletes,
       sort: _athleteSort,
       onOpen: _openProfile,
       onAdd: _openAddAthlete,
       onReorder: _reorderAthletes,
     ),
-    2 => _CalendarPage(
+    _Nav.calendar => _CalendarPage(
       athletes: _athletes,
       controller: _upcoming,
       config: _apiConfig,
     ),
-    3 => NewsPage(
+    _Nav.news => NewsPage(
       repository: _newsRepository,
       athletes: _athletes
           .map(
@@ -1026,14 +1151,27 @@ class _CourtboardShellState extends State<CourtboardShell> {
           )
           .toList(),
     ),
-    4 => VideoLibraryPage(
+    _Nav.videos => VideoLibraryPage(
       athletes: _athletes,
       playlist: _playlist,
       onOpenAthlete: _openProfile,
       onRemoveVideo: _toggleVideo,
-      onOpenAthletes: () => _navigate(1),
+      onOpenAthletes: () => _navigate(_Nav.athletes),
     ),
-    5 => _DataStatusPage(
+    _Nav.feed => _FollowFeedPage(
+      items: _feedItems(),
+      athletes: _athletes,
+      onOpenAthlete: _openProfile,
+      onRefresh: _refreshFeed,
+    ),
+    _Nav.compare => _ComparePage(
+      athletes: _athletes,
+      config: _apiConfig,
+      source: widget.compareSource ?? const RepositoryCompareSource(),
+      initialAthlete: _compareFocus,
+      onOpenAthlete: _openProfile,
+    ),
+    _Nav.dataSources => _DataStatusPage(
       config: _apiConfig,
       secureStorageAvailable: _secureStorageAvailable,
       onSaveKey: (id, value) => unawaited(_saveApiKey(id, value)),

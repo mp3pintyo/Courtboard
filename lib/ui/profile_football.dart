@@ -42,7 +42,7 @@ class _FootballSeasonSummaryCard extends StatelessWidget {
             const Divider(),
             const SizedBox(height: 18),
           ],
-          _FootballSeasonStatPanel(stat: result.stats[i]),
+          _FootballSeasonStatPanel(stat: result.stats[i], accent: accent),
         ],
         for (final error in result.errors) CourtboardNote(error),
       ],
@@ -51,21 +51,35 @@ class _FootballSeasonSummaryCard extends StatelessWidget {
 }
 
 class _FootballSeasonStatPanel extends StatelessWidget {
-  const _FootballSeasonStatPanel({required this.stat});
+  const _FootballSeasonStatPanel({required this.stat, this.accent});
   final FootballSeasonStat stat;
+  final Color? accent;
 
   @override
-  Widget build(BuildContext context) => SeasonSummaryPanel(
-    title: stat.team,
-    subtitle: '${stat.competition} · ${stat.season}',
-    source: stat.source,
-    metrics: [
-      ('ÉRTÉKELÉS ÁTLAG', formatDecimal(stat.rating, digits: 2)),
-      ('MÉRKŐZÉS', formatInt(stat.appearances)),
-      ('GÓL', formatInt(stat.goals)),
-      ('GÓLPASSZ', formatInt(stat.assists)),
-      ('SÁRGA LAP', formatInt(stat.yellowCards)),
-      ('PIROS LAP', formatInt(stat.redCards)),
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      SeasonSummaryPanel(
+        title: stat.team,
+        subtitle: '${stat.competition} · ${stat.season}',
+        source: stat.source,
+        metrics: [
+          ('ÉRTÉKELÉS ÁTLAG', formatDecimal(stat.rating, digits: 2)),
+          ('MÉRKŐZÉS', formatInt(stat.appearances)),
+          ('GÓL', formatInt(stat.goals)),
+          ('GÓLPASSZ', formatInt(stat.assists)),
+          ('SÁRGA LAP', formatInt(stat.yellowCards)),
+          ('PIROS LAP', formatInt(stat.redCards)),
+        ],
+      ),
+      if (stat.recentMatches.length >= minChartPoints) ...[
+        const SizedBox(height: 22),
+        FootballFormPanel(
+          matches: stat.recentMatches,
+          seasonRating: stat.rating,
+          accent: accent,
+        ),
+      ],
     ],
   );
 }
@@ -91,9 +105,25 @@ class _FootballDataCard extends StatelessWidget {
 
   Widget _gameRow(FootballGame game) => MatchRow(
     date: game.date,
-    opponent: 'vs. ${game.opponent}',
+    venue: switch (game.homeAway) {
+      'home' => 'Hazai',
+      'away' => 'Idegen',
+      _ => null,
+    },
+    opponent: '${game.homeAway == 'away' ? '@' : 'vs.'} ${game.opponent}',
+    subtitle: [
+      if (game.competition.isNotEmpty) game.competition,
+      if (game.source.isNotEmpty) game.source,
+    ].join(' · '),
     score: game.score,
     outcome: _outcome(game.result),
+    footer:
+        MatchTimelineExpander.available(
+          match: game.espnMatch,
+          timeline: game.timeline,
+        )
+        ? MatchTimelineExpander(match: game.espnMatch, timeline: game.timeline)
+        : null,
   );
 
   @override
@@ -131,6 +161,11 @@ class _FootballDataCard extends StatelessWidget {
     builder: (context, data) => Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        if (ResultStrip.canShow(footballTeamResultMarks(data.recent))) ...[
+          const SubsectionLabel('CSAPATFORMA'),
+          ResultStrip(results: footballTeamResultMarks(data.recent)),
+          const SizedBox(height: 18),
+        ],
         if (data.recent.isNotEmpty) ...[
           const SubsectionLabel('LEJÁTSZOTT MÉRKŐZÉSEK'),
           ...data.recent.map(_gameRow),
@@ -265,6 +300,14 @@ class LigaFGameList extends StatelessWidget {
           subtitle: 'Liga F',
           score: game.score,
           outcome: MatchOutcome.parse(game.result),
+          footer: game.eventId == null
+              ? null
+              : MatchTimelineExpander(
+                  match: EspnMatchRef(
+                    eventId: game.eventId!,
+                    league: 'esp.w.1',
+                  ),
+                ),
         ),
     ],
   );

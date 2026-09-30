@@ -1,0 +1,210 @@
+{
+ "leagues": [
+  {
+   "id": "59",
+   "name": "Women's National Basketball Association",
+   "abbreviation": "WNBA",
+   "slug": "wnba"
+  }
+ ],
+ "day": {
+  "date": "2026-09-29"
+ },
+ "events": [
+  {
+   "id": "401918018",
+   "date": "2026-09-29T22:30Z",
+   "name": "Las Vegas Aces at Indiana Fever",
+   "shortName": "LV @ IND",
+   "competitions": [
+    {
+     "id": "401918018",
+     "date": "2026-09-29T22:30Z",
+     "status": {
+      "clock": 600.0,
+      "displayClock": "10:00",
+      "period": 4,
+      "type": {
+       "id": "3",
+       "name": "STATUS_FINAL",
+       "state": "post",
+       "completed": true,
+       "description": "Final",
+       "detail": "Final",
+       "shortDetail": "Final"
+      }
+     },
+     "competitors": [
+      {
+       "id": "5",
+       "homeAway": "home",
+       "winner": true,
+       "score": "99",
+       "team": {
+        "id": "5",
+        "location": "Indiana",
+        "name": "Fever",
+        "abbreviation": "IND",
+        "displayName": "Indiana Fever",
+        "shortDisplayName": "Fever"
+       }
+      },
+      {
+       "id": "17",
+       "homeAway": "away",
+       "winner": false,
+       "score": "89",
+       "team": {
+        "id": "17",
+        "location": "Las Vegas",
+        "name": "Aces",
+        "abbreviation": "LV",
+        "displayName": "Las Vegas Aces",
+        "shortDisplayName": "Aces"
+       }
+      }
+     ],
+     "venue": {
+      "fullName": "Gainbridge Fieldhouse",
+      "address": {
+       "city": "Indianapolis",
+       "state": "IN"
+      }
+     }
+    }
+   ],
+   "links": [
+    {
+     "language": "en-US",
+     "rel": [
+      "summary",
+      "desktop",
+      "event"
+     ],
+     "href": "https://www.espn.com/wnba/game/_/gameId/401918018/aces-fever",
+     "text": "Gamecast",
+     "shortText": "Gamecast",
+     "isExternal": false,
+     "isPremium": false
+    }
+   ],
+   "status": {
+    "clock": 600.0,
+    "displayClock": "10:00",
+    "period": 4,
+    "type": {
+     "id": "3",
+     "name": "STATUS_FINAL",
+     "state": "post",
+     "completed": true,
+     "description": "Final",
+     "detail": "Final",
+     "shortDetail": "Final"
+    }
+   },
+   "season": {
+    "year": 2026,
+    "type": 3,
+    "slug": "post-season"
+   }
+  },
+  {
+   "id": "401918017",
+   "date": "2026-09-30T00:30Z",
+   "name": "Minnesota Lynx at New York Liberty",
+   "shortName": "MIN @ NY",
+   "competitions": [
+    {
+     "id": "401918017",
+     "date": "2026-09-30T00:30Z",
+     "status": {
+      "clock": 0.0,
+      "displayClock": "0.0",
+      "period": 4,
+      "type": {
+       "id": "3",
+       "name": "STATUS_FINAL",
+       "state": "post",
+       "completed": true,
+       "description": "Final",
+       "detail": "Final",
+       "shortDetail": "Final"
+      }
+     },
+     "competitors": [
+      {
+       "id": "9",
+       "homeAway": "home",
+       "winner": true,
+       "score": "87",
+       "team": {
+        "id": "9",
+        "location": "New York",
+        "name": "Liberty",
+        "abbreviation": "NY",
+        "displayName": "New York Liberty",
+        "shortDisplayName": "Liberty"
+       }
+      },
+      {
+       "id": "8",
+       "homeAway": "away",
+       "winner": false,
+       "score": "71",
+       "team": {
+        "id": "8",
+        "location": "Minnesota",
+        "name": "Lynx",
+        "abbreviation": "MIN",
+        "displayName": "Minnesota Lynx",
+        "shortDisplayName": "Lynx"
+       }
+      }
+     ],
+     "venue": {
+      "fullName": "Barclays Center",
+      "address": {
+       "city": "Brooklyn",
+       "state": "NY"
+      }
+     }
+    }
+   ],
+   "links": [
+    {
+     "language": "en-US",
+     "rel": [
+      "summary",
+      "desktop",
+      "event"
+     ],
+     "href": "https://www.espn.com/wnba/game/_/gameId/401918017/lynx-liberty",
+     "text": "Gamecast",
+     "shortText": "Gamecast",
+     "isExternal": false,
+     "isPremium": false
+    }
+   ],
+   "status": {
+    "clock": 0.0,
+    "displayClock": "0.0",
+    "period": 4,
+    "type": {
+     "id": "3",
+     "name": "STATUS_FINAL",
+     "state": "post",
+     "completed": true,
+     "description": "Final",
+     "detail": "Final",
+     "shortDetail": "Final"
+    }
+   },
+   "season": {
+    "year": 2026,
+    "type": 3,
+    "slug": "post-season"
+   }
+  }
+ ],
+ "_fixtureNote": "Trimmed live response of site.api.espn.com/apis/site/v2/sports/basketball/wnba/scoreboard (2026-09-30): two final games."
+}

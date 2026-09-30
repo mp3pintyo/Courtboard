@@ -9,6 +9,7 @@ class NotificationSettings {
     this.matchStart = true,
     this.results = true,
     this.news = true,
+    this.liveScores = false,
     this.intervalMinutes = defaultIntervalMinutes,
     this.quietHours = false,
     this.quietStartMinutes = 23 * 60,
@@ -26,6 +27,10 @@ class NotificationSettings {
 
   /// „Új hír” a követett sportolóról.
   final bool news;
+
+  /// „Élő eredményváltozás”: zajló meccsen az állás változásakor
+  /// (ellenőrzésenként legfeljebb egyszer). Alapból kikapcsolva.
+  final bool liveScores;
 
   /// Az ellenőrzések gyakorisága percben ([intervalOptions] egyike).
   final int intervalMinutes;
@@ -57,6 +62,7 @@ class NotificationSettings {
     bool? matchStart,
     bool? results,
     bool? news,
+    bool? liveScores,
     int? intervalMinutes,
     bool? quietHours,
     int? quietStartMinutes,
@@ -66,6 +72,7 @@ class NotificationSettings {
     matchStart: matchStart ?? this.matchStart,
     results: results ?? this.results,
     news: news ?? this.news,
+    liveScores: liveScores ?? this.liveScores,
     intervalMinutes: _validInterval(intervalMinutes ?? this.intervalMinutes),
     quietHours: quietHours ?? this.quietHours,
     quietStartMinutes: _validMinute(
@@ -83,6 +90,7 @@ class NotificationSettings {
     'matchStart': matchStart,
     'results': results,
     'news': news,
+    'liveScores': liveScores,
     'intervalMinutes': intervalMinutes,
     'quietHours': quietHours,
     'quietStart': quietStartMinutes,
@@ -97,6 +105,7 @@ class NotificationSettings {
       matchStart: json['matchStart'] != false,
       results: json['results'] != false,
       news: json['news'] != false,
+      liveScores: json['liveScores'] == true,
       intervalMinutes: _validInterval(json['intervalMinutes']),
       quietHours: json['quietHours'] == true,
       quietStartMinutes: _validMinute(json['quietStart'], 23 * 60),
@@ -119,6 +128,7 @@ class NotificationSettings {
       other.matchStart == matchStart &&
       other.results == results &&
       other.news == news &&
+      other.liveScores == liveScores &&
       other.intervalMinutes == intervalMinutes &&
       other.quietHours == quietHours &&
       other.quietStartMinutes == quietStartMinutes &&
@@ -130,6 +140,7 @@ class NotificationSettings {
     matchStart,
     results,
     news,
+    liveScores,
     intervalMinutes,
     quietHours,
     quietStartMinutes,

@@ -1,0 +1,157 @@
+{
+ "leagues": [
+  {
+   "id": "0",
+   "name": "All",
+   "slug": "all"
+  }
+ ],
+ "day": {
+  "date": "2026-09-27"
+ },
+ "events": [
+  {
+   "id": "401882508",
+   "date": "2026-09-27T10:00Z",
+   "name": "Atlético Madrid at Athletic Club",
+   "shortName": "ATL @ ATH",
+   "competitions": [
+    {
+     "id": "401882508",
+     "date": "2026-09-27T10:00Z",
+     "status": {
+      "clock": 3780.0,
+      "displayClock": "63'",
+      "period": 2,
+      "type": {
+       "id": "3",
+       "name": "STATUS_SECOND_HALF",
+       "state": "in",
+       "completed": false,
+       "description": "Second Half",
+       "detail": "63'",
+       "shortDetail": "63'"
+      }
+     },
+     "competitors": [
+      {
+       "id": "21372",
+       "homeAway": "home",
+       "score": "2",
+       "team": {
+        "id": "21372",
+        "location": "Athletic Club",
+        "name": "Athletic Club",
+        "abbreviation": "ATH",
+        "displayName": "Athletic Club",
+        "shortDisplayName": "Athletic "
+       }
+      },
+      {
+       "id": "20093",
+       "homeAway": "away",
+       "score": "1",
+       "team": {
+        "id": "20093",
+        "location": "Atlético Madrid",
+        "name": "Atlético Madrid",
+        "abbreviation": "ATL",
+        "displayName": "Atlético Madrid",
+        "shortDisplayName": "Atlético Madrid"
+       }
+      }
+     ]
+    }
+   ],
+   "links": [
+    {
+     "language": "en-US",
+     "rel": [
+      "summary",
+      "desktop",
+      "event"
+     ],
+     "href": "https://www.espn.com/soccer/match/_/gameId/401882508/atletico-madrid-athletic-club",
+     "text": "Summary",
+     "shortText": "Summary",
+     "isExternal": false,
+     "isPremium": false,
+     "isHidden": false
+    }
+   ]
+  },
+  {
+   "id": "401882501",
+   "date": "2026-09-27T10:00Z",
+   "name": "CD Tenerife at Valencia",
+   "shortName": "TEN @ VAL",
+   "competitions": [
+    {
+     "id": "401882501",
+     "date": "2026-09-27T10:00Z",
+     "status": {
+      "clock": 5400.0,
+      "displayClock": "90'+13'",
+      "period": 2,
+      "type": {
+       "id": "28",
+       "name": "STATUS_FULL_TIME",
+       "state": "post",
+       "completed": true,
+       "description": "Full Time",
+       "detail": "FT",
+       "shortDetail": "FT"
+      }
+     },
+     "competitors": [
+      {
+       "id": "21374",
+       "homeAway": "home",
+       "winner": false,
+       "score": "1",
+       "team": {
+        "id": "21374",
+        "location": "Valencia",
+        "name": "Valencia",
+        "abbreviation": "VAL",
+        "displayName": "Valencia",
+        "shortDisplayName": "Valencia"
+       }
+      },
+      {
+       "id": "131393",
+       "homeAway": "away",
+       "winner": true,
+       "score": "2",
+       "team": {
+        "id": "131393",
+        "location": "CD Tenerife",
+        "name": "CD Tenerife",
+        "abbreviation": "TEN",
+        "displayName": "CD Tenerife",
+        "shortDisplayName": "Tenerife"
+       }
+      }
+     ]
+    }
+   ],
+   "links": [
+    {
+     "language": "en-US",
+     "rel": [
+      "summary",
+      "desktop",
+      "event"
+     ],
+     "href": "https://www.espn.com/soccer/match/_/gameId/401882501/cd-tenerife-valencia",
+     "text": "Summary",
+     "shortText": "Summary",
+     "isExternal": false,
+     "isPremium": false,
+     "isHidden": false
+    }
+   ]
+  }
+ ],
+ "_fixtureNote": "Derived from live esp.w.1 scoreboard (2026-09-27); first event edited to an in-progress state (soccer/all scoreboard shape)."
+}

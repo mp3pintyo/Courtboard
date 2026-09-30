@@ -15,7 +15,7 @@ class _RefreshIntent extends Intent {
   const _RefreshIntent();
 }
 
-/// Ctrl+1…7: ugrás a menüpontra.
+/// Ctrl+1…9: ugrás a menüpontra.
 class _NavigateIntent extends Intent {
   const _NavigateIntent(this.index);
   final int index;
@@ -40,6 +40,8 @@ const Map<ShortcutActivator, Intent> _shellShortcuts = {
   SingleActivator(LogicalKeyboardKey.digit5, control: true): _NavigateIntent(4),
   SingleActivator(LogicalKeyboardKey.digit6, control: true): _NavigateIntent(5),
   SingleActivator(LogicalKeyboardKey.digit7, control: true): _NavigateIntent(6),
+  SingleActivator(LogicalKeyboardKey.digit8, control: true): _NavigateIntent(7),
+  SingleActivator(LogicalKeyboardKey.digit9, control: true): _NavigateIntent(8),
   SingleActivator(LogicalKeyboardKey.keyN, control: true): _AddAthleteIntent(),
 };
 
@@ -56,7 +58,7 @@ const courtboardShortcutHelp = <(List<String>, String)>[
     'Az aktuális oldal frissítése (profil adatkártyái, naptár, hírek)',
   ),
   (['F5'], 'Frissítés (ugyanaz, mint a Ctrl+R)'),
-  (['Ctrl', '1 … 7'], 'Ugrás a menüpontokra, felülről lefelé'),
+  (['Ctrl', '1 … 9'], 'Ugrás a menüpontokra, felülről lefelé'),
   (['Ctrl', 'N'], 'Új sportoló felvétele'),
 ];
 

@@ -16,6 +16,7 @@ import 'http_service.dart';
 import 'json_file_cache.dart';
 import 'json_util.dart';
 import 'live_tennis.dart';
+import 'openligadb.dart';
 import 'sports_api.dart';
 
 /// Egy követett sportoló közelgő eseménye (mérkőzés vagy verseny).
@@ -194,7 +195,8 @@ Duration defaultEventDuration(String sport) => switch (sport) {
 ///
 /// * NBA / WNBA / NFL – ESPN nyilvános csapatmenetrend (kulcs nélkül);
 /// * foci – football-data.org (kulccsal), különben TheSportsDB; Liga F-nél
-///   az ESPN női bajnoksági scoreboardja;
+///   az ESPN női bajnoksági scoreboardja; német csapatnál, ha a többi
+///   forrás nem ad menetrendet, az OpenLigaDB;
 /// * tenisz – Live Tennis API (kulccsal);
 /// * darts – TheSportsDB következő eseményei és (kulccsal) a RapidAPI
 ///   versenylistája, ha dátumot is ad.
@@ -432,29 +434,62 @@ class UpcomingEventsRepository {
         notes.add('football-data.org: ${friendlyError(error)}');
       }
     }
-    final teams = await client.theSportsDb('/searchteams.php', {
-      't': footballTeamSearchTerm(teamName),
-    });
+    final Map<String, dynamic> teams;
+    try {
+      teams = await client.theSportsDb('/searchteams.php', {
+        't': footballTeamSearchTerm(teamName),
+      });
+    } catch (error) {
+      // A TheSportsDB hibájakor a német csapatok az OpenLigaDB-ből jönnek.
+      final german = await _openLiga(target, teamName, notes);
+      if (german != null && german.events.isNotEmpty) return german;
+      rethrow;
+    }
     final teamId = FootballDataRepository.parseTheSportsDbTeamId(
       teams,
       teamName,
     );
     if (teamId == null) {
+      final german = await _openLiga(target, teamName, notes);
+      if (german != null) return german;
       if (notes.isNotEmpty) return _Payload(const [], notes);
       throw UpcomingEventsUnavailable(
         'A TheSportsDB nem ismeri a(z) „$teamName” csapatot.',
       );
     }
     final next = await client.theSportsDb('/eventsnext.php', {'id': teamId});
-    return _Payload(
-      parseTheSportsDbEvents(
-        next,
-        athleteName: target.name,
-        sport: target.sport,
-        teamId: teamId,
-      ),
-      notes,
+    final events = parseTheSportsDbEvents(
+      next,
+      athleteName: target.name,
+      sport: target.sport,
+      teamId: teamId,
     );
+    if (events.isEmpty) {
+      final german = await _openLiga(target, teamName, notes);
+      if (german != null && german.events.isNotEmpty) return german;
+    }
+    return _Payload(events, notes);
+  }
+
+  /// Német csapat (Bundesliga, 2. Bundesliga, Frauen-Bundesliga) közelgő
+  /// mérkőzései az OpenLigaDB-ből; `null`, ha a csapat nem német.
+  Future<_Payload?> _openLiga(
+    UpcomingEventsTarget target,
+    String teamName,
+    List<String> notes,
+  ) async {
+    try {
+      final german = await OpenLigaDbRepository(
+        http: _http,
+        cacheStorage: _cacheStorage,
+        clock: _clock,
+      ).teamGames(teamName);
+      if (german == null) return null;
+      return _Payload(german.events(athleteName: target.name), notes);
+    } catch (error) {
+      notes.add('OpenLigaDB: ${friendlyError(error)}');
+      return null;
+    }
   }
 
   Future<_Payload> _tennis(

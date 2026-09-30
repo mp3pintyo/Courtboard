@@ -458,7 +458,7 @@ void main() {
         findsOneWidget);
   });
 
-  testWidgets('NFL athlete uses the unified NFL performance template',
+  testWidgets('NFL athlete gets the ESPN player game log card',
       (tester) async {
     tester.view.devicePixelRatio = 1.0;
     tester.view.physicalSize = const Size(1440, 900);
@@ -474,7 +474,10 @@ void main() {
     await tester.tap(barkley);
     await tester.pumpAndSettle();
 
-    expect(find.text('TELJESÍTMÉNYPROFIL'), findsOneWidget);
+    // 0.12.0: az NFL saját (ESPN) meccsnaplót kap a sablon helyett.
+    expect(find.text('Játékos-meccsnapló'), findsOneWidget);
+    expect(find.text('Csapatforma'), findsOneWidget);
+    expect(find.text('TELJESÍTMÉNYPROFIL'), findsNothing);
   });
 
   testWidgets('merged NBA facts and every provider status are visible',

@@ -1,0 +1,52 @@
+{
+ "count": 1,
+ "items": [
+  {
+   "id": "3112335",
+   "displayName": "Nikola Jokic",
+   "shortName": "N. Jokic",
+   "type": "player",
+   "sport": "basketball",
+   "league": "nba",
+   "jersey": "15",
+   "position": {
+    "id": "9",
+    "name": "Center",
+    "displayName": "Center",
+    "abbreviation": "C",
+    "leaf": false,
+    "slug": "center"
+   },
+   "isActive": true,
+   "teamRelationships": [
+    {
+     "displayName": "Denver Nuggets",
+     "core": {
+      "abbreviation": "DEN",
+      "displayName": "Denver Nuggets",
+      "id": "7"
+     }
+    }
+   ]
+  },
+  {
+   "id": "999001",
+   "displayName": "Nikola Jovic",
+   "shortName": "N. Jovic",
+   "type": "player",
+   "sport": "basketball",
+   "league": "nba",
+   "teamRelationships": [
+    {
+     "displayName": "Miami Heat",
+     "core": {
+      "abbreviation": "MIA",
+      "displayName": "Miami Heat",
+      "id": "14"
+     }
+    }
+   ]
+  }
+ ],
+ "_fixtureNote": "Trimmed live response of site.web.api.espn.com/apis/common/v3/search?query=Nikola%20Jokic&type=player (2026-09-30); last item is an added decoy."
+}

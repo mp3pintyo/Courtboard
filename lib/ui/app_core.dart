@@ -95,7 +95,12 @@ class CourtboardApp extends StatefulWidget {
     this.startupRegistration,
     this.watcherSource,
     this.watcherMemoryStore,
+    this.compareSource,
   });
+
+  /// Az Összehasonlítás oldal szezonadat-forrása (tesztekhez); `null`
+  /// esetén a meglévő repositorykra épülő [RepositoryCompareSource].
+  final CompareDataSource? compareSource;
 
   /// Ablak, tálcaikon és bezárás kezelése; `null` (például widget-tesztben)
   /// esetén ezek a funkciók kimaradnak.
@@ -180,6 +185,7 @@ class _CourtboardAppState extends State<CourtboardApp> {
         startupRegistration: widget.startupRegistration,
         watcherSource: widget.watcherSource,
         watcherMemoryStore: widget.watcherMemoryStore,
+        compareSource: widget.compareSource,
         onThemeChanged: (value) => setState(() => _theme = value),
         onThemeModeChanged: (value) => setState(() => _themeMode = value),
       ),

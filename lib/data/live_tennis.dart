@@ -3,6 +3,7 @@ import 'file_util.dart';
 import 'http_service.dart';
 import 'json_file_cache.dart';
 import 'json_util.dart';
+import 'ranking_history.dart';
 import 'sports_api.dart';
 
 typedef TennisApiCall = Future<Map<String, dynamic>> Function(
@@ -254,6 +255,7 @@ class TennisProfileData {
     this.usage,
     this.fetchedAt,
     this.fromCache = false,
+    this.rankingHistory = const [],
   });
 
   final TennisPlayer player;
@@ -265,6 +267,9 @@ class TennisProfileData {
   /// Az adatcsomag letöltési ideje (gyorsítótárból az eredetié).
   final DateTime? fetchedAt;
   final bool fromCache;
+
+  /// A helyben gyűjtött ranglista-mérések (lásd [RankingHistoryStore]).
+  final List<RankingSnapshot> rankingHistory;
 }
 
 class TennisRepository {

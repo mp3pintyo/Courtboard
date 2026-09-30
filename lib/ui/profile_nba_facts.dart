@@ -5,10 +5,14 @@ class UnifiedAthleteFacts extends StatelessWidget {
     super.key,
     required this.data,
     required this.accent,
+    this.season,
   });
 
   final UnifiedAthleteData data;
   final Color accent;
+
+  /// A szezonösszesítő (a formagörbe szezonátlag-vonalához), ha van.
+  final BasketballSeasonStat? season;
 
   @override
   Widget build(BuildContext context) => Column(
@@ -49,11 +53,22 @@ class UnifiedAthleteFacts extends StatelessWidget {
               ),
           ],
         ),
+      if (data.games.length >= minChartPoints) ...[
+        const SizedBox(height: 22),
+        BasketballFormSection(
+          games: [for (final game in data.games) BoxScoreLine.fromNba(game)],
+          accent: accent,
+          seasonAverage: season == null
+              ? null
+              : (stat) => basketballSeasonAverage(season, stat),
+        ),
+      ],
       const SizedBox(height: 22),
       BasketballReferenceGameList(
         games: data.games,
         accent: accent,
         league: 'NBA',
+        source: data.gamesSource,
       ),
     ],
   );
@@ -65,18 +80,22 @@ class BasketballReferenceGameList extends StatelessWidget {
     required this.games,
     required this.accent,
     required this.league,
+    this.source = 'Basketball Reference',
   });
 
   final List<NbaGameLog> games;
   final Color accent;
   final String league;
 
+  /// A meccsnapló forrása (`Basketball Reference` vagy tartalékként `ESPN`).
+  final String source;
+
   @override
   Widget build(BuildContext context) => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
       SubsectionLabel(
-        'LEGUTÓBBI $league MECCSEK · BASKETBALL REFERENCE',
+        'LEGUTÓBBI $league MECCSEK · ${source.toUpperCase()}',
         icon: Icons.sports_basketball,
         color: accent,
       ),
@@ -84,8 +103,9 @@ class BasketballReferenceGameList extends StatelessWidget {
         EmptyState(
           compact: true,
           icon: Icons.event_busy_outlined,
-          message:
-              'A Basketball Reference nem adott friss $league játékos-box score-t.',
+          message: league == 'NBA'
+              ? 'Sem a Basketball Reference, sem az ESPN nem adott friss NBA játékos-box score-t.'
+              : 'A Basketball Reference nem adott friss $league játékos-box score-t.',
         )
       else
         for (final game in games)

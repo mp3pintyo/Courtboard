@@ -243,7 +243,8 @@ class _SportTemplate extends StatelessWidget {
           ),
           const SizedBox(height: 10),
           Text(
-            'Formaadat még nem érhető el ehhez a sportolóhoz.',
+            'A formagörbe az élő adatkártyán jelenik meg, amint legalább két '
+            'valós mérkőzés adata elérhető.',
             style: context.text.bodySmall?.copyWith(color: cb.textPrimary),
           ),
         ],

@@ -1,4 +1,4 @@
-// Billentyűparancsok a shell szintjén: Ctrl+1…7 navigáció, Esc / Alt+Bal
+// Billentyűparancsok a shell szintjén: Ctrl+1…9 navigáció, Esc / Alt+Bal
 // vissza a profilból, Ctrl+F a keresőmezőre, Ctrl+N új sportoló.
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -50,7 +50,14 @@ void main() {
     await _press(tester, LogicalKeyboardKey.digit2, control: true);
     expect(find.byKey(const Key('athlete-directory-search')), findsOneWidget);
 
+    await _press(tester, LogicalKeyboardKey.digit6, control: true);
+    expect(find.byKey(const Key('feed-refresh')), findsOneWidget);
+
     await _press(tester, LogicalKeyboardKey.digit7, control: true);
+    expect(find.text('Összehasonlítás'), findsWidgets);
+    expect(find.byKey(const Key('compare-left')), findsOneWidget);
+
+    await _press(tester, LogicalKeyboardKey.digit9, control: true);
     // A Beállítások teteje (a billentyűparancs-lista a kártyák alatt van).
     expect(find.byKey(const Key('theme-mode-setting')), findsOneWidget);
 

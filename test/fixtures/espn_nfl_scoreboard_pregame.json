@@ -1,0 +1,304 @@
+{
+ "leagues": [
+  {
+   "id": "28",
+   "name": "National Football League",
+   "abbreviation": "NFL",
+   "slug": "nfl"
+  }
+ ],
+ "day": null,
+ "events": [
+  {
+   "id": "401872964",
+   "date": "2026-10-02T00:15Z",
+   "name": "Pittsburgh Steelers at Cleveland Browns",
+   "shortName": "PIT @ CLE",
+   "competitions": [
+    {
+     "id": "401872964",
+     "date": "2026-10-02T00:15Z",
+     "status": {
+      "clock": 0.0,
+      "displayClock": "0:00",
+      "period": 0,
+      "type": {
+       "id": "1",
+       "name": "STATUS_SCHEDULED",
+       "state": "pre",
+       "completed": false,
+       "description": "Scheduled",
+       "detail": "Thu, October 1st at 8:15 PM EDT",
+       "shortDetail": "10/1 - 8:15 PM EDT"
+      },
+      "isTBDFlex": false
+     },
+     "competitors": [
+      {
+       "id": "5",
+       "homeAway": "home",
+       "score": "0",
+       "team": {
+        "id": "5",
+        "location": "Cleveland",
+        "name": "Browns",
+        "abbreviation": "CLE",
+        "displayName": "Cleveland Browns",
+        "shortDisplayName": "Browns"
+       }
+      },
+      {
+       "id": "23",
+       "homeAway": "away",
+       "score": "0",
+       "team": {
+        "id": "23",
+        "location": "Pittsburgh",
+        "name": "Steelers",
+        "abbreviation": "PIT",
+        "displayName": "Pittsburgh Steelers",
+        "shortDisplayName": "Steelers"
+       }
+      }
+     ],
+     "venue": {
+      "fullName": "Huntington Bank Field",
+      "address": {
+       "city": "Cleveland",
+       "state": "OH",
+       "country": "USA"
+      }
+     }
+    }
+   ],
+   "links": [
+    {
+     "language": "en-US",
+     "rel": [
+      "summary",
+      "desktop",
+      "event"
+     ],
+     "href": "https://www.espn.com/nfl/game/_/gameId/401872964/steelers-browns",
+     "text": "Gamecast",
+     "shortText": "Gamecast",
+     "isExternal": false,
+     "isPremium": false
+    }
+   ],
+   "status": {
+    "clock": 0.0,
+    "displayClock": "0:00",
+    "period": 0,
+    "type": {
+     "id": "1",
+     "name": "STATUS_SCHEDULED",
+     "state": "pre",
+     "completed": false,
+     "description": "Scheduled",
+     "detail": "Thu, October 1st at 8:15 PM EDT",
+     "shortDetail": "10/1 - 8:15 PM EDT"
+    }
+   },
+   "season": {
+    "year": 2026,
+    "type": 2,
+    "slug": "regular-season"
+   }
+  },
+  {
+   "id": "401872965",
+   "date": "2026-10-04T13:30Z",
+   "name": "Indianapolis Colts at Washington Commanders",
+   "shortName": "IND VS WSH",
+   "competitions": [
+    {
+     "id": "401872965",
+     "date": "2026-10-04T13:30Z",
+     "status": {
+      "clock": 0.0,
+      "displayClock": "0:00",
+      "period": 0,
+      "type": {
+       "id": "1",
+       "name": "STATUS_SCHEDULED",
+       "state": "pre",
+       "completed": false,
+       "description": "Scheduled",
+       "detail": "Sun, October 4th at 9:30 AM EDT",
+       "shortDetail": "10/4 - 9:30 AM EDT"
+      },
+      "isTBDFlex": false
+     },
+     "competitors": [
+      {
+       "id": "28",
+       "homeAway": "home",
+       "score": "0",
+       "team": {
+        "id": "28",
+        "location": "Washington",
+        "name": "Commanders",
+        "abbreviation": "WSH",
+        "displayName": "Washington Commanders",
+        "shortDisplayName": "Commanders"
+       }
+      },
+      {
+       "id": "11",
+       "homeAway": "away",
+       "score": "0",
+       "team": {
+        "id": "11",
+        "location": "Indianapolis",
+        "name": "Colts",
+        "abbreviation": "IND",
+        "displayName": "Indianapolis Colts",
+        "shortDisplayName": "Colts"
+       }
+      }
+     ],
+     "venue": {
+      "fullName": "Tottenham Hotspur Stadium",
+      "address": {
+       "city": "London",
+       "country": "England"
+      }
+     }
+    }
+   ],
+   "links": [
+    {
+     "language": "en-US",
+     "rel": [
+      "summary",
+      "desktop",
+      "event"
+     ],
+     "href": "https://www.espn.com/nfl/game/_/gameId/401872965/colts-commanders",
+     "text": "Gamecast",
+     "shortText": "Gamecast",
+     "isExternal": false,
+     "isPremium": false
+    }
+   ],
+   "status": {
+    "clock": 0.0,
+    "displayClock": "0:00",
+    "period": 0,
+    "type": {
+     "id": "1",
+     "name": "STATUS_SCHEDULED",
+     "state": "pre",
+     "completed": false,
+     "description": "Scheduled",
+     "detail": "Sun, October 4th at 9:30 AM EDT",
+     "shortDetail": "10/4 - 9:30 AM EDT"
+    }
+   },
+   "season": {
+    "year": 2026,
+    "type": 2,
+    "slug": "regular-season"
+   }
+  },
+  {
+   "id": "401872971",
+   "date": "2026-10-04T17:00Z",
+   "name": "New England Patriots at Buffalo Bills",
+   "shortName": "NE @ BUF",
+   "competitions": [
+    {
+     "id": "401872971",
+     "date": "2026-10-04T17:00Z",
+     "status": {
+      "clock": 0.0,
+      "displayClock": "0:00",
+      "period": 0,
+      "type": {
+       "id": "1",
+       "name": "STATUS_SCHEDULED",
+       "state": "pre",
+       "completed": false,
+       "description": "Scheduled",
+       "detail": "Sun, October 4th at 1:00 PM EDT",
+       "shortDetail": "10/4 - 1:00 PM EDT"
+      },
+      "isTBDFlex": false
+     },
+     "competitors": [
+      {
+       "id": "2",
+       "homeAway": "home",
+       "score": "0",
+       "team": {
+        "id": "2",
+        "location": "Buffalo",
+        "name": "Bills",
+        "abbreviation": "BUF",
+        "displayName": "Buffalo Bills",
+        "shortDisplayName": "Bills"
+       }
+      },
+      {
+       "id": "17",
+       "homeAway": "away",
+       "score": "0",
+       "team": {
+        "id": "17",
+        "location": "New England",
+        "name": "Patriots",
+        "abbreviation": "NE",
+        "displayName": "New England Patriots",
+        "shortDisplayName": "Patriots"
+       }
+      }
+     ],
+     "venue": {
+      "fullName": "Highmark Stadium",
+      "address": {
+       "city": "Orchard Park",
+       "state": "NY",
+       "country": "USA"
+      }
+     }
+    }
+   ],
+   "links": [
+    {
+     "language": "en-US",
+     "rel": [
+      "summary",
+      "desktop",
+      "event"
+     ],
+     "href": "https://www.espn.com/nfl/game/_/gameId/401872971/patriots-bills",
+     "text": "Gamecast",
+     "shortText": "Gamecast",
+     "isExternal": false,
+     "isPremium": false
+    }
+   ],
+   "status": {
+    "clock": 0.0,
+    "displayClock": "0:00",
+    "period": 0,
+    "type": {
+     "id": "1",
+     "name": "STATUS_SCHEDULED",
+     "state": "pre",
+     "completed": false,
+     "description": "Scheduled",
+     "detail": "Sun, October 4th at 1:00 PM EDT",
+     "shortDetail": "10/4 - 1:00 PM EDT"
+    }
+   },
+   "season": {
+    "year": 2026,
+    "type": 2,
+    "slug": "regular-season"
+   }
+  }
+ ],
+ "_fixtureNote": "Trimmed live response of .../football/nfl/scoreboard (2026-09-30): pregame only."
+}

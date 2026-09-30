@@ -103,6 +103,15 @@ class DartsProfileFacts extends StatelessWidget {
             ],
           ),
         const SizedBox(height: 22),
+        if (ResultStrip.canShow(dartsResultMarks(data.results))) ...[
+          SubsectionLabel(
+            'FORMA · EREDMÉNYSOR',
+            icon: Icons.show_chart_rounded,
+            color: accent,
+          ),
+          ResultStrip(results: dartsResultMarks(data.results)),
+          const SizedBox(height: 22),
+        ],
         const SubsectionLabel('LEGUTÓBBI DARTS EREDMÉNYEK · THESPORTSDB'),
         if (data.results.isEmpty)
           const EmptyState(

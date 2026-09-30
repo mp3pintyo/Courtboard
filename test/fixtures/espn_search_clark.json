@@ -1,0 +1,34 @@
+{
+ "count": 1,
+ "items": [
+  {
+   "id": "4433403",
+   "displayName": "Caitlin Clark",
+   "shortName": "C. Clark",
+   "type": "player",
+   "sport": "basketball",
+   "league": "wnba",
+   "jersey": "22",
+   "position": {
+    "id": "3",
+    "name": "Guard",
+    "displayName": "Guard",
+    "abbreviation": "G",
+    "leaf": false,
+    "slug": "guard"
+   },
+   "isActive": true,
+   "teamRelationships": [
+    {
+     "displayName": "Indiana Fever",
+     "core": {
+      "abbreviation": "IND",
+      "displayName": "Indiana Fever",
+      "id": "5"
+     }
+    }
+   ]
+  }
+ ],
+ "_fixtureNote": "Trimmed live response (2026-09-30)."
+}

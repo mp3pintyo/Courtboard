@@ -171,6 +171,7 @@ const providerCatalog = <ProviderCatalogEntry>[
       'Csapat és versenysorozat',
       'Értékelésátlag, mérkőzések, gólok és gólpasszok',
       'Sárga és piros lapok',
+      'Formagörbe a legutóbbi meccsekből (értékelés, különben gól + gólpassz)',
     ],
     capabilities: [
       'Névkeresés ékezet- és névsorrend-független egyeztetéssel',
@@ -239,6 +240,7 @@ const providerCatalog = <ProviderCatalogEntry>[
     role: 'A spanyol női liga eredményei az esp.w.1 ligából.',
     visibleOutput: [
       'Aitana Bonmatí / Barcelona Femení utolsó 5 befejezett mérkőzése',
+      'Lenyitható „Idővonal” minden meccsnél (lásd ESPN · Mérkőzés-idővonal)',
     ],
     capabilities: [
       'Éves scoreboard lekérés',
@@ -264,6 +266,8 @@ const providerCatalog = <ProviderCatalogEntry>[
       'Ellenfél, hazai/idegen, liga és szakasz (alapszakasz, rájátszás, NFL-hét)',
       'Helyszín és az ESPN Gamecast-oldal linkje',
       'A legközelebbi esemény a nyitóoldal „Mai fókusz” blokkjában',
+      'NFL-profil: csapatforma (csapatpontok és GY/V sor) a befejezett meccsekből',
+      '„Legutóbbi egymás elleni meccsek” a következő mérkőzésnél (az aktuális és az előző alapszakaszból)',
     ],
     capabilities: [
       'Csapatlista (teams) és csapatmenetrend (teams/{csapat}/schedule) végpont',
@@ -281,6 +285,131 @@ const providerCatalog = <ProviderCatalogEntry>[
         'Hiba esetén a naptár apró megjegyzést mutat az adott sportolónál, a többi forrás ettől függetlenül betölt.',
     docsUrl:
         'https://site.api.espn.com/apis/site/v2/sports/basketball/nba/teams/den/schedule',
+  ),
+  ProviderCatalogEntry(
+    name: 'ESPN · Játékosadatok',
+    sports: ['NBA', 'WNBA', 'NFL'],
+    role:
+        'Kulcs nélküli játékoskeresés és meccsnapló: NFL-játékosadat, valamint tartalék a Basketball Reference és a wehoop mellé.',
+    visibleOutput: [
+      'NFL-profil: játékos-meccsnapló, szezonösszesítő (passzolt / futott / elkapott yard, TD, INT, szerelés) és formagörbe',
+      'NBA: ESPN-chip a forrásállapotok között; ha a Basketball Reference nem ad meccsnaplót vagy szezonátlagot, az ESPN-é látszik',
+      'WNBA: ha a wehoop szezonfájlja nem érhető el vagy üres, az ESPN meccsnaplója és szezonátlaga',
+      'Összehasonlítás: NFL-játékosok meccsenkénti átlagai; NBA/WNBA tartalékként',
+    ],
+    capabilities: [
+      'Keresés: site.web.api.espn.com/apis/common/v3/search?type=player',
+      'Meccsnapló: /apis/common/v3/sports/{sport}/{liga}/athletes/{id}/gamelog',
+      'Szigorú, ékezet- és névsorrend-független névegyeztetés a ligán belül; soha nem az első találat',
+      'Az oszlopokat név szerint olvassa (a sorrend ligánként eltér), a felkészülési meccsek kimaradnak',
+    ],
+    authentication: 'Nem kell API-kulcs; nyilvános, nem dokumentált végpont.',
+    limit:
+        'Nincs publikált kvóta; az ESPN közös, 30 kérés/perc korlátjából fogy (best effort).',
+    cache:
+        'Meccsnapló 6 óra, játékos-azonosító 7 nap (sikertelen keresés 24 óra) lemezcache-ben; hibánál a régebbi napló marad.',
+    setup: 'Nincs teendő; NFL-nél a sportoló neve alapján keres.',
+    fallback:
+        'Ha az ESPN sem ad adatot, az elsődleges forrás (Basketball Reference / wehoop) hibája és a meglévő kártyák látszanak.',
+    docsUrl:
+        'https://site.web.api.espn.com/apis/common/v3/search?query=Jalen%20Hurts&type=player',
+  ),
+  ProviderCatalogEntry(
+    name: 'ESPN · Élő eredmények',
+    sports: ['NBA', 'WNBA', 'NFL', 'Foci'],
+    role:
+        'A követett sportolók csapatainak zajló és mai befejezett mérkőzései.',
+    visibleOutput: [
+      'Áttekintés: „Élő” sáv a lap tetején, csak ha éppen zajlik egy követett csapat meccse',
+      'Profil: „Élő mérkőzés” kártya állással, negyeddel / perccel; látható oldalon 30 mp-enként frissül',
+      'Értesítések: a befejezett meccs végeredménye gyorsabban jelez („Új eredmény”), opcionálisan „Élő eredményváltozás”',
+    ],
+    capabilities: [
+      'WNBA, NFL: site/v2/sports/{sport}/{liga}/scoreboard',
+      'Foci: soccer/all napi összesítő (Liga F-nél esp.w.1), csapatnév-egyeztetéssel',
+      'NBA: tartalék, ha az NBA CDN nem érhető el',
+      'A frissítés szünetel, ha az oldal nem látható vagy az ablak a tálcán van',
+    ],
+    authentication: 'Nem kell API-kulcs; nyilvános, nem dokumentált végpont.',
+    limit:
+        'Az ESPN közös, 30 kérés/perc korlátja; scoreboardonként legfeljebb 45 mp-enként egy kérés.',
+    cache:
+        '45 mp-es cache scoreboardonként (a nyitóoldal, a profil és a háttérfigyelő közösen használja).',
+    setup: 'Nincs teendő; a sportoló csapatát kell megadni.',
+    fallback:
+        'Hibánál az utolsó ismert állás marad, a sáv / kártya rövid megjegyzést mutat; kitalált állás nem jelenik meg.',
+    docsUrl:
+        'https://site.api.espn.com/apis/site/v2/sports/basketball/wnba/scoreboard',
+  ),
+  ProviderCatalogEntry(
+    name: 'NBA CDN · Élő eredmények',
+    sports: ['NBA'],
+    role: 'Az NBA hivatalos, nyilvános napi scoreboardja élő állással.',
+    visibleOutput: [
+      'NBA-meccsek állása, negyede és órája az „Élő” sávban és az „Élő mérkőzés” kártyán',
+    ],
+    capabilities: [
+      'cdn.nba.com/static/json/liveData/scoreboard/todaysScoreboard_00.json',
+      'gameStatus 1/2/3 (kezdés előtt / zajlik / vége), ISO-óra („PT05M32.00S”) feldolgozása',
+    ],
+    authentication: 'Nem kell API-kulcs.',
+    limit:
+        'Nincs publikált kvóta; a szerver kb. 10 mp-es cache-sel dolgozik, az app legfeljebb 20 kérés/perc sebességgel kérdez.',
+    cache: '45 mp-es cache (közös az ESPN-tartalékkal).',
+    setup: 'Nincs teendő.',
+    fallback:
+        'Egyes hálózatokról a CDN HTTP 403-at ad; ilyenkor automatikusan az ESPN NBA-scoreboardja látszik, a forrás jelzésével.',
+    docsUrl:
+        'https://cdn.nba.com/static/json/liveData/scoreboard/todaysScoreboard_00.json',
+  ),
+  ProviderCatalogEntry(
+    name: 'ESPN · Mérkőzés-idővonal',
+    sports: ['Foci', 'Női foci'],
+    role: 'Gólok, lapok és cserék perccel az ESPN meccsösszefoglalójából.',
+    visibleOutput: [
+      'Lenyitható „Idővonal” a Liga F-meccseknél, az élő focimeccsnél és ahol ESPN-mérkőzésazonosító ismert',
+      'Gól (büntető, öngól), sárga és piros lap, csere — Material ikonokkal, hazai / vendég oldal szerint',
+    ],
+    capabilities: [
+      'site/v2/sports/soccer/{liga}/summary?event={id} (ismeretlen ligánál soccer/all)',
+      'A keyEvents sorai, tartalékként a header.competitions[0].details',
+      'Csak lenyitáskor kér; a befejezett meccs idővonala végleges',
+    ],
+    authentication: 'Nem kell API-kulcs; nyilvános, nem dokumentált végpont.',
+    limit: 'Az ESPN közös, 30 kérés/perc korlátja.',
+    cache:
+        'Befejezett meccs: végleges (10 év) lemezcache; zajló meccs: 60 mp.',
+    setup: 'Nincs teendő.',
+    fallback:
+        'Hibánál a lenyitott sáv rövid üzenetet mutat; a meccssor ettől független. Az OpenLigaDB-meccseknél a gólok az OpenLigaDB-ből jönnek.',
+    docsUrl:
+        'https://site.api.espn.com/apis/site/v2/sports/soccer/esp.w.1/summary?event=401882508',
+  ),
+  ProviderCatalogEntry(
+    name: 'OpenLigaDB',
+    sports: ['Foci', 'Női foci'],
+    role:
+        'Német bajnokságok (Bundesliga, 2. Bundesliga, Frauen-Bundesliga) eredményei és menetrendje.',
+    visibleOutput: [
+      'Csapatmérkőzések kártya: az utolsó 5 eredmény és a következő 5 meccs, ha a többi forrás nem ad',
+      'Naptár: a német csapatok közelgő meccsei, ha a football-data.org / TheSportsDB nem ad',
+      'Gólszerzők perccel a lejátszott meccsek „Idővonal” sávjában',
+      'Egymás elleni meccsek az idei szezonból',
+    ],
+    capabilities: [
+      'getavailableteams/{liga}/{szezon} csapatfeloldás (bl1, bl2, ffb1, régebbi női szezon: fbl1)',
+      'getmatchdata/{liga}/{szezon} teljes szezonlista, végeredmény és gólok',
+      'Az ismeretlen (1970-es) dátumú, még kiíratlan meccseket kihagyja',
+    ],
+    authentication: 'Nem kell API-kulcs; nyílt, közösségi adatbázis.',
+    limit:
+        'Nincs publikált kemény kvóta; az app kímélően, legfeljebb 30 kérés/perc sebességgel kérdez.',
+    cache:
+        'Csapatlista 7 nap, szezon-meccslista 1 óra lemezcache-ben; hibánál a régebbi lista.',
+    setup: 'Nincs teendő; a csapatot a sportoló adatlapján kell megadni.',
+    fallback:
+        'Csak akkor kérdezi, ha a csapat német és a többi forrás nem adott adatot; hibánál rövid megjegyzés.',
+    docsUrl: 'https://api.openligadb.de/index.html',
   ),
   ProviderCatalogEntry(
     name: 'RapidAPI · Darts API',
@@ -333,15 +462,19 @@ const providerCatalog = <ProviderCatalogEntry>[
       'Élő ellenfél, verseny, szett-, játék- és pontállás',
       'Legfeljebb 5 következő mérkőzés vagy név alapú fixture',
       'A saját napi API-használat és csomag',
+      'Ranglistapont-történet a helyben, naponta rögzített mérésekből',
+      'Egymás elleni mérleg (/h2h) a következő mérkőzésnél — csak BASIC csomaggal; Free kulccsal „Nem elérhető a Free csomagban” jelzés',
     ],
     capabilities: [
       'ATP, WTA, Challenger, ITF és junior sorozatok',
       'Free játékoskeresés és részletes játékosprofil',
       'Free élő és közelgő mérkőzések, aktuális pontállás és fixture lista',
       'A befejezett mérkőzéseket nem kéri le, mert azok History/BASIC hozzáféréshez kötöttek',
+      'A /h2h végpontot csak a mérleg lenyitásakor hívja, 7 napos cache-sel; a 403-as (upgrade_required) választ barátságos üzenet jelzi',
     ],
     authentication: 'Ingyenes regisztrációs Bearer API-kulcs szükséges.',
-    limit: 'Free: 30 kérés/perc és 1000 kérés/nap; bankkártya nélkül.',
+    limit:
+        'Free: 30 kérés/perc és 100 kérés/nap (a 2026. szeptemberi dokumentáció szerint); bankkártya nélkül. A /h2h BASIC csomagot igényel.',
     cache:
         'Játékosonként 10 perces lemezcache; a kézi frissítés kikerüli a cache-t.',
     setup:

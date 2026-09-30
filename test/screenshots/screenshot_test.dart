@@ -3,14 +3,17 @@
 // Csak `COURTBOARD_SCREENSHOTS=1` környezeti változóval fut:
 //   $env:COURTBOARD_SCREENSHOTS=1; flutter test test/screenshots
 // A PNG-k a `test/screenshots/out/` mappába kerülnek (gitignore alatt).
+import 'dart:convert';
 import 'dart:io';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/gestures.dart' show kSecondaryButton;
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:courtboard/components.dart';
 import 'package:courtboard/data/athlete_highlights.dart';
 import 'package:courtboard/data/athlete_watcher.dart';
 import 'package:courtboard/data/basketball_reference.dart';
@@ -18,20 +21,29 @@ import 'package:courtboard/data/basketball_season.dart';
 import 'package:courtboard/data/darts.dart';
 import 'package:courtboard/data/espn_liga_f.dart';
 import 'package:courtboard/data/file_util.dart';
+import 'package:courtboard/data/http_service.dart';
+import 'package:courtboard/data/football_season.dart';
 import 'package:courtboard/data/json_file_cache.dart';
+import 'package:courtboard/data/live_scores.dart';
 import 'package:courtboard/data/live_tennis.dart';
 import 'package:courtboard/data/local_state.dart';
 import 'package:courtboard/data/multi_provider.dart';
 import 'package:courtboard/data/notification_settings.dart';
 import 'package:courtboard/data/news.dart';
+import 'package:courtboard/data/ranking_history.dart';
 import 'package:courtboard/data/rapidapi_wnba.dart';
+import 'package:courtboard/data/sports_api.dart';
 import 'package:courtboard/data/upcoming_events.dart';
 import 'package:courtboard/data/wehoop_wnba.dart';
+import 'package:courtboard/data/youtube_playlist.dart';
 import 'package:courtboard/desktop/startup_registration.dart';
+import 'package:courtboard/insights/compare.dart';
+import 'package:courtboard/insights/form_data.dart';
 import 'package:courtboard/main.dart';
 import 'package:courtboard/theme/courtboard_theme.dart';
 
 import '../support/fake_desktop.dart';
+import '../support/fake_http.dart';
 
 final bool _enabled = Platform.environment['COURTBOARD_SCREENSHOTS'] == '1';
 
@@ -678,6 +690,395 @@ Future<void> _shootDesktopSettings(
   debugDisableShadows = true;
 }
 
+/// Mintaadatos szezonösszesítő az Összehasonlítás oldalhoz (a tesztben
+/// nincs hálózat). Csak a képernyőképekhez; nem valós statisztika.
+class _FixtureCompareSource implements CompareDataSource {
+  const _FixtureCompareSource();
+
+  @override
+  Future<AthleteSeasonSnapshot?> load({
+    required String name,
+    required String sport,
+    required String team,
+    required SportsApiConfig config,
+    bool force = false,
+  }) async => switch (name) {
+    'Nikola Jokić' => snapshotFromBasketball(
+      name,
+      const BasketballSeasonStat(
+        league: 'NBA',
+        season: '2025/2026',
+        team: 'Denver Nuggets',
+        source: 'Basketball Reference',
+        games: 65,
+        minutesPerGame: 34.8,
+        pointsPerGame: 26.8,
+        reboundsPerGame: 12.9,
+        assistsPerGame: 10.7,
+        stealsPerGame: 1.4,
+        turnoversPerGame: 3.7,
+        fieldGoalPercentage: 56.9,
+      ),
+    ),
+    'Luka Dončić' => snapshotFromBasketball(
+      name,
+      const BasketballSeasonStat(
+        league: 'NBA',
+        season: '2025/2026',
+        team: 'Los Angeles Lakers',
+        source: 'Basketball Reference',
+        games: 70,
+        minutesPerGame: 36.2,
+        pointsPerGame: 28.4,
+        reboundsPerGame: 8.1,
+        assistsPerGame: 7.9,
+        stealsPerGame: 1.6,
+        turnoversPerGame: 3.9,
+        fieldGoalPercentage: 47.1,
+      ),
+    ),
+    _ => null,
+  };
+}
+
+/// Több lejátszott eredmény sportolónként (a hírfolyam „Eredmény” elemei).
+Future<void> _seedFeedHighlights() async {
+  final store = AthleteHighlightStore.shared;
+  final now = DateTime.now();
+  HighlightEvent played(int hoursAgo, String title, String outcome, String score) =>
+      HighlightEvent(
+        date: now.subtract(Duration(hours: hoursAgo)),
+        title: title,
+        outcome: outcome,
+        score: score,
+      );
+  await store.record('Nikola Jokić', [
+    played(20, 'San Antonio Spurs', 'win', '118–104'),
+    played(70, 'Phoenix Suns', 'loss', '109–112'),
+  ]);
+  await store.record('Juhász Dorka', [
+    played(5, 'Toronto Tempo', 'win', '84–78'),
+    played(52, 'Seattle Storm', 'win', '90–81'),
+  ]);
+  await store.record('Caitlin Clark', [
+    played(44, 'Seattle Storm', 'loss', '85–90'),
+  ]);
+  await store.record('Luke Humphries', [
+    HighlightEvent(
+      date: now.subtract(const Duration(days: 5)),
+      title: 'World Matchplay',
+      outcome: 'win',
+    ),
+  ]);
+}
+
+Future<File> _seedPlaylist() async {
+  final now = DateTime.now();
+  final file = File(
+    '${Directory.systemTemp.path}/courtboard-shot-playlist-${now.microsecondsSinceEpoch}.json',
+  );
+  final playlist = AthleteVideoPlaylist(
+    videos: [
+      SavedYouTubeVideo(
+        videoId: 'dQw4w9WgXcQ',
+        athleteName: 'Nikola Jokić',
+        title: 'Nikola Jokić – szezon legjobb passzai',
+        thumbnailUrl: SavedYouTubeVideo.defaultThumbnailUrl('dQw4w9WgXcQ'),
+        savedAt: now.subtract(const Duration(minutes: 35)),
+      ),
+      SavedYouTubeVideo(
+        videoId: 'aqz-KE-bpKQ',
+        athleteName: 'Juhász Dorka',
+        title: 'Juhász Dorka – 18 pont a Lynx győzelméhez',
+        thumbnailUrl: SavedYouTubeVideo.defaultThumbnailUrl('aqz-KE-bpKQ'),
+        savedAt: now.subtract(const Duration(days: 3, hours: 2)),
+      ),
+    ],
+  );
+  await file.writeAsString(jsonEncode(playlist.toJson()));
+  return file;
+}
+
+/// Az 0.12.0 új nézetei: kitűzött sportolók és hírfolyam a nyitóoldalon,
+/// a kártya helyi menüje, a „Követés” oldal és az „Összehasonlítás”.
+Future<void> _shootInsights(
+  WidgetTester tester, {
+  required String accent,
+  required String mode,
+  required Size size,
+}) async {
+  tester.view.devicePixelRatio = 1;
+  tester.view.physicalSize = size;
+  tester.platformDispatcher.platformBrightnessTestValue = mode == 'dark'
+      ? Brightness.dark
+      : Brightness.light;
+  debugDisableShadows = false;
+  addTearDown(() {
+    tester.view.resetPhysicalSize();
+    tester.view.resetDevicePixelRatio();
+    tester.platformDispatcher.clearPlatformBrightnessTestValue();
+  });
+  CacheStorage.shared = MemoryCacheStorage();
+  await tester.runAsync(_seedNews);
+  await _seedFeedHighlights();
+  await _seedCalendar();
+  final playlist = (await tester.runAsync(_seedPlaylist))!;
+  final base = _state(accent, mode);
+
+  await tester.pumpWidget(
+    RepaintBoundary(
+      key: _shotKey,
+      child: CourtboardApp(
+        initialState: CourtboardLocalState(
+          theme: base.theme,
+          themeMode: base.themeMode,
+          customAthletes: [
+            ...base.customAthletes,
+            const CustomAthlete(
+              name: 'Luka Dončić',
+              sport: 'NBA',
+              team: 'Los Angeles Lakers',
+              country: 'Szlovénia',
+            ),
+          ],
+          pinnedAthletes: const ['Caitlin Clark', 'Juhász Dorka'],
+        ),
+        playlistFile: playlist,
+        compareSource: const _FixtureCompareSource(),
+      ),
+    ),
+  );
+  await _settle(tester, rounds: 6);
+  final prefix = '${mode}_${accent}_${size.width.toInt()}_';
+  await _capture(tester, '${prefix}10_attekintes_kituzve');
+  await _captureTall(tester, size, '${prefix}10_attekintes_hirfolyam');
+
+  // A kártya helyi menüje (jobb kattintás).
+  final tile = find.byKey(const ValueKey('athlete-Nikola Jokić'));
+  await tester.scrollUntilVisible(
+    tile,
+    200,
+    scrollable: find.byType(Scrollable).first,
+  );
+  await tester.tap(tile, buttons: kSecondaryButton);
+  await tester.pump();
+  await tester.pump(const Duration(milliseconds: 600));
+  await _settle(tester, rounds: 2);
+  await _capture(tester, '${prefix}11_kartya_menu');
+  await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+  await _settle(tester, rounds: 1);
+
+  await _openNav(tester, 'Követés');
+  await _capture(tester, '${prefix}12_kovetes');
+  await _captureTall(tester, size, '${prefix}12_kovetes_teljes');
+
+  await _openNav(tester, 'Összehasonlítás');
+  await _settle(tester, rounds: 4);
+  await _capture(tester, '${prefix}13_osszehasonlitas');
+  await _captureTall(tester, size, '${prefix}13_osszehasonlitas_teljes');
+
+  await tester.pumpWidget(const SizedBox());
+  await _settle(tester, rounds: 2);
+  await tester.runAsync(() async {
+    try {
+      await playlist.delete();
+    } catch (_) {}
+  });
+  CacheStorage.shared = MemoryCacheStorage();
+  debugDisableShadows = true;
+}
+
+/// Élő eredmények, egymás elleni mérleg, foci-idővonal és NFL-meccsnapló.
+/// A hálózatot a tesztfixture-ökre épülő hamis HTTP-réteg helyettesíti
+/// (NBA CDN élő meccs, ESPN soccer/all élő meccs, ESPN-meccsnaplók).
+Map<String, Object> _liveRoutes() {
+  final summary = fixture('espn_soccer_summary_final.json');
+  // Az összefoglaló a 63. percig (a scoreboard élő állapotához igazítva).
+  final live = jsonDecode(jsonEncode(summary)) as Map<String, dynamic>;
+  final header = live['header'] as Map<String, dynamic>;
+  final competition =
+      (header['competitions'] as List).first as Map<String, dynamic>;
+  competition['status'] = {
+    'type': {'state': 'in', 'completed': false, 'shortDetail': "63'"},
+  };
+  for (final competitor in competition['competitors'] as List) {
+    final side = competitor as Map<String, dynamic>;
+    side['score'] = side['homeAway'] == 'home' ? '2' : '1';
+  }
+  live['keyEvents'] = [
+    for (final event in live['keyEvents'] as List)
+      if (((event as Map)['clock'] as Map)['value'] as num <= 3780) event,
+  ];
+  return {
+    '/static/json/liveData/scoreboard/todaysScoreboard_00.json': fixture(
+      'nba_cdn_scoreboard.json',
+    ),
+    '/apis/site/v2/sports/basketball/nba/teams': fixture('espn_nba_teams.json'),
+    '/apis/site/v2/sports/basketball/wnba/scoreboard': fixture(
+      'espn_wnba_scoreboard_final.json',
+    ),
+    '/apis/site/v2/sports/football/nfl/scoreboard': fixture(
+      'espn_nfl_scoreboard_pregame.json',
+    ),
+    '/apis/site/v2/sports/soccer/all/scoreboard': fixture(
+      'espn_soccer_scoreboard_live.json',
+    ),
+    '/apis/site/v2/sports/soccer/esp.w.1/scoreboard': fixture(
+      'espn_scoreboard_empty.json',
+    ),
+    '/apis/site/v2/sports/soccer/all/summary': live,
+    '/apis/common/v3/search': (Uri uri) => switch (uri.queryParameters['query']) {
+      'Jalen Hurts' => fixture('espn_search_hurts.json'),
+      'Nikola Jokić' => fixture('espn_search_jokic.json'),
+      _ => <String, dynamic>{'items': <Object>[]},
+    },
+    '/apis/common/v3/sports/basketball/nba/athletes/3112335/gamelog': fixture(
+      'espn_nba_gamelog_jokic.json',
+    ),
+    '/apis/common/v3/sports/football/nfl/athletes/4040715/gamelog': fixture(
+      'espn_nfl_gamelog_hurts.json',
+    ),
+    '/apis/site/v2/sports/basketball/nba/teams/7/schedule': fixture(
+      'espn_nba_schedule_den.json',
+    ),
+    '/apis/site/v2/sports/basketball/nba/teams/7/schedule?season=2026&seasontype=2':
+        fixture('espn_nba_schedule_den_2026.json'),
+  };
+}
+
+Future<void> _shootLive(
+  WidgetTester tester, {
+  required String accent,
+  required String mode,
+  required Size size,
+}) async {
+  tester.view.devicePixelRatio = 1;
+  tester.view.physicalSize = size;
+  tester.platformDispatcher.platformBrightnessTestValue = mode == 'dark'
+      ? Brightness.dark
+      : Brightness.light;
+  debugDisableShadows = false;
+  final previousHttp = HttpService.shared;
+  addTearDown(() {
+    tester.view.resetPhysicalSize();
+    tester.view.resetDevicePixelRatio();
+    tester.platformDispatcher.clearPlatformBrightnessTestValue();
+    HttpService.shared = previousHttp;
+  });
+  CacheStorage.shared = MemoryCacheStorage();
+  HttpService.shared = FakeHttpService(_liveRoutes());
+  // A korábbi (hálózat nélküli) jelenetek NBA CDN-tiltása ne hasson ide.
+  LiveScoresRepository.resetNbaCdnBackoff();
+  await tester.runAsync(_seedNews);
+  await _seedHighlights();
+  await _seedCalendar();
+  // Jokić következő meccse az Oklahoma City ellen (a mérleghez).
+  final now = DateTime.now();
+  await UpcomingEventsRepository().seed(
+    const UpcomingEventsTarget(
+      name: 'Nikola Jokić',
+      sport: 'NBA',
+      team: 'Denver Nuggets',
+    ),
+    [
+      UpcomingEvent(
+        athleteName: 'Nikola Jokić',
+        sport: 'NBA',
+        title: 'Oklahoma City Thunder – Denver Nuggets',
+        opponent: 'Oklahoma City Thunder',
+        homeAway: 'away',
+        competition: 'NBA · Alapszakasz',
+        venue: 'Paycom Center, Oklahoma City',
+        start: DateTime(now.year, now.month, now.day + 2, 1, 30),
+        source: 'ESPN',
+        url: 'https://www.espn.com/',
+      ),
+    ],
+  );
+  final base = _state(accent, mode);
+  await tester.pumpWidget(
+    RepaintBoundary(
+      key: _shotKey,
+      child: CourtboardApp(
+        initialState: CourtboardLocalState(
+          theme: base.theme,
+          themeMode: base.themeMode,
+          customAthletes: const [
+            CustomAthlete(
+              name: 'Jalen Hurts',
+              sport: 'NFL',
+              team: 'Philadelphia Eagles',
+              country: 'USA',
+            ),
+            CustomAthlete(
+              name: 'Ane Azkona',
+              sport: 'Foci',
+              team: 'Athletic Club',
+              country: 'Spanyolország',
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+  await _settle(tester, rounds: 6);
+  final prefix = '${mode}_${accent}_${size.width.toInt()}_';
+  await _capture(tester, '${prefix}14_elo_attekintes');
+
+  // Jokić profilja: élő mérkőzés és a következő meccs egymás elleni mérlege.
+  await tester.tap(find.byKey(const ValueKey('live-game-Nikola Jokić')));
+  await _settle(tester, rounds: 6);
+  final h2h = find.text('Legutóbbi egymás elleni meccsek').first;
+  await tester.ensureVisible(h2h);
+  await tester.tap(h2h);
+  await _settle(tester, rounds: 4);
+  await _capture(tester, '${prefix}15_profil_elo_h2h');
+  await _captureTall(tester, size, '${prefix}15_profil_elo_h2h_teljes');
+
+  // Foci: élő meccs lenyitott idővonallal.
+  await _openNav(tester, 'Áttekintés');
+  await tester.tap(find.byKey(const ValueKey('live-game-Ane Azkona')));
+  await _settle(tester, rounds: 6);
+  final timeline = find.text('Idővonal').first;
+  await tester.ensureVisible(timeline);
+  await tester.tap(timeline);
+  await _settle(tester, rounds: 4);
+  await _capture(tester, '${prefix}16_profil_foci_idovonal');
+
+  // NFL: játékos-meccsnapló az ESPN-ből.
+  await _openNav(tester, 'Sportolók');
+  final hurts = find.byKey(const ValueKey('directory-athlete-Jalen Hurts'));
+  await tester.scrollUntilVisible(
+    hurts,
+    120,
+    scrollable: find.byType(Scrollable).last,
+  );
+  await tester.tap(hurts);
+  await _settle(tester, rounds: 6);
+  await _captureTall(tester, size, '${prefix}17_profil_nfl_teljes');
+
+  // Naptár: a következő meccsnél lenyitott egymás elleni mérleg.
+  await _openNav(tester, 'Naptár');
+  final calendarH2h = find.descendant(
+    of: find.byKey(const ValueKey('h2h-Nikola Jokić-Oklahoma City Thunder')),
+    matching: find.text('Legutóbbi egymás elleni meccsek'),
+  );
+  await tester.scrollUntilVisible(
+    calendarH2h,
+    200,
+    scrollable: find.byType(Scrollable).last,
+  );
+  await tester.ensureVisible(calendarH2h);
+  await tester.tap(calendarH2h);
+  await _settle(tester, rounds: 4);
+  await _capture(tester, '${prefix}18_naptar_h2h');
+
+  await tester.pumpWidget(const SizedBox());
+  await _settle(tester, rounds: 2);
+  CacheStorage.shared = MemoryCacheStorage();
+  debugDisableShadows = true;
+}
+
 /// A fókuszban lévő InkWell kulcsa (ha van).
 Key? _focusedInkKey() {
   final context = FocusManager.instance.primaryFocus?.context;
@@ -754,7 +1155,63 @@ Widget _gallery() {
       score: '109-112',
       gameScore: 18.2,
     ),
+    NbaGameLog(
+      date: DateTime(2026, 4, 8),
+      opponent: 'Utah Jazz',
+      outcome: 'WIN',
+      location: 'HOME',
+      minutes: 32,
+      points: 22,
+      rebounds: 16,
+      assists: 13,
+      steals: 3,
+      blocks: 1,
+      score: '127-110',
+      gameScore: 24.0,
+    ),
+    NbaGameLog(
+      date: DateTime(2026, 4, 6),
+      opponent: 'Los Angeles Lakers',
+      outcome: 'LOSS',
+      location: 'AWAY',
+      minutes: 38,
+      points: 35,
+      rebounds: 10,
+      assists: 8,
+      steals: 1,
+      blocks: 2,
+      score: '114-119',
+      gameScore: 26.1,
+    ),
+    NbaGameLog(
+      date: DateTime(2026, 4, 3),
+      opponent: 'Golden State Warriors',
+      outcome: 'WIN',
+      location: 'HOME',
+      minutes: 35,
+      points: 27,
+      rebounds: 12,
+      assists: 11,
+      steals: 2,
+      blocks: 0,
+      score: '121-108',
+      gameScore: 23.5,
+    ),
   ];
+  const nbaSeason = BasketballSeasonStat(
+    league: 'NBA',
+    season: '2025/2026',
+    team: 'Denver Nuggets',
+    source: 'Basketball Reference',
+    games: 65,
+    minutesPerGame: 34.8,
+    pointsPerGame: 26.8,
+    reboundsPerGame: 12.9,
+    assistsPerGame: 10.7,
+    stealsPerGame: 1.4,
+    turnoversPerGame: 3.7,
+    fieldGoalPercentage: 56.9,
+  );
   return SingleChildScrollView(
     padding: const EdgeInsets.all(24),
     child: Column(
@@ -812,6 +1269,55 @@ Widget _gallery() {
             games: nbaGames,
           ),
           accent: const Color(0xFFE9B86E),
+          season: nbaSeason,
+        ),
+        const SizedBox(height: 16),
+        FootballFormPanel(
+          matches: [
+            for (var i = 0; i < 7; i++)
+              FootballMatchForm(
+                date: DateTime(2026, 4, 26 - i * 4),
+                opponent: const [
+                  'Real Madrid',
+                  'Atlético Madrid',
+                  'Sevilla',
+                  'Levante',
+                  'Real Sociedad',
+                  'Espanyol',
+                  'Athletic Club',
+                ][i],
+                teamScore: const [3, 1, 2, 4, 0, 2, 1][i],
+                opponentScore: const [1, 1, 0, 0, 1, 2, 0][i],
+                rating: const [8.4, 7.1, 7.6, 8.9, 6.6, 7.3, 7.8][i],
+                goals: const [1, 0, 0, 2, 0, 1, 0][i],
+                assists: const [1, 0, 1, 1, 0, 0, 1][i],
+              ),
+          ],
+          seasonRating: 7.62,
+          accent: const Color(0xFF9CAAF7),
+        ),
+        const SizedBox(height: 16),
+        TennisRankingForm(
+          history: [
+            for (var i = 0; i < 6; i++)
+              RankingSnapshot(
+                date: DateTime(2026, 7, 1 + i * 6),
+                ranking: const [4, 4, 3, 3, 2, 2][i],
+                points: const [6120, 6340, 6890, 7010, 7780, 8000][i],
+              ),
+          ],
+          accent: const Color(0xFF8ED19C),
+        ),
+        const SizedBox(height: 16),
+        ResultStrip(
+          results: dartsResultMarks([
+            for (var i = 0; i < 6; i++)
+              DartsResult(
+                date: DateTime(2026, 7, 26 - i * 3),
+                event: 'World Matchplay · ${i + 1}. nap',
+                detail: const ['WIN', 'WIN', 'LOSS', 'WIN', 'LOSS', 'WIN'][i],
+              ),
+          ]),
         ),
         const SizedBox(height: 16),
         LigaFGameList(
@@ -971,6 +1477,32 @@ void main() {
     );
   }
 
+  for (final (accent, mode, size) in const [
+    ('green', 'light', wide),
+    ('burgundy', 'dark', wide),
+    ('green', 'light', minimum),
+  ]) {
+    testWidgets(
+      'live and match detail screenshots $accent $mode ${size.width.toInt()}',
+      skip: _skip,
+      (tester) => _shootLive(tester, accent: accent, mode: mode, size: size),
+    );
+  }
+
+  for (final (accent, mode, size) in const [
+    ('green', 'light', wide),
+    ('burgundy', 'dark', wide),
+    ('green', 'light', narrow),
+    ('green', 'light', drawer),
+  ]) {
+    testWidgets(
+      'insights screenshots $accent $mode ${size.width.toInt()}',
+      skip: _skip,
+      (tester) =>
+          _shootInsights(tester, accent: accent, mode: mode, size: size),
+    );
+  }
+
   for (final (accent, brightness) in const [
     (CourtboardAccent.green, Brightness.light),
     (CourtboardAccent.burgundy, Brightness.dark),
@@ -980,7 +1512,7 @@ void main() {
       skip: _skip,
       (tester) async {
         tester.view.devicePixelRatio = 1;
-        tester.view.physicalSize = const Size(1300, 2400);
+        tester.view.physicalSize = const Size(1300, 4200);
         addTearDown(() {
           tester.view.resetPhysicalSize();
           tester.view.resetDevicePixelRatio();

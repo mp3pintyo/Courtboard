@@ -152,7 +152,7 @@ void main() {
       expect(providerLimits['BALLDONTLIE']?.perMinute, 5);
       expect(providerLimits['football-data.org']?.perMinute, 10);
       expect(providerLimits['TheSportsDB']?.perMinute, 30);
-      expect(providerLimits['Live Tennis API']?.perDay, 1000);
+      expect(providerLimits['Live Tennis API']?.perDay, 100);
       expect(providerLimits['RapidAPI Darts']?.perMonth, 1000);
       expect(providerLimits['RapidAPI WNBA']?.perMonth, 100);
     });

@@ -1,0 +1,12 @@
+{
+ "_fixtureNote": "Synthetic, built from the documented GET /h2h response fields (players, totals, by_surface, meetings[era, winner 1|2 of this H2H, outcome]) at docs.livetennisapi.com/reference.html (BASIC tier; no key was available to verify a real response).",
+ "players": {"p1": {"name": "Iga Swiatek"}, "p2": {"name": "Aryna Sabalenka"}},
+ "totals": {"p1": 8, "p2": 5, "undecided": 1},
+ "by_surface": {"clay": {"p1": 5, "p2": 1}, "hard": {"p1": 3, "p2": 4}},
+ "meetings": [
+  {"era": "current", "match_id": 90412, "date": "2026-06-05", "tournament": "Roland Garros", "round_code": "SF", "surface": "clay", "winner": 1, "outcome": "completed"},
+  {"era": "current", "match_id": 88120, "date": "2026-05-10", "tournament": "Madrid", "round_code": "F", "surface": "clay", "winner": 2, "outcome": "completed", "score": "6-3 3-6 7-6"},
+  {"era": "current", "match_id": 80011, "date": "2026-01-24", "tournament": "Australian Open", "round_code": "QF", "surface": "hard", "winner": null, "outcome": "walkover"},
+  {"era": "archive", "archive_match_id": "wta-2022-0529-17", "date": "2022-05-29", "tournament": "Stuttgart", "level": "P", "score": "6-2 6-2", "surface": "clay", "winner": 1, "outcome": "completed"}
+ ]
+}

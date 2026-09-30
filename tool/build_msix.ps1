@@ -7,7 +7,9 @@
   2. Release buildet készít (a -SkipBuild kapcsolóval kihagyható).
   3. `dart run msix:create --build-windows false` futtatásával elkészíti a
      csomagot (a pubspec.yaml `msix_config` szakasza szerint).
-  4. A kész .msix-et a dist\Courtboard-<verzió>-Windows-x64.msix néven másolja.
+  4. A kész .msix-et a dist\Courtboard-<verzió>-Windows-x64.msix néven ÁTHELYEZI
+     (nem másolja): a msix a build\windows\x64\runner\Release mappába írja a
+     courtboard.msix-et, és ha ott maradna, bekerülne a kiadási ZIP-be.
 
   Saját aláíró tanúsítvány nélkül a msix csomag beépített teszttanúsítványával
   ír alá („CN=Msix Testing…”). A script SEMMIT nem telepít: se tanúsítványt,
@@ -59,7 +61,9 @@ if (-not (Test-Path $msix)) { throw "Nem jött létre az MSIX: $msix" }
 $dist = Join-Path $root 'dist'
 New-Item -ItemType Directory -Force $dist | Out-Null
 $target = Join-Path $dist "Courtboard-$version-Windows-x64.msix"
-Copy-Item $msix $target -Force
+# Áthelyezés (nem másolás), hogy a Release mappa tiszta maradjon a ZIP-hez.
+Move-Item -LiteralPath $msix -Destination $target -Force
+if (Test-Path $msix) { throw "Az MSIX nem került át a dist mappába: $msix" }
 
 $signature = Get-AuthenticodeSignature $target
 Write-Host "Kész: $target"

@@ -13,6 +13,12 @@ class _Dashboard extends StatefulWidget {
     this.highlights = const {},
     this.onOpenNews,
     this.onOpenVideos,
+    this.pinned = const {},
+    this.onTogglePin,
+    this.onCompare,
+    this.feed = const [],
+    this.onOpenFeed,
+    this.liveTargets = const [],
   });
   final List<Athlete> athletes;
   final TextEditingController search;
@@ -29,6 +35,19 @@ class _Dashboard extends StatefulWidget {
   final Map<String, AthleteHighlight> highlights;
   final VoidCallback? onOpenNews;
   final VoidCallback? onOpenVideos;
+
+  /// A kitűzött sportolók neve: elöl, jelvénnyel jelennek meg.
+  final Set<String> pinned;
+  final ValueChanged<Athlete>? onTogglePin;
+  final ValueChanged<Athlete>? onCompare;
+
+  /// A „Követés” hírfolyam elemei (a legfrissebbek kerülnek ide).
+  final List<FeedItem> feed;
+  final VoidCallback? onOpenFeed;
+
+  /// A követett sportolók csapatai az „Élő” sávhoz (csak zajló meccsnél
+  /// jelenik meg).
+  final List<UpcomingEventsTarget> liveTargets;
   @override
   State<_Dashboard> createState() => _DashboardState();
 }
@@ -54,15 +73,19 @@ class _DashboardState extends State<_Dashboard> {
   Widget build(BuildContext context) {
     final filter = widget.filter;
     final query = normalizeAthleteName(widget.search.text.trim());
-    final list = sortAthletes(
-      widget.athletes
-          .where(
-            (a) =>
-                (filter == 'Mind' || a.sport == filter) &&
-                (query.isEmpty || normalizeAthleteName(a.name).contains(query)),
-          )
-          .toList(),
-      widget.sort,
+    final list = pinnedFirst(
+      sortAthletes(
+        widget.athletes
+            .where(
+              (a) =>
+                  (filter == 'Mind' || a.sport == filter) &&
+                  (query.isEmpty ||
+                      normalizeAthleteName(a.name).contains(query)),
+            )
+            .toList(),
+        widget.sort,
+      ),
+      widget.pinned,
     );
     final focus = pickDashboardFocus(
       sortAthletes(widget.athletes, widget.sort),
@@ -89,6 +112,16 @@ class _DashboardState extends State<_Dashboard> {
                     onOpenSettings: widget.onOpenSettings,
                   ),
                   const SizedBox(height: 24),
+                  if (widget.liveTargets.isNotEmpty)
+                    _LiveNowStrip(
+                      targets: widget.liveTargets,
+                      onOpen: (name) {
+                        final athlete = widget.athletes
+                            .where((item) => item.name == name)
+                            .firstOrNull;
+                        if (athlete != null) widget.onOpen(athlete);
+                      },
+                    ),
                   if (widget.athletes.isNotEmpty) ...[
                     if (focus != null)
                       _FocusHero(
@@ -184,6 +217,15 @@ class _DashboardState extends State<_Dashboard> {
                                     athlete: athlete,
                                     highlight: widget.highlights[athlete.name],
                                     onTap: () => widget.onOpen(athlete),
+                                    pinned: widget.pinned.contains(
+                                      athlete.name,
+                                    ),
+                                    onTogglePin: widget.onTogglePin == null
+                                        ? null
+                                        : () => widget.onTogglePin!(athlete),
+                                    onCompare: widget.onCompare == null
+                                        ? null
+                                        : () => widget.onCompare!(athlete),
                                   ),
                                 ),
                               )
@@ -191,6 +233,16 @@ class _DashboardState extends State<_Dashboard> {
                         );
                       },
                     ),
+                  if (widget.athletes.isNotEmpty &&
+                      widget.onOpenFeed != null) ...[
+                    const SizedBox(height: 36),
+                    _DashboardFeedSection(
+                      items: widget.feed,
+                      athletes: widget.athletes,
+                      onOpenAll: widget.onOpenFeed!,
+                      onOpenAthlete: widget.onOpen,
+                    ),
+                  ],
                 ],
               ),
             );
@@ -199,6 +251,18 @@ class _DashboardState extends State<_Dashboard> {
       ),
     );
   }
+}
+
+/// A kitűzött sportolók elöl (egymás közt a kapott sorrendben), utánuk a
+/// többiek változatlan sorrendben.
+List<Athlete> pinnedFirst(List<Athlete> athletes, Set<String> pinned) {
+  if (pinned.isEmpty) return athletes;
+  return [
+    for (final athlete in athletes)
+      if (pinned.contains(athlete.name)) athlete,
+    for (final athlete in athletes)
+      if (!pinned.contains(athlete.name)) athlete,
+  ];
 }
 
 /// Napszakhoz illő köszönés a nyitóoldal fejlécéhez.
@@ -340,7 +404,7 @@ class _Header extends StatelessWidget {
       key: const Key('overview-settings-button'),
       icon: Icons.settings_outlined,
       onPressed: onOpenSettings,
-      tooltip: 'Beállítások (Ctrl+7)',
+      tooltip: 'Beállítások (Ctrl+9)',
     );
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -757,10 +821,16 @@ class _AthleteTile extends StatefulWidget {
     required this.athlete,
     required this.onTap,
     this.highlight,
+    this.pinned = false,
+    this.onTogglePin,
+    this.onCompare,
   });
   final Athlete athlete;
   final VoidCallback onTap;
   final AthleteHighlight? highlight;
+  final bool pinned;
+  final VoidCallback? onTogglePin;
+  final VoidCallback? onCompare;
 
   @override
   State<_AthleteTile> createState() => _AthleteTileState();
@@ -768,6 +838,63 @@ class _AthleteTile extends StatefulWidget {
 
 class _AthleteTileState extends State<_AthleteTile> {
   bool _hover = false;
+
+  /// Helyi menü (jobb kattintás, hosszú nyomás, Shift+F10 / menübillentyű):
+  /// kitűzés, profil, összehasonlítás.
+  Future<void> _showMenu([Offset? position]) async {
+    final box = context.findRenderObject() as RenderBox?;
+    final overlay =
+        Overlay.of(context).context.findRenderObject() as RenderBox?;
+    if (box == null || overlay == null) return;
+    final anchor = position ?? box.localToGlobal(box.size.center(Offset.zero));
+    final local = overlay.globalToLocal(anchor);
+    final pinned = widget.pinned;
+    final choice = await showMenu<String>(
+      context: context,
+      position: RelativeRect.fromRect(
+        Rect.fromLTWH(local.dx, local.dy, 1, 1),
+        Offset.zero & overlay.size,
+      ),
+      items: [
+        if (widget.onTogglePin != null)
+          PopupMenuItem(
+            key: const Key('tile-menu-pin'),
+            value: 'pin',
+            child: _menuRow(
+              pinned ? Icons.push_pin : Icons.push_pin_outlined,
+              pinned ? 'Kitűzés megszüntetése' : 'Kitűzés',
+            ),
+          ),
+        PopupMenuItem(
+          value: 'open',
+          child: _menuRow(Icons.arrow_outward, 'Profil megnyitása'),
+        ),
+        if (widget.onCompare != null)
+          PopupMenuItem(
+            key: const Key('tile-menu-compare'),
+            value: 'compare',
+            child: _menuRow(Icons.compare_arrows_rounded, 'Összehasonlítás…'),
+          ),
+      ],
+    );
+    if (!mounted) return;
+    switch (choice) {
+      case 'pin':
+        widget.onTogglePin?.call();
+      case 'open':
+        widget.onTap();
+      case 'compare':
+        widget.onCompare?.call();
+    }
+  }
+
+  Widget _menuRow(IconData icon, String label) => Row(
+    children: [
+      Icon(icon, size: 20),
+      const SizedBox(width: 12),
+      Flexible(child: Text(label)),
+    ],
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -783,12 +910,22 @@ class _AthleteTileState extends State<_AthleteTile> {
       athlete.name,
       athlete.sport,
       if (subtitle.isNotEmpty) subtitle,
+      if (widget.pinned) 'kitűzve',
     ].join(', ');
     return Semantics(
       button: true,
       label: '$semantic – profil megnyitása',
       onTap: widget.onTap,
       excludeSemantics: true,
+      customSemanticsActions: {
+        if (widget.onTogglePin != null)
+          CustomSemanticsAction(
+            label: widget.pinned ? 'Kitűzés megszüntetése' : 'Kitűzés',
+          ): widget.onTogglePin!,
+        if (widget.onCompare != null)
+          const CustomSemanticsAction(label: 'Összehasonlítás'):
+              widget.onCompare!,
+      },
       child: AnimatedScale(
         scale: _hover ? 1.015 : 1,
         duration: const Duration(milliseconds: 140),
@@ -821,7 +958,10 @@ class _AthleteTileState extends State<_AthleteTile> {
                       children: [
                         SizedBox(
                           height: 142,
-                          child: _TilePhoto(athlete: athlete),
+                          child: _TilePhoto(
+                            athlete: athlete,
+                            pinned: widget.pinned,
+                          ),
                         ),
                         _TileInfo(
                           subtitle: subtitle,
@@ -833,12 +973,28 @@ class _AthleteTileState extends State<_AthleteTile> {
                     Positioned.fill(
                       child: Material(
                         type: MaterialType.transparency,
-                        child: InkWell(
-                          key: ValueKey('athlete-${athlete.name}'),
-                          onTap: widget.onTap,
-                          onHover: (value) => setState(() => _hover = value),
-                          hoverColor: cb.onInk.withValues(alpha: .04),
-                          focusColor: cb.accent.withValues(alpha: .10),
+                        child: CallbackShortcuts(
+                          bindings: {
+                            const SingleActivator(
+                              LogicalKeyboardKey.contextMenu,
+                            ): () =>
+                                unawaited(_showMenu()),
+                            const SingleActivator(
+                              LogicalKeyboardKey.f10,
+                              shift: true,
+                            ): () =>
+                                unawaited(_showMenu()),
+                          },
+                          child: InkWell(
+                            key: ValueKey('athlete-${athlete.name}'),
+                            onTap: widget.onTap,
+                            onSecondaryTapUp: (details) =>
+                                unawaited(_showMenu(details.globalPosition)),
+                            onLongPress: () => unawaited(_showMenu()),
+                            onHover: (value) => setState(() => _hover = value),
+                            hoverColor: cb.onInk.withValues(alpha: .04),
+                            focusColor: cb.accent.withValues(alpha: .10),
+                          ),
                         ),
                       ),
                     ),
@@ -854,8 +1010,9 @@ class _AthleteTileState extends State<_AthleteTile> {
 }
 
 class _TilePhoto extends StatelessWidget {
-  const _TilePhoto({required this.athlete});
+  const _TilePhoto({required this.athlete, this.pinned = false});
   final Athlete athlete;
+  final bool pinned;
 
   @override
   Widget build(BuildContext context) {
@@ -893,6 +1050,25 @@ class _TilePhoto extends StatelessWidget {
             color: athlete.accent,
           ),
         ),
+        if (pinned)
+          Positioned(
+            top: 10,
+            right: 10,
+            child: Tooltip(
+              message: 'Kitűzve',
+              child: Container(
+                key: ValueKey('pin-badge-${athlete.name}'),
+                width: 30,
+                height: 30,
+                decoration: BoxDecoration(
+                  color: cb.highlight,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: cb.ink.withValues(alpha: .35)),
+                ),
+                child: Icon(Icons.push_pin, size: 16, color: cb.onHighlight),
+              ),
+            ),
+          ),
         Positioned(
           left: 16,
           right: 16,

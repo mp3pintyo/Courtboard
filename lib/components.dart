@@ -12,6 +12,8 @@ import 'common_ui.dart';
 import 'format.dart';
 import 'theme/courtboard_theme.dart';
 
+export 'charts.dart';
+
 // ---------------------------------------------------------------------------
 // Fejlécek
 // ---------------------------------------------------------------------------
@@ -347,6 +349,7 @@ class MetricTile extends StatelessWidget {
     required this.value,
     this.caption,
     this.captionColor,
+    this.highlighted = false,
   });
 
   final String label;
@@ -354,14 +357,19 @@ class MetricTile extends StatelessWidget {
   final String? caption;
   final Color? captionColor;
 
+  /// Kiemelt csempe (például az összehasonlításban a jobb érték): `win`
+  /// színű keret és jelölés; a képernyőolvasó „jobb érték”-et mond.
+  final bool highlighted;
+
   @override
   Widget build(BuildContext context) {
     final cb = context.cb;
     final hasCaption = caption != null && caption!.isNotEmpty;
+    final base = hasCaption ? '$label: $value ($caption)' : '$label: $value';
     // Képernyőolvasónak egyetlen mondat: „Pont / meccs: 26,8 (forrás)”.
     return Semantics(
       container: true,
-      label: hasCaption ? '$label: $value ($caption)' : '$label: $value',
+      label: highlighted ? '$base, jobb érték' : base,
       excludeSemantics: true,
       child: _tile(context, cb),
     );
@@ -372,18 +380,32 @@ class MetricTile extends StatelessWidget {
       constraints: const BoxConstraints(minHeight: 96),
       padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
       decoration: BoxDecoration(
-        color: cb.surfaceMuted,
+        color: highlighted ? cb.tint(cb.win, .10) : cb.surfaceMuted,
         borderRadius: BorderRadius.circular(14),
+        border: highlighted
+            ? Border.all(color: cb.tint(cb.win, .7), width: 1.5)
+            : null,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(
-            label.toUpperCase(),
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: context.text.labelMedium,
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Text(
+                  label.toUpperCase(),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: context.text.labelMedium,
+                ),
+              ),
+              if (highlighted) ...[
+                const SizedBox(width: 6),
+                Icon(Icons.arrow_upward_rounded, size: 16, color: cb.win),
+              ],
+            ],
           ),
           const SizedBox(height: 8),
           Text(
@@ -598,10 +620,14 @@ class MatchRow extends StatelessWidget {
     this.outcome = MatchOutcome.unknown,
     this.grade,
     this.live = false,
+    this.footer,
   });
 
   final String opponent;
   final DateTime? date;
+
+  /// A sor alatti kiegészítés (például lenyitható „Idővonal”).
+  final Widget? footer;
 
   /// A dátum helyett megjelenő szöveg (például „Időpont később”).
   final String? dateLabel;
@@ -631,104 +657,112 @@ class MatchRow extends StatelessWidget {
         borderRadius: BorderRadius.circular(14),
         border: live ? Border.all(color: cb.tint(cb.live, .4)) : null,
       ),
-      child: Row(
-        children: [
-          ConstrainedBox(
-            constraints: BoxConstraints(minWidth: dateColumn),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    if (live) ...[
-                      Container(
-                        width: 8,
-                        height: 8,
-                        decoration: BoxDecoration(
-                          color: cb.live,
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-                      const SizedBox(width: 6),
-                    ],
-                    Text(
-                      live ? 'ÉLŐ' : when,
-                      style: context.text.titleSmall?.copyWith(
-                        color: live ? cb.live : cb.textPrimary,
-                        fontWeight: FontWeight.w800,
+      child: footer == null
+          ? _row(context, when, dateColumn)
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [_row(context, when, dateColumn), footer!],
+            ),
+    );
+  }
+
+  Widget _row(BuildContext context, String when, double dateColumn) {
+    final cb = context.cb;
+    return Row(
+      children: [
+        ConstrainedBox(
+          constraints: BoxConstraints(minWidth: dateColumn),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (live) ...[
+                    Container(
+                      width: 8,
+                      height: 8,
+                      decoration: BoxDecoration(
+                        color: cb.live,
+                        shape: BoxShape.circle,
                       ),
                     ),
+                    const SizedBox(width: 6),
                   ],
-                ),
-                if (venue != null && venue!.isNotEmpty)
                   Text(
-                    venue!.toUpperCase(),
-                    style: context.text.labelSmall?.copyWith(
-                      color: cb.textMuted,
+                    live ? 'ÉLŐ' : when,
+                    style: context.text.titleSmall?.copyWith(
+                      color: live ? cb.live : cb.textPrimary,
+                      fontWeight: FontWeight.w800,
                     ),
                   ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
+                ],
+              ),
+              if (venue != null && venue!.isNotEmpty)
                 Text(
-                  opponent,
+                  venue!.toUpperCase(),
+                  style: context.text.labelSmall?.copyWith(color: cb.textMuted),
+                ),
+            ],
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                opponent,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: context.text.titleMedium,
+              ),
+              if (subtitle != null && subtitle!.isNotEmpty)
+                Text(
+                  subtitle!,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: context.text.titleMedium,
+                  style: context.text.bodySmall,
                 ),
-                if (subtitle != null && subtitle!.isNotEmpty)
-                  Text(
-                    subtitle!,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: context.text.bodySmall,
-                  ),
-              ],
+            ],
+          ),
+        ),
+        if (score != null && score!.isNotEmpty) ...[
+          const SizedBox(width: 12),
+          Text(
+            normalizeScore(score!),
+            textAlign: TextAlign.right,
+            style: context.text.titleMedium?.copyWith(
+              fontWeight: FontWeight.w900,
+              fontFeatures: const [FontFeature.tabularFigures()],
             ),
           ),
-          if (score != null && score!.isNotEmpty) ...[
-            const SizedBox(width: 12),
-            Text(
-              normalizeScore(score!),
-              textAlign: TextAlign.right,
-              style: context.text.titleMedium?.copyWith(
-                fontWeight: FontWeight.w900,
-                fontFeatures: const [FontFeature.tabularFigures()],
-              ),
-            ),
-          ],
-          if (outcome != MatchOutcome.unknown) ...[
-            const SizedBox(width: 12),
-            ResultBadge(outcome, score: score),
-          ],
-          if (grade != null && grade!.isNotEmpty && grade != '—') ...[
-            const SizedBox(width: 8),
-            Tooltip(
-              message: 'Teljesítményjegy',
-              child: Container(
-                width: 34,
-                height: 34,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: cb.surface,
-                  shape: BoxShape.circle,
-                  border: Border.all(color: cb.borderStrong),
-                ),
-                child: Text(
-                  grade!,
-                  style: context.text.labelSmall?.copyWith(fontSize: 12),
-                ),
-              ),
-            ),
-          ],
         ],
-      ),
+        if (outcome != MatchOutcome.unknown) ...[
+          const SizedBox(width: 12),
+          ResultBadge(outcome, score: score),
+        ],
+        if (grade != null && grade!.isNotEmpty && grade != '—') ...[
+          const SizedBox(width: 8),
+          Tooltip(
+            message: 'Teljesítményjegy',
+            child: Container(
+              width: 34,
+              height: 34,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: cb.surface,
+                shape: BoxShape.circle,
+                border: Border.all(color: cb.borderStrong),
+              ),
+              child: Text(
+                grade!,
+                style: context.text.labelSmall?.copyWith(fontSize: 12),
+              ),
+            ),
+          ),
+        ],
+      ],
     );
   }
 }
@@ -1127,6 +1161,170 @@ class _DataSourceCardState<T> extends State<DataSourceCard<T>> {
       );
     }
     return widget.builder(context, data);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Lenyitható részletek
+// ---------------------------------------------------------------------------
+
+/// Kompakt, lenyitható részletsáv (például „Idővonal”, „Egymás elleni
+/// mérleg”). A tartalom csak az első lenyitáskor töltődik be, így a zárt
+/// sáv nem indít hálózati kérést.
+class LazyDetailExpander<T> extends StatefulWidget {
+  const LazyDetailExpander({
+    super.key,
+    required this.title,
+    required this.load,
+    required this.builder,
+    this.icon,
+    this.errorBuilder,
+    this.initiallyExpanded = false,
+    this.loadingLabel = 'Betöltés…',
+  });
+
+  final String title;
+  final IconData? icon;
+  final Future<T> Function() load;
+  final Widget Function(BuildContext context, T data) builder;
+
+  /// Egyedi hibaüzenet (például csomagkorlátnál); alapból a
+  /// [friendlyError] szövege.
+  final Widget? Function(BuildContext context, Object error)? errorBuilder;
+  final bool initiallyExpanded;
+  final String loadingLabel;
+
+  @override
+  State<LazyDetailExpander<T>> createState() => _LazyDetailExpanderState<T>();
+}
+
+class _LazyDetailExpanderState<T> extends State<LazyDetailExpander<T>> {
+  late bool _open = widget.initiallyExpanded;
+  Future<T>? _future;
+
+  @override
+  void initState() {
+    super.initState();
+    if (_open) _future = _start();
+  }
+
+  /// A betöltés indítása; a hiba a [FutureBuilder]-ben jelenik meg (a
+  /// figyelő a következő képkockán csatlakozik, addig ne legyen
+  /// „kezeletlen” hiba).
+  Future<T> _start() => widget.load()..ignore();
+
+  void _toggle() => setState(() {
+    _open = !_open;
+    if (_open) _future ??= _start();
+  });
+
+  void _retry() => setState(() => _future = _start());
+
+  @override
+  Widget build(BuildContext context) {
+    final cb = context.cb;
+    final color = cb.readable(cb.accent);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Align(
+          alignment: AlignmentDirectional.centerStart,
+          child: Semantics(
+            expanded: _open,
+            child: TextButton(
+              onPressed: _toggle,
+              style: TextButton.styleFrom(
+                foregroundColor: color,
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                minimumSize: const Size(0, 32),
+                visualDensity: VisualDensity.compact,
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (widget.icon != null) ...[
+                    Icon(widget.icon, size: 16),
+                    const SizedBox(width: 6),
+                  ],
+                  Flexible(
+                    child: Text(
+                      widget.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: context.text.labelLarge?.copyWith(color: color),
+                    ),
+                  ),
+                  const SizedBox(width: 2),
+                  AnimatedRotation(
+                    turns: _open ? .5 : 0,
+                    duration: const Duration(milliseconds: 180),
+                    child: const Icon(Icons.expand_more_rounded, size: 18),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        AnimatedSize(
+          duration: const Duration(milliseconds: 180),
+          alignment: Alignment.topCenter,
+          child: !_open
+              ? const SizedBox(width: double.infinity)
+              : Padding(
+                  padding: const EdgeInsets.fromLTRB(8, 4, 8, 4),
+                  child: FutureBuilder<T>(
+                    future: _future,
+                    builder: (context, snapshot) {
+                      if (snapshot.connectionState != ConnectionState.done) {
+                        return Row(
+                          children: [
+                            const SizedBox.square(
+                              dimension: 14,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            ),
+                            const SizedBox(width: 10),
+                            Text(
+                              widget.loadingLabel,
+                              style: context.text.bodySmall,
+                            ),
+                          ],
+                        );
+                      }
+                      if (snapshot.hasError) {
+                        final custom = widget.errorBuilder?.call(
+                          context,
+                          snapshot.error!,
+                        );
+                        if (custom != null) return custom;
+                        return Row(
+                          children: [
+                            Icon(
+                              Icons.error_outline,
+                              size: 18,
+                              color: cb.error,
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                friendlyError(snapshot.error!),
+                                style: context.text.bodySmall,
+                              ),
+                            ),
+                            TextButton(
+                              onPressed: _retry,
+                              child: const Text('Újra'),
+                            ),
+                          ],
+                        );
+                      }
+                      return widget.builder(context, snapshot.data as T);
+                    },
+                  ),
+                ),
+        ),
+      ],
+    );
   }
 }
 

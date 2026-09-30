@@ -160,6 +160,15 @@ class _CalendarPageState extends State<_CalendarPage> {
     final accents = {
       for (final athlete in widget.athletes) athlete.name: athlete.accent,
     };
+    final teams = {
+      for (final target in _calendarTargets(widget.athletes))
+        target.name: target.team,
+    };
+    // Sportolónként a legközelebbi esemény (az események időrendben jönnek).
+    final nextByAthlete = <String, UpcomingEvent>{};
+    for (final event in events) {
+      nextByAthlete.putIfAbsent(event.athleteName, () => event);
+    }
     final targetCount = widget.athletes.length;
     final loadingCount = controller.loading.length;
     final notes = _notes(controller.results.values);
@@ -206,6 +215,17 @@ class _CalendarPageState extends State<_CalendarPage> {
             for (final event in group.events)
               _CalendarEventRow(
                 event: event,
+                // Sportolónként csak a következő meccsnél: egymás elleni
+                // mérleg / legutóbbi egymás elleni meccsek.
+                headToHead:
+                    identical(nextByAthlete[event.athleteName], event) &&
+                        HeadToHeadExpander.supports(event)
+                    ? HeadToHeadExpander(
+                        event: event,
+                        config: widget.config,
+                        team: teams[event.athleteName] ?? '',
+                      )
+                    : null,
                 accent: accents[event.athleteName] ?? cb.accent,
                 onAddToCalendar: () => unawaited(_addToCalendar(event)),
                 onOpen: event.url == null
@@ -410,7 +430,11 @@ class _CalendarEventRow extends StatelessWidget {
     required this.accent,
     required this.onAddToCalendar,
     this.onOpen,
+    this.headToHead,
   });
+
+  /// Lenyitható egymás elleni mérleg (csak a sportoló következő meccsénél).
+  final Widget? headToHead;
 
   final UpcomingEvent event;
   final Color accent;
@@ -440,92 +464,112 @@ class _CalendarEventRow extends StatelessWidget {
           borderRadius: BorderRadius.circular(14),
           border: Border.all(color: cb.border),
         ),
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final wide = constraints.maxWidth >= 760;
-            return Row(
-              children: [
-                ConstrainedBox(
-                  constraints: BoxConstraints(minWidth: timeColumn),
-                  child: Text(
-                    time,
-                    style: context.text.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w900,
-                      color: event.timeKnown ? cb.textPrimary : cb.textMuted,
-                      fontFeatures: const [FontFeature.tabularFigures()],
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Container(
-                            width: 8,
-                            height: 8,
-                            decoration: BoxDecoration(
-                              color: accent,
-                              shape: BoxShape.circle,
-                            ),
-                          ),
-                          const SizedBox(width: 6),
-                          Flexible(
-                            child: Text(
-                              '${event.athleteName} · ${event.sport}',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: context.text.labelMedium?.copyWith(
-                                color: cb.textMuted,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        event.matchup,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: context.text.titleMedium,
-                      ),
-                      if (details.isNotEmpty)
-                        Text(
-                          details,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: context.text.bodySmall,
-                        ),
-                    ],
-                  ),
-                ),
-                if (onOpen != null)
-                  IconButton(
-                    tooltip: 'Megnyitás: ${event.source}',
-                    onPressed: onOpen,
-                    icon: const Icon(Icons.open_in_new, size: 20),
-                  ),
-                if (wide)
-                  TextButton.icon(
-                    key: const Key('calendar-add-to-calendar'),
-                    onPressed: onAddToCalendar,
-                    icon: const Icon(Icons.edit_calendar_outlined, size: 20),
-                    label: const Text('Hozzáadás a naptárhoz'),
-                  )
-                else
-                  IconButton(
-                    key: const Key('calendar-add-to-calendar'),
-                    tooltip: 'Hozzáadás a naptárhoz',
-                    onPressed: onAddToCalendar,
-                    icon: const Icon(Icons.edit_calendar_outlined, size: 20),
-                  ),
-              ],
-            );
-          },
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _row(context, timeColumn, time, details),
+            if (headToHead != null)
+              Padding(
+                padding: EdgeInsets.only(left: timeColumn + 4, right: 8),
+                child: headToHead,
+              ),
+          ],
         ),
       ),
+    );
+  }
+
+  Widget _row(
+    BuildContext context,
+    double timeColumn,
+    String time,
+    String details,
+  ) {
+    final cb = context.cb;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final wide = constraints.maxWidth >= 760;
+        return Row(
+          children: [
+            ConstrainedBox(
+              constraints: BoxConstraints(minWidth: timeColumn),
+              child: Text(
+                time,
+                style: context.text.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w900,
+                  color: event.timeKnown ? cb.textPrimary : cb.textMuted,
+                  fontFeatures: const [FontFeature.tabularFigures()],
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        width: 8,
+                        height: 8,
+                        decoration: BoxDecoration(
+                          color: accent,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Flexible(
+                        child: Text(
+                          '${event.athleteName} · ${event.sport}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: context.text.labelMedium?.copyWith(
+                            color: cb.textMuted,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    event.matchup,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: context.text.titleMedium,
+                  ),
+                  if (details.isNotEmpty)
+                    Text(
+                      details,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: context.text.bodySmall,
+                    ),
+                ],
+              ),
+            ),
+            if (onOpen != null)
+              IconButton(
+                tooltip: 'Megnyitás: ${event.source}',
+                onPressed: onOpen,
+                icon: const Icon(Icons.open_in_new, size: 20),
+              ),
+            if (wide)
+              TextButton.icon(
+                key: const Key('calendar-add-to-calendar'),
+                onPressed: onAddToCalendar,
+                icon: const Icon(Icons.edit_calendar_outlined, size: 20),
+                label: const Text('Hozzáadás a naptárhoz'),
+              )
+            else
+              IconButton(
+                key: const Key('calendar-add-to-calendar'),
+                tooltip: 'Hozzáadás a naptárhoz',
+                onPressed: onAddToCalendar,
+                icon: const Icon(Icons.edit_calendar_outlined, size: 20),
+              ),
+          ],
+        );
+      },
     );
   }
 }

@@ -1,0 +1,37 @@
+{
+ "count": 1,
+ "items": [
+  {
+   "id": "4040715",
+   "displayName": "Jalen Hurts",
+   "shortName": "J. Hurts",
+   "type": "player",
+   "sport": "football",
+   "league": "nfl",
+   "jersey": "1",
+   "position": {
+    "id": "8",
+    "name": "Quarterback",
+    "displayName": "Quarterback",
+    "abbreviation": "QB",
+    "leaf": true,
+    "parent": {
+     "leaf": false
+    },
+    "slug": "quarterback"
+   },
+   "isActive": true,
+   "teamRelationships": [
+    {
+     "displayName": "Philadelphia Eagles",
+     "core": {
+      "abbreviation": "PHI",
+      "displayName": "Philadelphia Eagles",
+      "id": "21"
+     }
+    }
+   ]
+  }
+ ],
+ "_fixtureNote": "Trimmed live response (2026-09-30)."
+}

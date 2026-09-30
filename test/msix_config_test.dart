@@ -41,4 +41,19 @@ void main() {
     expect(logo, isNotNull);
     expect(File(logo!).existsSync(), isTrue);
   });
+
+  test('a build script áthelyezi (nem másolja) az MSIX-et a dist mappába', () {
+    // A msix a Release mappába írja a csomagot; ha ott maradna, bekerülne
+    // a kiadási ZIP-be.
+    final script = File('tool/build_msix.ps1').readAsStringSync();
+    expect(
+      script,
+      contains(r'build\windows\x64\runner\Release\courtboard.msix'),
+    );
+    expect(
+      script,
+      contains('Move-Item -LiteralPath \$msix -Destination \$target'),
+    );
+    expect(script, isNot(contains('Copy-Item \$msix')));
+  });
 }

@@ -8,9 +8,13 @@ class LigaFGame {
     required this.teamScore,
     required this.opponentScore,
     required this.home,
+    this.eventId,
   });
 
   final DateTime date;
+
+  /// ESPN-mérkőzésazonosító (az idővonalhoz), ha ismert.
+  final String? eventId;
   final String opponent;
   final int teamScore;
   final int opponentScore;
@@ -96,6 +100,7 @@ class LigaFRepository {
         teamScore: int.tryParse('${team['score'] ?? ''}') ?? 0,
         opponentScore: int.tryParse('${opponent['score'] ?? ''}') ?? 0,
         home: '${team['homeAway']}' == 'home',
+        eventId: jsonString(rawEvent['id']),
       ));
     }
     games.sort((a, b) => b.date.compareTo(a.date));

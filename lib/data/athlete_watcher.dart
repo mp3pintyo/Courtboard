@@ -5,6 +5,7 @@ import 'athlete_highlights.dart';
 import 'espn_schedule.dart';
 import 'ics_export.dart' show icsUid;
 import 'json_file_cache.dart';
+import 'live_scores.dart';
 import 'news.dart';
 import 'notification_settings.dart';
 import 'notifications.dart';
@@ -20,10 +21,18 @@ class WatchedResult {
     this.outcome = '',
     this.score = '',
     this.homeAway,
+    this.aliases = const [],
   });
 
   /// Stabil azonosító (például az ESPN-mérkőzés azonosítója).
   final String key;
+
+  /// További azonosítók ugyanarra a meccsre (például „nba:day:2026-10-21”),
+  /// hogy a több forrásból (menetrend, élő scoreboard) érkező eredmény csak
+  /// egyszer jelezzen.
+  final List<String> aliases;
+
+  Iterable<String> get allKeys => [key, ...aliases];
   final DateTime date;
   final String opponent;
 
@@ -46,6 +55,10 @@ abstract interface class WatcherDataSource {
   /// sportolóhoz nincs automatikusan figyelhető eredményforrás.
   Future<List<WatchedResult>?> recentResults(UpcomingEventsTarget athlete);
 
+  /// A sportoló csapatának mai mérkőzései a scoreboardról (élő és
+  /// befejezett); üres, ha nincs élő forrás.
+  Future<List<AthleteLiveGame>> liveGames(UpcomingEventsTarget athlete);
+
   /// Hírfrissítés (a [NewsRepository] 20 perces szabályát tartva).
   Future<void> refreshNews();
 
@@ -60,7 +73,9 @@ abstract interface class WatcherDataSource {
 /// * Eredmények: NBA / WNBA / NFL esetén az ESPN nyilvános csapatmenetrendje
 ///   ([EspnScheduleRepository.recentResults], 60 perces gyorsítótár); az
 ///   új eredmény a nyitóoldal kiemelésébe ([AthleteHighlightStore]) is
-///   bekerül. Más sportágnál nincs automatikus eredményfigyelés.
+///   bekerül. Emellett az élő scoreboard ([LiveScoresRepository], 45 mp-es
+///   gyorsítótár) mai befejezett meccsei is bekerülnek, így a végeredmény
+///   a menetrend frissülése előtt jelez; focinál csak ez az eredményforrás.
 /// * Hírek: a közös [NewsRepository] (forrásonként legfeljebb 20 percenként
 ///   kér), a sportolóhoz tartozást a [newsMatchesAthlete] dönti el.
 class RepositoryWatcherSource implements WatcherDataSource {
@@ -69,15 +84,18 @@ class RepositoryWatcherSource implements WatcherDataSource {
     required this.news,
     UpcomingEventsRepository? upcoming,
     EspnScheduleRepository? espn,
+    LiveScoresRepository? live,
     this._highlights,
   }) : _upcoming = upcoming ?? UpcomingEventsRepository(),
-       _espn = espn ?? EspnScheduleRepository();
+       _espn = espn ?? EspnScheduleRepository(),
+       _live = live ?? LiveScoresRepository();
 
   /// Az aktuális API-kulcsok (a Beállításokban közben változhatnak).
   final SportsApiConfig Function() config;
   final NewsRepository news;
   final UpcomingEventsRepository _upcoming;
   final EspnScheduleRepository _espn;
+  final LiveScoresRepository _live;
   final AthleteHighlightStore? _highlights;
 
   @override
@@ -91,9 +109,23 @@ class RepositoryWatcherSource implements WatcherDataSource {
   ) async {
     final league = EspnLeague.fromSport(athlete.sport);
     final teamName = athlete.team.trim();
-    if (league == null || teamName.isEmpty) return null;
+    if (teamName.isEmpty) return null;
+    // A mai, már befejezett meccsek az élő scoreboardról (gyorsabb, mint a
+    // menetrend óránkénti frissülése).
+    List<WatchedResult> liveFinals;
+    try {
+      liveFinals = [
+        for (final game in await liveGames(athlete))
+          if (game.game.isFinished) liveFinalResult(game),
+      ];
+    } catch (_) {
+      liveFinals = const [];
+    }
+    if (league == null) {
+      return athlete.sport == 'Foci' ? liveFinals : null;
+    }
     final team = await _espn.findTeam(league, teamName);
-    if (team == null) return null;
+    if (team == null) return liveFinals.isEmpty ? null : liveFinals;
     final games = await _espn.recentResults(league, team);
     if (games.isNotEmpty) {
       final last = games.first;
@@ -108,6 +140,7 @@ class RepositoryWatcherSource implements WatcherDataSource {
       ]);
     }
     return [
+      ...liveFinals,
       for (final game in games)
         WatchedResult(
           key: '${league.league}:${game.id}',
@@ -116,9 +149,14 @@ class RepositoryWatcherSource implements WatcherDataSource {
           outcome: game.outcome,
           score: game.score,
           homeAway: game.homeAway,
+          aliases: [resultDayKey(athlete.sport, game.start)],
         ),
     ];
   }
+
+  @override
+  Future<List<AthleteLiveGame>> liveGames(UpcomingEventsTarget athlete) async =>
+      (await _live.forTargets([athlete])).forAthlete(athlete.name);
 
   @override
   Future<void> refreshNews() async {
@@ -144,9 +182,11 @@ class WatcherMemory {
     Map<String, DateTime>? notifiedEvents,
     Map<String, List<String>>? seenResults,
     Map<String, List<String>>? seenNews,
+    Map<String, String>? liveScores,
   }) : notifiedEvents = notifiedEvents ?? {},
        seenResults = seenResults ?? {},
-       seenNews = seenNews ?? {};
+       seenNews = seenNews ?? {},
+       liveScores = liveScores ?? {};
 
   /// Esemény-UID → kezdés (a már jelzett „Meccs kezdődik” értesítések).
   final Map<String, DateTime> notifiedEvents;
@@ -156,6 +196,9 @@ class WatcherMemory {
 
   /// Sportoló → látott hírkulcsok (a legújabb elöl).
   final Map<String, List<String>> seenNews;
+
+  /// Zajló meccs kulcsa → a legutóbb látott állás („84–79”).
+  final Map<String, String> liveScores;
 
   static const maxResultKeys = 60;
   static const maxNewsKeys = 200;
@@ -179,6 +222,7 @@ class WatcherMemory {
     },
     'seenResults': seenResults,
     'seenNews': seenNews,
+    'liveScores': liveScores,
   };
 
   factory WatcherMemory.fromJson(Object? json) {
@@ -198,6 +242,11 @@ class WatcherMemory {
       },
       seenResults: lists(json['seenResults']),
       seenNews: lists(json['seenNews']),
+      liveScores: {
+        if (json['liveScores'] case final Map<Object?, Object?> raw)
+          for (final MapEntry(:key, :value) in raw.entries)
+            if (value is String) '$key': value,
+      },
     );
   }
 }
@@ -484,6 +533,33 @@ class AthleteWatcher {
       memory.seenResults.clear();
     }
 
+    if (settings.liveScores) {
+      final active = <String>{};
+      for (final athlete in athletes) {
+        final List<AthleteLiveGame> games;
+        try {
+          games = await source.liveGames(athlete);
+        } catch (_) {
+          continue;
+        }
+        for (final game in games) {
+          if (!game.game.isLive) continue;
+          final key = '${athlete.name}|${game.key}';
+          active.add(key);
+          final score = game.score;
+          final previous = memory.liveScores[key];
+          memory.liveScores[key] = score;
+          if (previous != null && previous != score && score.isNotEmpty) {
+            pending.add(liveScoreNotification(game));
+          }
+        }
+      }
+      // A már nem zajló meccsek állása törlődik.
+      memory.liveScores.removeWhere((key, _) => !active.contains(key));
+    } else {
+      memory.liveScores.clear();
+    }
+
     if (settings.news) {
       try {
         await source.refreshNews();
@@ -574,25 +650,30 @@ class AthleteWatcher {
     WatcherMemory memory,
     WatcherRunReport report,
   ) {
-    final keys = [for (final result in results) result.key];
+    final keys = [for (final result in results) ...result.allKeys];
     final seen = memory.seenResults[athlete.name];
     if (seen == null) {
-      memory.seenResults[athlete.name] = keys
-          .take(WatcherMemory.maxResultKeys)
-          .toList();
+      memory.seenResults[athlete.name] = {
+        ...keys,
+      }.take(WatcherMemory.maxResultKeys).toList();
       report.seeded++;
       return null;
     }
     final known = seen.toSet();
     final cutoff = now.subtract(resultMaxAge);
-    final fresh =
-        results
-            .where(
-              (result) =>
-                  !known.contains(result.key) && result.date.isAfter(cutoff),
-            )
-            .toList()
-          ..sort((a, b) => b.date.compareTo(a.date));
+    // Ugyanaz a meccs több forrásból (élő scoreboard + menetrend) egyszer.
+    final claimed = <String>{};
+    final fresh = <WatchedResult>[];
+    for (final result in results) {
+      if (result.allKeys.any(known.contains) ||
+          !result.date.isAfter(cutoff) ||
+          result.allKeys.any(claimed.contains)) {
+        continue;
+      }
+      claimed.addAll(result.allKeys);
+      fresh.add(result);
+    }
+    fresh.sort((a, b) => b.date.compareTo(a.date));
     memory.seenResults[athlete.name] = {
       ...keys,
       ...seen,
@@ -714,3 +795,42 @@ CourtboardNotification resultNotification(
     athleteName: athleteName,
   );
 }
+
+/// Napi kulcs egy csapat eredményéhez („nba:day:2026-10-21”, helyi dátum):
+/// egy csapat naponta legfeljebb egy meccset játszik, így a különböző
+/// forrásokból érkező azonos meccs összepárosítható.
+String resultDayKey(String sport, DateTime start) {
+  final local = start.toLocal();
+  return '${sport.toLowerCase()}:day:${local.year}-'
+      '${_twoDigits(local.month)}-${_twoDigits(local.day)}';
+}
+
+/// Egy scoreboardon befejezett meccs figyelő-eredményként.
+WatchedResult liveFinalResult(AthleteLiveGame game) {
+  final league = EspnLeague.fromSport(game.game.sport);
+  return WatchedResult(
+    key: game.game.source == LiveScoresRepository.espnProvider && league != null
+        ? '${league.league}:${game.game.id}'
+        : game.key,
+    date: game.game.start,
+    opponent: game.opponent.name,
+    outcome: game.outcome,
+    score: game.score,
+    homeAway: game.ownIsHome ? 'home' : 'away',
+    aliases: [resultDayKey(game.game.sport, game.game.start)],
+  );
+}
+
+/// „Élő eredményváltozás” értesítés egy zajló meccsről.
+CourtboardNotification liveScoreNotification(AthleteLiveGame game) =>
+    CourtboardNotification(
+      id: 'live:${game.athleteName}:${game.key}:${game.score}',
+      kind: CourtboardNotificationKind.liveScore,
+      title: 'Élő: ${game.athleteName}',
+      body: [
+        '${game.own.name} ${game.score}',
+        '${game.ownIsHome ? 'vs.' : '@'} ${game.opponent.name}',
+        if (game.game.status.isNotEmpty) game.game.status,
+      ].join(' · '),
+      athleteName: game.athleteName,
+    );

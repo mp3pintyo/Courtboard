@@ -6,6 +6,9 @@ enum CourtboardNotificationKind {
   /// Új eredmény a sportoló legutóbbi mérkőzései között.
   result,
 
+  /// Élő eredményváltozás egy zajló mérkőzésen (alapból kikapcsolva).
+  liveScore,
+
   /// Új hír (egy vagy több sportolóról).
   news,
 

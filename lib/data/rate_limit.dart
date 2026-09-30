@@ -28,13 +28,20 @@ const providerLimits = <String, ProviderLimits>{
   'BALLDONTLIE': ProviderLimits(perMinute: 5),
   'football-data.org': ProviderLimits(perMinute: 10),
   'TheSportsDB': ProviderLimits(perMinute: 30),
-  'Live Tennis API': ProviderLimits(perMinute: 30, perDay: 1000),
+  // A dokumentáció (2026. szeptember) szerint a Free csomag napi 100 kérés.
+  'Live Tennis API': ProviderLimits(perMinute: 30, perDay: 100),
   'RapidAPI Darts': ProviderLimits(perMonth: 1000),
   'RapidAPI WNBA': ProviderLimits(perMonth: 100),
   // Nem kulcsos API, de percenként 20-nál több kérésnél ideiglenesen tilt.
   'Basketball Reference': ProviderLimits(perMinute: 20),
   // Nem dokumentált, kulcs nélküli nyilvános API: kímélő, percenként 30.
+  // A sportolói végpontok (keresés, meccsnapló), a scoreboardok és a
+  // mérkőzés-összefoglalók is ebből a közös keretből fogynak.
   'ESPN': ProviderLimits(perMinute: 30),
+  // Az NBA nyilvános élő scoreboardja (CDN, kb. 10 mp-es szervercache).
+  'NBA CDN': ProviderLimits(perMinute: 20),
+  // Nyílt, közösségi német focis adatbázis: kímélő, percenként 30.
+  'OpenLigaDB': ProviderLimits(perMinute: 30),
   // Hitelesítés nélkül óránként 60 kérés; a frissítés-ellenőrzés 12 órás
   // gyorsítótárral ennek töredékét használja.
   'GitHub': ProviderLimits(perMinute: 10),

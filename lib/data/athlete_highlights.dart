@@ -51,11 +51,21 @@ class HighlightEvent {
 /// profiloldal élő adatkártyái legutóbb letöltötték. Csak valós, már
 /// betöltött adatból épül; ha nincs ilyen, a mezők üresek.
 class AthleteHighlight {
-  const AthleteHighlight({this.last, this.next, required this.updatedAt});
+  const AthleteHighlight({
+    this.last,
+    this.next,
+    required this.updatedAt,
+    this.recent = const [],
+  });
 
   final HighlightEvent? last;
   final HighlightEvent? next;
   final DateTime updatedAt;
+
+  /// A legutóbbi lejátszott események (legújabb elöl, legfeljebb
+  /// [AthleteHighlightStore.maxRecent]); a „Követés” hírfolyamhoz. A 0.12.0
+  /// előtti mentésekben hiányzik: ilyenkor csak a [last] szerepel benne.
+  final List<HighlightEvent> recent;
 
   /// A következő esemény, ha még nem múlt el.
   HighlightEvent? upcoming(DateTime now) =>
@@ -78,6 +88,10 @@ class AthleteHighlightStore {
 
   static const namespace = 'highlights';
 
+  /// Sportolónként ennyi lejátszott esemény marad meg a [AthleteHighlight.recent]
+  /// listában.
+  static const maxRecent = 6;
+
   final CacheStorage? _storage;
   final DateTime Function() _clock;
 
@@ -97,10 +111,17 @@ class AthleteHighlightStore {
       final last = HighlightEvent.fromJson(json['last']);
       final next = HighlightEvent.fromJson(json['next']);
       if (last == null && next == null) return null;
+      final rawRecent = json['recent'];
+      final recent = <HighlightEvent>[
+        if (rawRecent is List)
+          for (final item in rawRecent)
+            if (HighlightEvent.fromJson(item) case final event?) event,
+      ];
       return AthleteHighlight(
         last: last,
         next: next,
         updatedAt: (updated ?? record.modified).toLocal(),
+        recent: recent.isEmpty && last != null ? [last] : recent,
       );
     } catch (_) {
       return null;
@@ -128,6 +149,7 @@ class AthleteHighlightStore {
       final now = _clock();
       HighlightEvent? last;
       HighlightEvent? next;
+      final played = <HighlightEvent>[];
       for (final event in events) {
         final upcoming = event.outcome == 'upcoming' || event.date.isAfter(now);
         if (upcoming) {
@@ -135,8 +157,9 @@ class AthleteHighlightStore {
               (next == null || event.date.isBefore(next.date))) {
             next = event;
           }
-        } else if (last == null || event.date.isAfter(last.date)) {
-          last = event;
+        } else {
+          played.add(event);
+          if (last == null || event.date.isAfter(last.date)) last = event;
         }
       }
       if (last == null && next == null) return;
@@ -149,6 +172,7 @@ class AthleteHighlightStore {
           previous.last!.date.isAfter(last.date)) {
         last = previous.last;
       }
+      final recent = mergeRecentEvents([...played, ...?previous?.recent]);
       await storage.write(
         namespace,
         _fileName(athleteName),
@@ -158,10 +182,30 @@ class AthleteHighlightStore {
           'updatedAt': now.toUtc().toIso8601String(),
           'last': last?.toJson(),
           'next': next?.toJson(),
+          'recent': [for (final event in recent) event.toJson()],
         }),
       );
     } catch (_) {
       // A kiemelés csak kényelmi adat: a hibája nem zavarhatja a profilt.
     }
   }
+}
+
+/// Lejátszott események összefésülése: azonos nap + cím csak egyszer (az
+/// első, azaz a frissebb forrásból érkező marad), legújabb elöl, legfeljebb
+/// [max] darab.
+List<HighlightEvent> mergeRecentEvents(
+  Iterable<HighlightEvent> events, {
+  int max = AthleteHighlightStore.maxRecent,
+}) {
+  final seen = <String>{};
+  final result = <HighlightEvent>[];
+  for (final event in events) {
+    final day = event.date.toLocal();
+    final key = '${day.year}-${day.month}-${day.day}|'
+        '${event.title.trim().toLowerCase()}';
+    if (seen.add(key)) result.add(event);
+  }
+  result.sort((a, b) => b.date.compareTo(a.date));
+  return result.take(max).toList(growable: false);
 }

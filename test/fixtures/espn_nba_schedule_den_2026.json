@@ -1,0 +1,353 @@
+{
+ "requestedSeason": {
+  "year": 2026,
+  "type": 2,
+  "name": "Regular Season",
+  "displayName": "2025-26"
+ },
+ "team": {
+  "id": "7",
+  "displayName": "Denver Nuggets"
+ },
+ "events": [
+  {
+   "id": "401809237",
+   "date": "2025-10-24T02:17Z",
+   "name": "Denver Nuggets at Golden State Warriors",
+   "competitions": [
+    {
+     "id": "401809237",
+     "date": "2025-10-24T02:17Z",
+     "status": {
+      "type": {
+       "id": "3",
+       "name": "STATUS_FINAL",
+       "state": "post",
+       "completed": true,
+       "description": "Final",
+       "detail": "Final/OT",
+       "shortDetail": "Final/OT",
+       "altDetail": "OT"
+      }
+     },
+     "competitors": [
+      {
+       "id": "9",
+       "homeAway": "home",
+       "winner": true,
+       "score": {
+        "value": 137.0,
+        "displayValue": "137"
+       },
+       "team": {
+        "id": "9",
+        "location": "Golden State",
+        "abbreviation": "GS",
+        "displayName": "Golden State Warriors",
+        "shortDisplayName": "Warriors"
+       }
+      },
+      {
+       "id": "7",
+       "homeAway": "away",
+       "winner": false,
+       "score": {
+        "value": 131.0,
+        "displayValue": "131"
+       },
+       "team": {
+        "id": "7",
+        "location": "Denver",
+        "abbreviation": "DEN",
+        "displayName": "Denver Nuggets",
+        "shortDisplayName": "Nuggets"
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "401809959",
+   "date": "2025-10-26T01:00Z",
+   "name": "Phoenix Suns at Denver Nuggets",
+   "competitions": [
+    {
+     "id": "401809959",
+     "date": "2025-10-26T01:00Z",
+     "status": {
+      "type": {
+       "id": "3",
+       "name": "STATUS_FINAL",
+       "state": "post",
+       "completed": true,
+       "description": "Final",
+       "detail": "Final",
+       "shortDetail": "Final"
+      }
+     },
+     "competitors": [
+      {
+       "id": "7",
+       "homeAway": "home",
+       "winner": true,
+       "score": {
+        "value": 133.0,
+        "displayValue": "133"
+       },
+       "team": {
+        "id": "7",
+        "location": "Denver",
+        "abbreviation": "DEN",
+        "displayName": "Denver Nuggets",
+        "shortDisplayName": "Nuggets"
+       }
+      },
+      {
+       "id": "21",
+       "homeAway": "away",
+       "winner": false,
+       "score": {
+        "value": 111.0,
+        "displayValue": "111"
+       },
+       "team": {
+        "id": "21",
+        "location": "Phoenix",
+        "abbreviation": "PHX",
+        "displayName": "Phoenix Suns",
+        "shortDisplayName": "Suns"
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "401810566",
+   "date": "2026-02-02T02:30Z",
+   "name": "Oklahoma City Thunder at Denver Nuggets",
+   "competitions": [
+    {
+     "id": "401810566",
+     "date": "2026-02-02T02:30Z",
+     "status": {
+      "type": {
+       "id": "3",
+       "name": "STATUS_FINAL",
+       "state": "post",
+       "completed": true,
+       "description": "Final",
+       "detail": "Final",
+       "shortDetail": "Final"
+      }
+     },
+     "competitors": [
+      {
+       "id": "7",
+       "homeAway": "home",
+       "winner": false,
+       "score": {
+        "value": 111.0,
+        "displayValue": "111"
+       },
+       "team": {
+        "id": "7",
+        "location": "Denver",
+        "abbreviation": "DEN",
+        "displayName": "Denver Nuggets",
+        "shortDisplayName": "Nuggets"
+       }
+      },
+      {
+       "id": "25",
+       "homeAway": "away",
+       "winner": true,
+       "score": {
+        "value": 121.0,
+        "displayValue": "121"
+       },
+       "team": {
+        "id": "25",
+        "location": "Oklahoma City",
+        "abbreviation": "OKC",
+        "displayName": "Oklahoma City Thunder",
+        "shortDisplayName": "Thunder"
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "401810717",
+   "date": "2026-02-28T02:47Z",
+   "name": "Denver Nuggets at Oklahoma City Thunder",
+   "competitions": [
+    {
+     "id": "401810717",
+     "date": "2026-02-28T02:47Z",
+     "status": {
+      "type": {
+       "id": "3",
+       "name": "STATUS_FINAL",
+       "state": "post",
+       "completed": true,
+       "description": "Final",
+       "detail": "Final/OT",
+       "shortDetail": "Final/OT",
+       "altDetail": "OT"
+      }
+     },
+     "competitors": [
+      {
+       "id": "25",
+       "homeAway": "home",
+       "winner": true,
+       "score": {
+        "value": 127.0,
+        "displayValue": "127"
+       },
+       "team": {
+        "id": "25",
+        "location": "Oklahoma City",
+        "abbreviation": "OKC",
+        "displayName": "Oklahoma City Thunder",
+        "shortDisplayName": "Thunder"
+       }
+      },
+      {
+       "id": "7",
+       "homeAway": "away",
+       "winner": false,
+       "score": {
+        "value": 121.0,
+        "displayValue": "121"
+       },
+       "team": {
+        "id": "7",
+        "location": "Denver",
+        "abbreviation": "DEN",
+        "displayName": "Denver Nuggets",
+        "shortDisplayName": "Nuggets"
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "401810788",
+   "date": "2026-03-09T23:30Z",
+   "name": "Denver Nuggets at Oklahoma City Thunder",
+   "competitions": [
+    {
+     "id": "401810788",
+     "date": "2026-03-09T23:30Z",
+     "status": {
+      "type": {
+       "id": "3",
+       "name": "STATUS_FINAL",
+       "state": "post",
+       "completed": true,
+       "description": "Final",
+       "detail": "Final",
+       "shortDetail": "Final"
+      }
+     },
+     "competitors": [
+      {
+       "id": "25",
+       "homeAway": "home",
+       "winner": true,
+       "score": {
+        "value": 129.0,
+        "displayValue": "129"
+       },
+       "team": {
+        "id": "25",
+        "location": "Oklahoma City",
+        "abbreviation": "OKC",
+        "displayName": "Oklahoma City Thunder",
+        "shortDisplayName": "Thunder"
+       }
+      },
+      {
+       "id": "7",
+       "homeAway": "away",
+       "winner": false,
+       "score": {
+        "value": 126.0,
+        "displayValue": "126"
+       },
+       "team": {
+        "id": "7",
+        "location": "Denver",
+        "abbreviation": "DEN",
+        "displayName": "Denver Nuggets",
+        "shortDisplayName": "Nuggets"
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "401811037",
+   "date": "2026-04-11T01:00Z",
+   "name": "Oklahoma City Thunder at Denver Nuggets",
+   "competitions": [
+    {
+     "id": "401811037",
+     "date": "2026-04-11T01:00Z",
+     "status": {
+      "type": {
+       "id": "3",
+       "name": "STATUS_FINAL",
+       "state": "post",
+       "completed": true,
+       "description": "Final",
+       "detail": "Final",
+       "shortDetail": "Final"
+      }
+     },
+     "competitors": [
+      {
+       "id": "7",
+       "homeAway": "home",
+       "winner": true,
+       "score": {
+        "value": 127.0,
+        "displayValue": "127"
+       },
+       "team": {
+        "id": "7",
+        "location": "Denver",
+        "abbreviation": "DEN",
+        "displayName": "Denver Nuggets",
+        "shortDisplayName": "Nuggets"
+       }
+      },
+      {
+       "id": "25",
+       "homeAway": "away",
+       "winner": false,
+       "score": {
+        "value": 107.0,
+        "displayValue": "107"
+       },
+       "team": {
+        "id": "25",
+        "location": "Oklahoma City",
+        "abbreviation": "OKC",
+        "displayName": "Oklahoma City Thunder",
+        "shortDisplayName": "Thunder"
+       }
+      }
+     ]
+    }
+   ]
+  }
+ ],
+ "_fixtureNote": "Trimmed live response of site.api.espn.com/apis/site/v2/sports/basketball/nba/teams/7/schedule?season=2026&seasontype=2 (2026-09-30): games vs Oklahoma City + two others."
+}

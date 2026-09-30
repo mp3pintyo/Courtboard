@@ -1,0 +1,15 @@
+{
+ "leagues": [
+  {
+   "id": "46",
+   "name": "National Basketball Association",
+   "abbreviation": "NBA",
+   "slug": "nba"
+  }
+ ],
+ "day": {
+  "date": "2026-07-15"
+ },
+ "events": [],
+ "_fixtureNote": "Shape of an ESPN scoreboard on a day without games."
+}

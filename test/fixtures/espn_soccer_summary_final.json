@@ -1,0 +1,777 @@
+{
+ "header": {
+  "id": "401882508",
+  "league": {
+   "id": "20956",
+   "name": "Spanish Liga F",
+   "abbreviation": "Liga F",
+   "slug": "esp.w.1"
+  },
+  "competitions": [
+   {
+    "id": "401882508",
+    "date": "2026-09-27T10:00Z",
+    "status": {
+     "type": {
+      "id": "28",
+      "name": "STATUS_FULL_TIME",
+      "state": "post",
+      "completed": true,
+      "description": "Full Time",
+      "detail": "FT",
+      "shortDetail": "FT"
+     }
+    },
+    "competitors": [
+     {
+      "id": "21372",
+      "homeAway": "home",
+      "winner": true,
+      "score": "3",
+      "team": {
+       "id": "21372",
+       "displayName": "Athletic Club",
+       "abbreviation": "ATH",
+       "location": "Athletic Club"
+      }
+     },
+     {
+      "id": "20093",
+      "homeAway": "away",
+      "winner": false,
+      "score": "2",
+      "team": {
+       "id": "20093",
+       "displayName": "Atlético Madrid",
+       "abbreviation": "ATL",
+       "location": "Atlético Madrid"
+      }
+     }
+    ]
+   }
+  ]
+ },
+ "keyEvents": [
+  {
+   "id": "52941552",
+   "type": {
+    "id": "70",
+    "text": "Goal",
+    "type": "goal"
+   },
+   "text": "Ane Azkona (Athletic Club) Goal at 1'",
+   "shortText": "Ane Azkona Goal",
+   "period": {
+    "number": 1
+   },
+   "clock": {
+    "value": 23.0,
+    "displayValue": "1'"
+   },
+   "scoringPlay": true,
+   "team": {
+    "id": "21372",
+    "displayName": "Athletic Club"
+   },
+   "participants": [
+    {
+     "athlete": {
+      "id": "333470",
+      "displayName": "Ane Azkona"
+     }
+    }
+   ]
+  },
+  {
+   "id": "52941553",
+   "type": {
+    "id": "70",
+    "text": "Goal",
+    "type": "goal"
+   },
+   "text": "Fiamma (Atlético Madrid) Goal at 6'",
+   "shortText": "Fiamma Goal",
+   "period": {
+    "number": 1
+   },
+   "clock": {
+    "value": 329.0,
+    "displayValue": "6'"
+   },
+   "scoringPlay": true,
+   "team": {
+    "id": "20093",
+    "displayName": "Atlético Madrid"
+   },
+   "participants": [
+    {
+     "athlete": {
+      "id": "335788",
+      "displayName": "Fiamma"
+     }
+    }
+   ]
+  },
+  {
+   "id": "52941554",
+   "type": {
+    "id": "94",
+    "text": "Yellow Card",
+    "type": "yellow-card"
+   },
+   "text": "Luany (Atlético Madrid) Yellow Card at 15'",
+   "shortText": "Luany Yellow Card",
+   "period": {
+    "number": 1
+   },
+   "clock": {
+    "value": 849.0,
+    "displayValue": "15'"
+   },
+   "scoringPlay": false,
+   "team": {
+    "id": "20093",
+    "displayName": "Atlético Madrid"
+   },
+   "participants": [
+    {
+     "athlete": {
+      "id": "358743",
+      "displayName": "Luany"
+     }
+    }
+   ]
+  },
+  {
+   "id": "52941556",
+   "type": {
+    "id": "70",
+    "text": "Goal",
+    "type": "goal"
+   },
+   "text": "Sara Ortega (Athletic Club) Goal at 32'",
+   "shortText": "Sara Ortega Goal",
+   "period": {
+    "number": 1
+   },
+   "clock": {
+    "value": 1918.0,
+    "displayValue": "32'"
+   },
+   "scoringPlay": true,
+   "team": {
+    "id": "21372",
+    "displayName": "Athletic Club"
+   },
+   "participants": [
+    {
+     "athlete": {
+      "id": "334740",
+      "displayName": "Sara Ortega"
+     }
+    }
+   ]
+  },
+  {
+   "id": "52941557",
+   "type": {
+    "id": "94",
+    "text": "Yellow Card",
+    "type": "yellow-card"
+   },
+   "text": "Clara Pinedo (Athletic Club) Yellow Card at 40'",
+   "shortText": "Clara Pinedo Yellow Card",
+   "period": {
+    "number": 1
+   },
+   "clock": {
+    "value": 2389.0,
+    "displayValue": "40'"
+   },
+   "scoringPlay": false,
+   "team": {
+    "id": "21372",
+    "displayName": "Athletic Club"
+   },
+   "participants": [
+    {
+     "athlete": {
+      "id": "333469",
+      "displayName": "Clara Pinedo"
+     }
+    }
+   ]
+  },
+  {
+   "id": "52941558",
+   "type": {
+    "id": "94",
+    "text": "Yellow Card",
+    "type": "yellow-card"
+   },
+   "text": "Vilariño (Athletic Club) Yellow Card at 50'",
+   "shortText": "Vilariño Yellow Card",
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 2951.0,
+    "displayValue": "50'"
+   },
+   "scoringPlay": false,
+   "team": {
+    "id": "21372",
+    "displayName": "Athletic Club"
+   },
+   "participants": [
+    {
+     "athlete": {
+      "id": "354973",
+      "displayName": "Vilariño"
+     }
+    }
+   ]
+  },
+  {
+   "id": "52941559",
+   "type": {
+    "id": "93",
+    "text": "Red Card",
+    "type": "red-card"
+   },
+   "text": "Luany (Atlético Madrid) Red Card at 56'",
+   "shortText": "Luany Red Card",
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3310.0,
+    "displayValue": "56'"
+   },
+   "scoringPlay": false,
+   "team": {
+    "id": "20093",
+    "displayName": "Atlético Madrid"
+   },
+   "participants": [
+    {
+     "athlete": {
+      "id": "358743",
+      "displayName": "Luany"
+     }
+    }
+   ]
+  },
+  {
+   "id": "52941560",
+   "type": {
+    "id": "76",
+    "text": "Substitution",
+    "type": "substitution"
+   },
+   "text": "Ane Elexpuru (Athletic Club) Substitution at 58'",
+   "shortText": "Ane Elexpuru Substitution",
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3475.0,
+    "displayValue": "58'"
+   },
+   "scoringPlay": false,
+   "team": {
+    "id": "21372",
+    "displayName": "Athletic Club"
+   },
+   "participants": [
+    {
+     "athlete": {
+      "id": "333482",
+      "displayName": "Ane Elexpuru"
+     }
+    },
+    {
+     "athlete": {
+      "id": "354973",
+      "displayName": "Vilariño"
+     }
+    }
+   ]
+  },
+  {
+   "id": "52941561",
+   "type": {
+    "id": "76",
+    "text": "Substitution",
+    "type": "substitution"
+   },
+   "text": "Amaia Iribarren (Athletic Club) Substitution at 59'",
+   "shortText": "Amaia Iribarren Substitution",
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3490.0,
+    "displayValue": "59'"
+   },
+   "scoringPlay": false,
+   "team": {
+    "id": "21372",
+    "displayName": "Athletic Club"
+   },
+   "participants": [
+    {
+     "athlete": {
+      "id": "368307",
+      "displayName": "Amaia Iribarren"
+     }
+    },
+    {
+     "athlete": {
+      "id": "333484",
+      "displayName": "Irene Oguiza"
+     }
+    }
+   ]
+  },
+  {
+   "id": "52941568",
+   "type": {
+    "id": "76",
+    "text": "Substitution",
+    "type": "substitution"
+   },
+   "text": "Giovana (Atlético Madrid) Substitution at 65'",
+   "shortText": "Giovana Substitution",
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 3861.0,
+    "displayValue": "65'"
+   },
+   "scoringPlay": false,
+   "team": {
+    "id": "20093",
+    "displayName": "Atlético Madrid"
+   },
+   "participants": [
+    {
+     "athlete": {
+      "id": "305982",
+      "displayName": "Giovana"
+     }
+    },
+    {
+     "athlete": {
+      "id": "333471",
+      "displayName": "Maite Zubieta"
+     }
+    }
+   ]
+  },
+  {
+   "id": "52941576",
+   "type": {
+    "id": "93",
+    "text": "Red Card",
+    "type": "red-card"
+   },
+   "text": "Clara Pinedo (Athletic Club) Red Card at 70'",
+   "shortText": "Clara Pinedo Red Card",
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 4190.0,
+    "displayValue": "70'"
+   },
+   "scoringPlay": false,
+   "team": {
+    "id": "21372",
+    "displayName": "Athletic Club"
+   },
+   "participants": [
+    {
+     "athlete": {
+      "id": "333469",
+      "displayName": "Clara Pinedo"
+     }
+    }
+   ]
+  },
+  {
+   "id": "52941575",
+   "type": {
+    "id": "76",
+    "text": "Substitution",
+    "type": "substitution"
+   },
+   "text": "Alexia Fernández (Atlético Madrid) Substitution at 71'",
+   "shortText": "Alexia Fernández Substitution",
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 4236.0,
+    "displayValue": "71'"
+   },
+   "scoringPlay": false,
+   "team": {
+    "id": "20093",
+    "displayName": "Atlético Madrid"
+   },
+   "participants": [
+    {
+     "athlete": {
+      "id": "355154",
+      "displayName": "Alexia Fernández"
+     }
+    },
+    {
+     "athlete": {
+      "id": "335834",
+      "displayName": "Rosa Otermín"
+     }
+    }
+   ]
+  },
+  {
+   "id": "52941578",
+   "type": {
+    "id": "76",
+    "text": "Substitution",
+    "type": "substitution"
+   },
+   "text": "Katherine Møller Kühl (Atlético Madrid) Substitution at 71'",
+   "shortText": "Katherine Møller Kühl Substituti",
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 4252.0,
+    "displayValue": "71'"
+   },
+   "scoringPlay": false,
+   "team": {
+    "id": "20093",
+    "displayName": "Atlético Madrid"
+   },
+   "participants": [
+    {
+     "athlete": {
+      "id": "317573",
+      "displayName": "Katherine Møller Kühl"
+     }
+    },
+    {
+     "athlete": {
+      "id": "335819",
+      "displayName": "Allegra Poljak"
+     }
+    }
+   ]
+  },
+  {
+   "id": "52941579",
+   "type": {
+    "id": "76",
+    "text": "Substitution",
+    "type": "substitution"
+   },
+   "text": "Ane Campos (Athletic Club) Substitution at 73'",
+   "shortText": "Ane Campos Substitution",
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 4351.0,
+    "displayValue": "73'"
+   },
+   "scoringPlay": false,
+   "team": {
+    "id": "21372",
+    "displayName": "Athletic Club"
+   },
+   "participants": [
+    {
+     "athlete": {
+      "id": "327778",
+      "displayName": "Ane Campos"
+     }
+    },
+    {
+     "athlete": {
+      "id": "333470",
+      "displayName": "Ane Azkona"
+     }
+    }
+   ]
+  },
+  {
+   "id": "52941612",
+   "type": {
+    "id": "70",
+    "text": "Goal",
+    "type": "goal"
+   },
+   "text": "Ane Campos (Athletic Club) Goal at 74'",
+   "shortText": "Ane Campos Goal",
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 4439.0,
+    "displayValue": "74'"
+   },
+   "scoringPlay": true,
+   "team": {
+    "id": "21372",
+    "displayName": "Athletic Club"
+   },
+   "participants": [
+    {
+     "athlete": {
+      "id": "327778",
+      "displayName": "Ane Campos"
+     }
+    }
+   ]
+  },
+  {
+   "id": "52941758",
+   "type": {
+    "id": "76",
+    "text": "Substitution",
+    "type": "substitution"
+   },
+   "text": "Jone Amezaga (Athletic Club) Substitution at 83'",
+   "shortText": "Jone Amezaga Substitution",
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 4967.0,
+    "displayValue": "83'"
+   },
+   "scoringPlay": false,
+   "team": {
+    "id": "21372",
+    "displayName": "Athletic Club"
+   },
+   "participants": [
+    {
+     "athlete": {
+      "id": "344362",
+      "displayName": "Jone Amezaga"
+     }
+    },
+    {
+     "athlete": {
+      "id": "334740",
+      "displayName": "Sara Ortega"
+     }
+    }
+   ]
+  },
+  {
+   "id": "52941759",
+   "type": {
+    "id": "76",
+    "text": "Substitution",
+    "type": "substitution"
+   },
+   "text": "Amaia Martínez (Athletic Club) Substitution at 83'",
+   "shortText": "Amaia Martínez Substitution",
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 4969.0,
+    "displayValue": "83'"
+   },
+   "scoringPlay": false,
+   "team": {
+    "id": "21372",
+    "displayName": "Athletic Club"
+   },
+   "participants": [
+    {
+     "athlete": {
+      "id": "349934",
+      "displayName": "Amaia Martínez"
+     }
+    },
+    {
+     "athlete": {
+      "id": "333485",
+      "displayName": "Naia Landaluze"
+     }
+    }
+   ]
+  },
+  {
+   "id": "52941763",
+   "type": {
+    "id": "76",
+    "text": "Substitution",
+    "type": "substitution"
+   },
+   "text": "Gabi Nunes (Atlético Madrid) Substitution at 85'",
+   "shortText": "Gabi Nunes Substitution",
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 5045.0,
+    "displayValue": "85'"
+   },
+   "scoringPlay": false,
+   "team": {
+    "id": "20093",
+    "displayName": "Atlético Madrid"
+   },
+   "participants": [
+    {
+     "athlete": {
+      "id": "257469",
+      "displayName": "Gabi Nunes"
+     }
+    },
+    {
+     "athlete": {
+      "id": "246849",
+      "displayName": "Viola Calligaris"
+     }
+    }
+   ]
+  },
+  {
+   "id": "52941764",
+   "type": {
+    "id": "76",
+    "text": "Substitution",
+    "type": "substitution"
+   },
+   "text": "Celia Gómez (Atlético Madrid) Substitution at 85'",
+   "shortText": "Celia Gómez Substitution",
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 5051.0,
+    "displayValue": "85'"
+   },
+   "scoringPlay": false,
+   "team": {
+    "id": "20093",
+    "displayName": "Atlético Madrid"
+   },
+   "participants": [
+    {
+     "athlete": {
+      "id": "328601",
+      "displayName": "Celia Gómez"
+     }
+    },
+    {
+     "athlete": {
+      "id": "336062",
+      "displayName": "Henrietta Csiszár"
+     }
+    }
+   ]
+  },
+  {
+   "id": "52941866",
+   "type": {
+    "id": "70",
+    "text": "Goal",
+    "type": "goal"
+   },
+   "text": "Gabi Nunes (Atlético Madrid) Goal at 89'",
+   "shortText": "Gabi Nunes Goal",
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 5306.0,
+    "displayValue": "89'"
+   },
+   "scoringPlay": true,
+   "team": {
+    "id": "20093",
+    "displayName": "Atlético Madrid"
+   },
+   "participants": [
+    {
+     "athlete": {
+      "id": "257469",
+      "displayName": "Gabi Nunes"
+     }
+    }
+   ]
+  },
+  {
+   "id": "52941902",
+   "type": {
+    "id": "94",
+    "text": "Yellow Card",
+    "type": "yellow-card"
+   },
+   "text": "Bibiane Schulze Solano (Athletic Club) Yellow Card at 90'+1'",
+   "shortText": "Bibiane Schulze Solano Yellow Ca",
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 5400.0,
+    "displayValue": "90'+1'"
+   },
+   "scoringPlay": false,
+   "team": {
+    "id": "21372",
+    "displayName": "Athletic Club"
+   },
+   "participants": [
+    {
+     "athlete": {
+      "id": "333545",
+      "displayName": "Bibiane Schulze Solano"
+     }
+    }
+   ]
+  },
+  {
+   "id": "52941903",
+   "type": {
+    "id": "94",
+    "text": "Yellow Card",
+    "type": "yellow-card"
+   },
+   "text": "Garazi Facila (Athletic Club) Yellow Card at 90'+1'",
+   "shortText": "Garazi Facila Yellow Card",
+   "period": {
+    "number": 2
+   },
+   "clock": {
+    "value": 5400.0,
+    "displayValue": "90'+1'"
+   },
+   "scoringPlay": false,
+   "team": {
+    "id": "21372",
+    "displayName": "Athletic Club"
+   },
+   "participants": [
+    {
+     "athlete": {
+      "id": "333459",
+      "displayName": "Garazi Facila"
+     }
+    }
+   ]
+  }
+ ],
+ "_fixtureNote": "Trimmed live response of site.api.espn.com/apis/site/v2/sports/soccer/esp.w.1/summary?event=401882508 (2026-09-30)."
+}

@@ -171,11 +171,27 @@ class EspnScheduleRepository {
     EspnLeague league,
     String teamId, {
     int? seasonType,
+    int? season,
   }) => Uri.https(
     'site.api.espn.com',
     '/apis/site/v2/sports/${league.sport}/${league.league}/teams/$teamId/schedule',
-    seasonType == null ? null : {'seasontype': '$seasonType'},
+    seasonType == null && season == null
+        ? null
+        : {
+            if (season != null) 'season': '$season',
+            if (seasonType != null) 'seasontype': '$seasonType',
+          },
   );
+
+  /// Az ESPN szezonévének becslése: az NBA szezonját a záró év jelöli
+  /// (2026–27 → 2027), az NFL-ét a kezdő év (márciusig az előző), a WNBA-ét
+  /// a naptári év.
+  static int currentSeasonYear(EspnLeague league, DateTime now) =>
+      switch (league) {
+        EspnLeague.nba => now.month >= 8 ? now.year + 1 : now.year,
+        EspnLeague.nfl => now.month >= 3 ? now.year : now.year - 1,
+        EspnLeague.wnba => now.year,
+      };
 
   /// A liga csapatlistája (7 napos gyorsítótárral).
   Future<Map<String, dynamic>> teams(EspnLeague league) async =>
@@ -227,17 +243,37 @@ class EspnScheduleRepository {
     EspnTeam team, {
     int limit = 10,
     bool forceRefresh = false,
+  }) async => (await seasonResults(
+    league,
+    team,
+    forceRefresh: forceRefresh,
+  )).take(limit).toList(growable: false);
+
+  /// A csapat összes befejezett mérkőzése az aktuális (vagy a [season])
+  /// szezonban, a legújabb elöl. Az aktuális szezon [resultsCacheLifetime],
+  /// egy korábbi szezon alapszakasza 7 napig jön gyorsítótárból.
+  Future<List<EspnCompletedGame>> seasonResults(
+    EspnLeague league,
+    EspnTeam team, {
+    int? season,
+    bool forceRefresh = false,
   }) async => (await _cache.getOrFetch<List<EspnCompletedGame>>(
-    'results_${league.league}_${team.id}',
-    ttl: resultsCacheLifetime,
+    season == null
+        ? 'results_${league.league}_${team.id}'
+        : 'results_${league.league}_${team.id}_$season',
+    ttl: season == null ? resultsCacheLifetime : const Duration(days: 7),
     forceRefresh: forceRefresh,
     fetch: () async {
       final payload = await _http.getJson(
-        scheduleUri(league, team.id),
+        scheduleUri(
+          league,
+          team.id,
+          season: season,
+          seasonType: season == null ? null : 2,
+        ),
         provider: provider,
       );
-      final games = parseCompletedGames(payload, league: league, team: team);
-      return games.take(limit).toList(growable: false);
+      return parseCompletedGames(payload, league: league, team: team);
     },
     encode: (value) => {
       'games': [for (final game in value) game.toJson()],

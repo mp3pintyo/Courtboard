@@ -1,4 +1,5 @@
 import 'package:courtboard/data/athlete_watcher.dart';
+import 'package:courtboard/data/live_scores.dart';
 import 'package:courtboard/data/news.dart';
 import 'package:courtboard/data/notifications.dart';
 import 'package:courtboard/data/upcoming_events.dart';
@@ -52,6 +53,9 @@ class FakeWatcherSource implements WatcherDataSource {
   final Map<String, List<WatchedResult>> results = {};
   final Map<String, List<NewsArticle>> news = {};
 
+  /// Sportoló → a scoreboard mai meccsei.
+  final Map<String, List<AthleteLiveGame>> live = {};
+
   /// A sportolónkénti hívások („upcoming:Név”, „results:Név”, „news:Név”).
   final List<String> calls = [];
   int newsRefreshes = 0;
@@ -79,6 +83,13 @@ class FakeWatcherSource implements WatcherDataSource {
     calls.add('results:${athlete.name}');
     _check();
     return results[athlete.name];
+  }
+
+  @override
+  Future<List<AthleteLiveGame>> liveGames(UpcomingEventsTarget athlete) async {
+    calls.add('live:${athlete.name}');
+    _check();
+    return live[athlete.name] ?? const [];
   }
 
   @override

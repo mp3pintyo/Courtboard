@@ -71,6 +71,8 @@ void main() {
           'Naptár',
           'Hírek',
           'Videók',
+          'Követés',
+          'Összehasonlítás',
           'Adatforrások',
           'Beállítások',
         ]) {

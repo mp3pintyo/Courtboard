@@ -15,6 +15,9 @@ class _ProfilePage extends StatelessWidget {
     required this.onDelete,
     required this.onSaveNote,
     required this.onToggleAlert,
+    this.pinned = false,
+    this.onTogglePin,
+    this.onCompare,
   });
   final Athlete athlete;
 
@@ -31,6 +34,13 @@ class _ProfilePage extends StatelessWidget {
   final void Function(Athlete, String) onSaveNote;
   final ValueChanged<Athlete> onToggleAlert;
 
+  /// Kitűzött-e a sportoló (a nyitóoldalon elöl jelenik meg).
+  final bool pinned;
+  final VoidCallback? onTogglePin;
+
+  /// „Összehasonlítás…”: az Összehasonlítás oldal ezzel a sportolóval.
+  final VoidCallback? onCompare;
+
   /// Az élő adatkártyák sportág szerint; üres lista, ha nincs élő forrás.
   List<Widget> _liveCards(bool ligaFProfile) => [
     if (athlete.sport == 'NBA' || athlete.sport == 'NFL')
@@ -40,6 +50,14 @@ class _ProfilePage extends StatelessWidget {
         teamName: athlete.team,
         accent: athlete.accent,
         config: apiConfig,
+      ),
+    if (athlete.sport == 'NFL')
+      _NflPlayerCard(athleteName: athlete.name, accent: athlete.accent),
+    if (athlete.sport == 'NFL')
+      _NflTeamFormCard(
+        athleteName: athlete.name,
+        teamName: athlete.team,
+        accent: athlete.accent,
       ),
     if (athlete.sport == 'NBA')
       _NbaSeasonSummaryCard(athleteName: athlete.name, accent: athlete.accent),
@@ -100,11 +118,14 @@ class _ProfilePage extends StatelessWidget {
         (athlete.name.toLowerCase().contains('aitana bonmat') ||
             athlete.team.toLowerCase().contains('femen'));
     final liveCards = _liveCards(ligaFProfile);
+    final target = _calendarTargets([athlete]).single;
+    // Az NFL 0.12.0 óta saját (ESPN) szezonösszesítőt és meccsnaplót kap.
     final hasOwnSummary = const {
       'NBA',
       'WNBA',
       'Tenisz',
       'Foci',
+      'NFL',
     }.contains(athlete.sport);
     final horizontal = MediaQuery.sizeOf(context).width < 800 ? 20.0 : 34.0;
     final commands = CourtboardCommandScope.maybeOf(context);
@@ -135,10 +156,22 @@ class _ProfilePage extends StatelessWidget {
                     ),
                   ),
                 ),
+                if (pinned) ...[
+                  const StatusPill(
+                    'KITŰZVE',
+                    key: Key('profile-pinned-badge'),
+                    tone: StatusTone.accent,
+                    icon: Icons.push_pin,
+                  ),
+                  const SizedBox(width: 6),
+                ],
                 _ProfileMoreMenu(
                   onRefresh: () => commands?.requestRefresh(),
                   onAddVideo: onAddVideo,
                   onDelete: onDelete,
+                  pinned: pinned,
+                  onTogglePin: onTogglePin,
+                  onCompare: onCompare,
                 ),
               ],
             ),
@@ -150,6 +183,18 @@ class _ProfilePage extends StatelessWidget {
               alertEnabled: alertEnabled,
               onSaveNote: (value) => onSaveNote(athlete, value),
               onToggleAlert: () => onToggleAlert(athlete),
+            ),
+            // Zajló (vagy ma befejezett) meccs, és a következő mérkőzés az
+            // egymás elleni mérleggel; adat nélkül egyik sem jelenik meg.
+            if (_LiveMatchCard.supports(target))
+              _LiveMatchCard(
+                key: ValueKey('live-${athlete.name}'),
+                target: target,
+              ),
+            _NextMatchCard(
+              key: ValueKey('next-${athlete.name}'),
+              athlete: athlete,
+              config: apiConfig,
             ),
             if (liveCards.isNotEmpty) ...[
               const SizedBox(height: 32),
@@ -252,11 +297,17 @@ class _ProfileMoreMenu extends StatelessWidget {
     required this.onRefresh,
     required this.onAddVideo,
     required this.onDelete,
+    this.pinned = false,
+    this.onTogglePin,
+    this.onCompare,
   });
 
   final VoidCallback onRefresh;
   final VoidCallback onAddVideo;
   final VoidCallback onDelete;
+  final bool pinned;
+  final VoidCallback? onTogglePin;
+  final VoidCallback? onCompare;
 
   @override
   Widget build(BuildContext context) {
@@ -284,6 +335,8 @@ class _ProfileMoreMenu extends StatelessWidget {
       onSelected: (value) => switch (value) {
         'refresh' => onRefresh(),
         'video' => onAddVideo(),
+        'pin' => onTogglePin?.call(),
+        'compare' => onCompare?.call(),
         'delete' => onDelete(),
         _ => null,
       },
@@ -296,6 +349,21 @@ class _ProfileMoreMenu extends StatelessWidget {
           value: 'video',
           child: item(Icons.video_call_outlined, 'Videó hozzáadása'),
         ),
+        if (onTogglePin != null)
+          PopupMenuItem(
+            key: const Key('profile-pin-athlete'),
+            value: 'pin',
+            child: item(
+              pinned ? Icons.push_pin : Icons.push_pin_outlined,
+              pinned ? 'Kitűzés megszüntetése' : 'Kitűzés',
+            ),
+          ),
+        if (onCompare != null)
+          PopupMenuItem(
+            key: const Key('profile-compare-athlete'),
+            value: 'compare',
+            child: item(Icons.compare_arrows_rounded, 'Összehasonlítás…'),
+          ),
         const PopupMenuDivider(),
         PopupMenuItem(
           key: const Key('profile-delete-athlete'),

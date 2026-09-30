@@ -125,8 +125,58 @@ class FotMobFootballRepository {
       assists: jsonIntOrNull(values['assists']),
       yellowCards: jsonIntOrNull(values['yellow_cards']),
       redCards: jsonIntOrNull(values['red_cards']),
+      recentMatches: parseRecentMatches(payload),
     );
     return result.hasUsefulData() ? result : null;
+  }
+
+  /// A játékos legutóbbi mérkőzései (`recentMatches`), legújabb elöl, legfeljebb
+  /// [limit] darab. A kispadon maradt (nem játszott) meccsek kimaradnak. A
+  /// FotMob a listát közvetlenül vagy sorozatonként csoportosítva is adhatja.
+  static List<FootballMatchForm> parseRecentMatches(
+    Map<String, dynamic> payload, {
+    int limit = 10,
+  }) {
+    final raw = payload['recentMatches'];
+    final entries = <Map<String, dynamic>>[
+      if (raw is List) ...jsonMapList(raw),
+      if (raw is Map)
+        for (final group in raw.values) ...jsonMapList(group),
+    ];
+    final matches = <FootballMatchForm>[];
+    final seen = <String>{};
+    for (final entry in entries) {
+      if (entry['onBench'] == true) continue;
+      final rawDate = entry['matchDate'];
+      final date = DateTime.tryParse(
+        rawDate is Map ? '${rawDate['utcTime'] ?? ''}' : '${rawDate ?? ''}',
+      );
+      if (date == null) continue;
+      final opponent =
+          jsonString(entry['opponentTeamName'] ?? entry['opponentName']) ?? '';
+      final home = entry['isHomeTeam'] != false;
+      final homeScore = jsonIntOrNull(entry['homeScore']);
+      final awayScore = jsonIntOrNull(entry['awayScore']);
+      final ratingProps = entry['ratingProps'];
+      final rating = jsonDoubleOrNull(ratingProps is Map
+          ? ratingProps['num'] ?? ratingProps['rating']
+          : entry['rating']);
+      final key = '${entry['id'] ?? ''}|${date.toIso8601String()}|$opponent';
+      if (!seen.add(key)) continue;
+      matches.add(FootballMatchForm(
+        date: date.toLocal(),
+        opponent: opponent,
+        competition: jsonString(entry['leagueName']) ?? '',
+        teamScore: home ? homeScore : awayScore,
+        opponentScore: home ? awayScore : homeScore,
+        rating: rating != null && rating > 0 ? rating : null,
+        goals: jsonIntOrNull(entry['goals']) ?? 0,
+        assists: jsonIntOrNull(entry['assists']) ?? 0,
+        minutes: jsonIntOrNull(entry['minutesPlayed']),
+      ));
+    }
+    matches.sort((a, b) => b.date.compareTo(a.date));
+    return matches.take(limit).toList(growable: false);
   }
 
   /// Visszafelé kompatibilis no-op: a közös [HttpService] kliense nyitva marad.

@@ -1,5 +1,8 @@
 import 'football_names.dart';
+import 'friendly_error.dart';
 import 'json_util.dart';
+import 'match_timeline.dart';
+import 'openligadb.dart';
 import 'sports_api.dart';
 
 enum FootballResult { win, draw, loss, unknown }
@@ -10,11 +13,31 @@ class FootballGame {
     required this.opponent,
     required this.score,
     required this.result,
+    this.competition = '',
+    this.homeAway,
+    this.timeline,
+    this.espnMatch,
+    this.source = '',
   });
   final DateTime date;
   final String opponent;
   final String score;
   final FootballResult result;
+
+  /// Bajnokság és forduló, ha a forrás adja.
+  final String competition;
+
+  /// `home` / `away`, ha ismert.
+  final String? homeAway;
+
+  /// Beépített idővonal (az OpenLigaDB a gólokat a meccslistában adja).
+  final MatchTimeline? timeline;
+
+  /// ESPN-mérkőzés, amelynek idővonala lekérhető.
+  final EspnMatchRef? espnMatch;
+
+  /// Az adatforrás neve, ha nem az alapértelmezett.
+  final String source;
 }
 
 /// Csapatmérkőzések adatforrás-állapottal: a lejátszott és a közelgő
@@ -38,8 +61,11 @@ class FootballTeamGames {
 }
 
 class FootballDataRepository {
-  FootballDataRepository(this._client);
+  FootballDataRepository(this._client, {this._openLiga});
   final SportsApiClient _client;
+
+  /// A német csapatok tartalékforrása (alapból a közös HTTP-réteggel).
+  final OpenLigaDbRepository? _openLiga;
 
   /// Visszafelé kompatibilis: a közös HTTP-klienst nem zárja le.
   void close() => _client.close();
@@ -81,19 +107,50 @@ class FootballDataRepository {
       }
     }
 
-    final teams = await _client.theSportsDb('/searchteams.php', {
-      't': footballTeamSearchTerm(teamName),
-    });
-    final sportsDbId = parseTheSportsDbTeamId(teams, teamName);
-    if (sportsDbId == null) return FootballTeamGames(warnings: warnings);
-    final payloads = await Future.wait([
-      _client.theSportsDb('/eventslast.php', {'id': sportsDbId}),
-      _client.theSportsDb('/eventsnext.php', {'id': sportsDbId}),
-    ]);
-    final recent = parseTheSportsDbMatches(payloads[0], sportsDbId)
-      ..sort((a, b) => b.date.compareTo(a.date));
-    final upcoming = parseTheSportsDbMatches(payloads[1], sportsDbId)
-      ..sort((a, b) => a.date.compareTo(b.date));
+    var recent = <FootballGame>[];
+    var upcoming = <FootballGame>[];
+    Object? sportsDbError;
+    StackTrace? sportsDbStack;
+    try {
+      final teams = await _client.theSportsDb('/searchteams.php', {
+        't': footballTeamSearchTerm(teamName),
+      });
+      final sportsDbId = parseTheSportsDbTeamId(teams, teamName);
+      if (sportsDbId != null) {
+        final payloads = await Future.wait([
+          _client.theSportsDb('/eventslast.php', {'id': sportsDbId}),
+          _client.theSportsDb('/eventsnext.php', {'id': sportsDbId}),
+        ]);
+        recent = parseTheSportsDbMatches(payloads[0], sportsDbId)
+          ..sort((a, b) => b.date.compareTo(a.date));
+        upcoming = parseTheSportsDbMatches(payloads[1], sportsDbId)
+          ..sort((a, b) => a.date.compareTo(b.date));
+      }
+    } catch (error, stack) {
+      sportsDbError = error;
+      sportsDbStack = stack;
+    }
+
+    // Német csapatnál (Bundesliga, 2. Bundesliga, Frauen-Bundesliga) az
+    // OpenLigaDB pótolja, amit a többi forrás nem adott.
+    if (recent.isEmpty || upcoming.isEmpty) {
+      try {
+        final german = await (_openLiga ?? OpenLigaDbRepository()).teamGames(
+          teamName,
+        );
+        if (german != null) {
+          if (recent.isEmpty) recent = german.recentGames();
+          if (upcoming.isEmpty) upcoming = german.upcomingGames();
+        }
+      } catch (error) {
+        if (sportsDbError == null) {
+          warnings.add('OpenLigaDB: ${friendlyError(error)}');
+        }
+      }
+    }
+    if (sportsDbError != null && recent.isEmpty && upcoming.isEmpty) {
+      Error.throwWithStackTrace(sportsDbError, sportsDbStack!);
+    }
     return FootballTeamGames(
       recent: recent.take(5).toList(growable: false),
       upcoming: upcoming.take(5).toList(growable: false),

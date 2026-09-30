@@ -1,5 +1,15 @@
 part of '../main.dart';
 
+/// Az NBA-profil élő adatai: az egyesített játékosadat (meccsnaplóval) és —
+/// a formagörbe átlagvonalához — a szezonösszesítő, ha elérhető. A
+/// szezonösszesítő ugyanabból a gyorsítótárból jön, mint a „Szezon
+/// összesítő” kártyáé (az egyidejű kérést a gyorsítótár összevonja).
+class _NbaProfileBundle {
+  const _NbaProfileBundle(this.data, this.season);
+  final UnifiedAthleteData data;
+  final BasketballSeasonStat? season;
+}
+
 class _ApiSportsCard extends StatelessWidget {
   const _ApiSportsCard({
     required this.sport,
@@ -18,11 +28,23 @@ class _ApiSportsCard extends StatelessWidget {
     final repo = ApiSportsRepository(config.apiSportsKey);
     return switch (sport) {
       'Foci' => repo.footballRecent(teamName),
-      'NBA' => MultiProviderAthleteRepository(
-        config,
-      ).fetchNbaPlayer(athleteName),
+      'NBA' => _loadNba(),
       _ => repo.nflPlayer(athleteName),
     };
+  }
+
+  Future<_NbaProfileBundle> _loadNba() async {
+    final season = BasketballReferenceRepository()
+        .seasonSummary(athleteName)
+        .then<BasketballSeasonStat?>(
+          (value) => value,
+          onError: (Object _) => null,
+        );
+    final data = await MultiProviderAthleteRepository(
+      config,
+    ).fetchNbaPlayer(athleteName);
+    // A Basketball Reference szezonátlaga, tartalékként az ESPN-é.
+    return _NbaProfileBundle(data, await season ?? data.espnSeason);
   }
 
   @override
@@ -54,8 +76,8 @@ class _ApiSportsCard extends StatelessWidget {
                 game.score,
               ),
           ],
-          final UnifiedAthleteData unified => [
-            for (final game in unified.games)
+          final _NbaProfileBundle bundle => [
+            for (final game in bundle.data.games)
               _highlight(
                 game.date,
                 game.opponent,
@@ -78,9 +100,10 @@ class _ApiSportsCard extends StatelessWidget {
               ),
           ],
         ),
-        final UnifiedAthleteData unified => UnifiedAthleteFacts(
-          data: unified,
+        final _NbaProfileBundle bundle => UnifiedAthleteFacts(
+          data: bundle.data,
           accent: accent,
+          season: bundle.season,
         ),
         _ => EmptyState(
           compact: true,
@@ -111,8 +134,12 @@ class _NbaSeasonSummaryCard extends StatelessWidget {
     loadingLabel: 'NBA szezonadatok betöltése…',
     errorPrefix: 'A friss NBA szezonösszesítő most nem érhető el. ',
     emptyMessage: 'Ehhez a játékoshoz nincs friss NBA szezonadat.',
-    load: ({required force}) =>
-        BasketballReferenceRepository().seasonSummary(athleteName),
+    // Basketball Reference; ha nem érhető el vagy nincs sora, az ESPN
+    // meccsnaplójából számolt alapszakasz-összesítő.
+    load: ({required force}) => nbaSeasonSummaryWithFallback(
+      athleteName,
+      forceRefresh: force,
+    ).then((cached) => cached?.value),
     builder: (context, summary) =>
         BasketballSeasonSummaryFacts(summary: summary!, accent: accent),
   );

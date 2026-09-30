@@ -1,5 +1,8 @@
 import 'api_sports.dart';
 import 'basketball_reference.dart';
+import 'basketball_season.dart';
+import 'espn_athletes.dart';
+import 'espn_schedule.dart';
 import 'friendly_error.dart';
 import 'http_service.dart';
 import 'json_file_cache.dart';
@@ -34,11 +37,20 @@ class UnifiedAthleteData {
     required this.facts,
     required this.providers,
     this.games = const [],
+    this.gamesSource = 'Basketball Reference',
+    this.espnSeason,
   });
 
   final List<AthleteFact> facts;
   final List<DataProviderStatus> providers;
   final List<NbaGameLog> games;
+
+  /// A meccsnapló forrása (`Basketball Reference`, vagy tartalékként `ESPN`).
+  final String gamesSource;
+
+  /// Az ESPN meccsnaplójából számolt alapszakasz-összesítő (tartalék a
+  /// Basketball Reference szezonösszesítője mellé).
+  final BasketballSeasonStat? espnSeason;
 
   int get activeProviderCount =>
       providers.where((provider) => provider.hasData).length;
@@ -85,8 +97,17 @@ class MultiProviderAthleteRepository {
           .recentGames(athleteName),
     );
 
+    // Kulcs nélküli kiegészítő és tartalékforrás: ha a Basketball Reference
+    // nem ad meccsnaplót, az ESPN-é látszik (6 órás gyorsítótár).
+    final espn = _capture(
+      'ESPN',
+      true,
+      () => EspnAthleteRepository(http: _http, cacheStorage: _cacheStorage)
+          .gameLog(athleteName, EspnLeague.nba),
+    );
+
     final results = await Future.wait(
-        [apiSports, ballDontLie, sportsDb, basketballReference]);
+        [apiSports, ballDontLie, sportsDb, basketballReference, espn]);
     final facts = <AthleteFact>[];
     final seenLabels = <String>{};
 
@@ -141,12 +162,43 @@ class MultiProviderAthleteRepository {
       add('Ország', sportsDbPlayer['strNationality'], 'TheSportsDB');
     }
 
+    final espnLog = results[4].data;
+    if (espnLog is EspnGameLog) {
+      add('Név', espnLog.athlete.displayName, 'ESPN');
+      add('Csapat', espnLog.athlete.team, 'ESPN');
+      add('Poszt', espnLog.athlete.position, 'ESPN');
+      add('Mezszám', espnLog.athlete.jersey, 'ESPN');
+    }
+
+    final referenceGames = results[3].data is List<NbaGameLog>
+        ? results[3].data as List<NbaGameLog>
+        : const <NbaGameLog>[];
+    final espnGames = espnLog is EspnGameLog
+        ? espnLog.toNbaGameLogs(limit: 10)
+        : const <NbaGameLog>[];
+    final useEspn = referenceGames.isEmpty && espnGames.isNotEmpty;
+    final providers = [
+      for (final (index, result) in results.indexed)
+        if (index == 4 && result.status.hasData)
+          DataProviderStatus(
+            name: 'ESPN',
+            configured: true,
+            hasData: true,
+            message: useEspn
+                ? 'Tartalék: az ESPN meccsnaplója látszik'
+                : 'Kiegészítő profiladat és szezonátlag',
+          )
+        else
+          result.status,
+    ];
     return UnifiedAthleteData(
       facts: facts,
-      providers: results.map((result) => result.status).toList(),
-      games: results[3].data is List<NbaGameLog>
-          ? results[3].data as List<NbaGameLog>
-          : const [],
+      providers: providers,
+      games: useEspn ? espnGames : referenceGames,
+      gamesSource: useEspn ? 'ESPN' : 'Basketball Reference',
+      espnSeason: espnLog is EspnGameLog
+          ? espnLog.toBasketballSeasonStat()
+          : null,
     );
   }
 

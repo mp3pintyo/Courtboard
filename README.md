@@ -24,19 +24,39 @@ Az alkalmazás saját **Adatforrás-kézikönyve** kereshető sportág, szolgál
 
 ![A Naptár oldal a követett sportolók közelgő eseményeivel, napok szerint csoportosítva](docs/screenshots/calendar.png)
 
+### Összehasonlítás
+
+![Az Összehasonlítás oldal: Nikola Jokić és Luka Dončić szezonösszesítője egymás mellett, a jobb értékek kiemelve, radardiagrammal](docs/screenshots/compare.png)
+
+### Követés
+
+![A Követés oldal: a követett sportolók közelgő eseményei, eredményei, hírei és mentett videói egy idővonalon, típus- és sportolószűrővel](docs/screenshots/follow-feed.png)
+
+### Élő eredmények és mérkőzésrészletek
+
+![Az „Élő” sáv a nyitólap tetején két zajló mérkőzéssel (NBA CDN és ESPN), állással és negyeddel / perccel](docs/screenshots/live.png)
+
+![Nikola Jokić profilja: „Élő mérkőzés” kártya és a következő meccs lenyitott „Legutóbbi egymás elleni meccsek” sávja](docs/screenshots/profile-live-h2h.png)
+
+![Élő focimeccs lenyitott idővonallal: gólok, sárga és piros lapok, cserék perccel](docs/screenshots/football-timeline.png)
+
 ### Sötét mód
 
 ![A nyitólap sötét módban, bordó kiemelőszínnel](docs/screenshots/home-dark.png)
 
-> A képernyőképek tesztkörnyezetben, hálózat nélkül készülnek (`test/screenshots`), ezért a fotók helyén a sportoló színéből képzett helyőrző látszik, az élő kártyák a hálózat nélküli állapotot mutatják, a nyitólap eredményei és a naptár eseményei pedig mintaadatok.
+> A képernyőképek tesztkörnyezetben, hálózat nélkül készülnek (`test/screenshots`), ezért a fotók helyén a sportoló színéből képzett helyőrző látszik, az élő kártyák a hálózat nélküli állapotot mutatják, a nyitólap eredményei, a naptár eseményei, a hírfolyam elemei és az összehasonlítás szezonszámai pedig mintaadatok. Az élő eredményeket, az egymás elleni mérleget, az idővonalat és az NFL-meccsnaplót bemutató képek a `test/fixtures` mappa (részben valós, 2026. szeptemberi, részben élő állapotra szerkesztett) ESPN-, NBA CDN- és OpenLigaDB-válaszaiból készülnek.
 
 ## Felület és személyes beállítások
 
 - Az **Áttekintés** fogaskerék ikonja és a bal oldali **Beállítások** menüpont ugyanazt a beállítási oldalt nyitja meg.
 - A megjelenéshez választható a zöld és a bordó kiemelőszín, valamint a **Világos**, **Sötét** vagy **Rendszer** (a Windows beállítását követő) mód.
 - **Reszponzív elrendezés:** 1200 px felett teljes, feliratos oldalsáv (a felirat nélküli, ikonos változatra összecsukható, és az app megjegyzi a választást); 800–1200 px között ikonos sáv eszköztippekkel; ennél keskenyebb ablakban hamburger menü nyitja a navigációt. Ultraszéles ablakban a tartalom legfeljebb 1440 px széles, középre zárva. Az ablak legkisebb mérete kb. 800×600.
-- **Billentyűparancsok:** `Ctrl+F` keresés, `Esc` vagy `Alt+←` vissza a profilból (és párbeszédablak bezárása), `Ctrl+R` / `F5` frissítés (profil adatkártyái, naptár, hírek), `Ctrl+1…7` menüpontok, `Ctrl+N` új sportoló. A teljes lista a **Beállítások → Billentyűparancsok** alatt látható; billentyűzettel bejárva minden kártya, menüpont, chip és gomb jól látható fókuszkeretet kap.
+- **Billentyűparancsok:** `Ctrl+F` keresés, `Esc` vagy `Alt+←` vissza a profilból (és párbeszédablak bezárása), `Ctrl+R` / `F5` frissítés (profil adatkártyái, naptár, hírek), `Ctrl+1…9` menüpontok (Áttekintés, Sportolók, Naptár, Hírek, Videók, Követés, Összehasonlítás, Adatforrások, Beállítások), `Ctrl+N` új sportoló. A teljes lista a **Beállítások → Billentyűparancsok** alatt látható; billentyűzettel bejárva minden kártya, menüpont, chip és gomb jól látható fókuszkeretet kap.
 - A nyitólap **Mai fókusz** blokkja a profilokon és a naptárban már betöltött adatokból mutatja a legközelebbi eseményt vagy a legfrissebb eredményt; ha még nincs ilyen, a követett sportolók sportáganként összesítve és gyors műveletek jelennek meg. A kártyák a legutóbbi eredményt is jelzik (például „GY 118–104”), kitalált adat nélkül.
+- **Kitűzés:** a nyitólap kártyáján jobb kattintással (vagy hosszú nyomással, `Shift+F10`-zel) nyíló helyi menüben, illetve a profil **Továbbiak** menüjében egy sportoló kitűzhető. A kitűzött sportolók a nyitólapon a saját sorrend előtt, gombostű-jelvénnyel jelennek meg; a választás a helyi állapotfájlba kerül.
+- **Formagörbék** a profilokon, kizárólag a már letöltött, valós mérkőzésekből (két adatpont alatt a görbe nem jelenik meg): NBA és WNBA meccsenkénti pont / lepattanó / assziszt választóval és szaggatott szezonátlaggal; foci FotMob-értékelés (ennek hiányában gól + gólpassz); tenisz ranglistapont-történet a helyben, naponta rögzített mérésekből (a Live Tennis API Free csomagja nem ad előzményt); darts és a football-data.org csapateredményei tömör GY/V/D sorként; NFL a csapat pontjai és eredménysora az ESPN befejezett meccseiből (játékosszintű NFL-napló nincs az ingyenes forrásokban). A dátumos tengely, az eszköztipp (ellenfél, eredmény) és a győzelem/vereség színű pontok mellett képernyőolvasónak összefoglaló is jár („Az utolsó 5 meccsen átlag 21,4 pont”).
+- **Összehasonlítás** (`Ctrl+7`, vagy a profil **Továbbiak → Összehasonlítás…** pontja): két azonos sportágú követett sportoló szezonösszesítője egymás mellett, a jobb érték kiemelve (az eladott labdánál, lapoknál és ranglista-helyezésnél a kevesebb a jobb), valamint radardiagram a liga referencia-értékeihez normalizálva (például NBA: 35 pont, 15 lepattanó, 12 assziszt). NBA, WNBA, foci és tenisz hasonlítható össze; a darts és az NFL (nincs szezonösszesítő forrás), illetve a különböző sportágak párosítása magyarázatot kap.
+- **Követés** (`Ctrl+6`) és a nyitólap „Legfrissebb a követettektől” blokkja: a követettekhez kötődő hírek (a helyi hírarchívumból), mentett videók, a profilokon betöltött eredmények és a következő 7 nap naptáreseményei egy idővonalon, típus- és sportolószűrővel, fokozatos betöltéssel és magyar relatív időkkel („5 perce”, „tegnap”, „holnap 19:30”). A hírfolyam csak tárolt adatból épül; a Frissítés gomb a meglévő szabályokat követi (a hírforrások a 20 perces ablakon belül nem töltődnek újra, a naptár a 6 órás gyorsítótárból jön).
 - Az app a rendszer szövegméretét is követi; a fő oldalak 1,3-es nagyításnál sem vágnak le tartalmat.
 - Az Áttekintés kártyái és a Sportolók listája egymástól függetlenül rendezhető saját sorrend, név, sportág vagy csapat szerint.
 - A **Sportolók** oldalon név szerinti keresés és sportág szerinti szűrés használható.
@@ -121,7 +141,7 @@ Egyetlen kulcs sem kötelező az app indulásához.
 | football-data.org | Free ligák focistáinak alapadatai és támogatott klubok mérkőzései | football-data.org | `FOOTBALL_DATA_KEY` | 12 verseny, 10 kérés/perc |
 | RapidAPI Darts API | darts versenylista | RapidAPI (Darts + WNBA) | `RAPIDAPI_KEY` (régi név: `RAPIDAPI_DARTS_KEY`) | 1000 kérés/hó |
 | RapidAPI WNBA API | Player Bio és Advanced Statistics | ugyanaz a RapidAPI kulcs | `RAPIDAPI_KEY` (régi név: `RAPIDAPI_DARTS_KEY`) | 100 kérés/hó |
-| Live Tennis API | teniszprofil, ranglista, élő és közelgő mérkőzések | Live Tennis API | `LIVE_TENNIS_API_KEY` | 30 kérés/perc, 1000/nap |
+| Live Tennis API | teniszprofil, ranglista, élő és közelgő mérkőzések; egymás elleni mérleg csak BASIC csomaggal | Live Tennis API | `LIVE_TENNIS_API_KEY` | 30 kérés/perc, 100/nap (a 2026. szeptemberi dokumentáció szerint) |
 | YouTube Data API v3 | előkészített, még nem aktív automatikus kereső | nincs külön mező | `YOUTUBE_DATA_KEY` | Google-projektkvóta |
 
 A Darts és a WNBA RapidAPI ugyanazt az alkalmazáskulcsot kapja, de a RapidAPI oldalán **mindkét API Free csomagjára külön fel kell iratkozni**.
@@ -144,11 +164,16 @@ Publikált vagy többfelhasználós kiadásnál kliensbe mentett titkok helyett 
 | SportsDataverse wehoop | WNBA | szezonátlagok (perc, pont, lepattanó, assziszt, labdaszerzés, eladott labda, FG%), forma, box score és utolsó meccsek | nem kell | szezonfájl tartós helyi cache-ben |
 | Basketball Reference | NBA, WNBA | NBA aktuális szezonátlagok és alapszakasz + playoff utolsó 5 meccs; WNBA utolsó 5 meccs | nem kell | 6 óra; nem hivatalos webes forrás |
 | ESPN `esp.w.1` | női foci | Aitana Bonmatí / Barcelona Femení utolsó 5 befejezett meccse és (a Naptárban) következő meccsei | nem kell | nincs publikált kvóta |
-| ESPN csapatmenetrend | NBA, WNBA, NFL | Naptár: a csapat következő meccsei, ellenfél, hazai/idegen, liga és szakasz, helyszín, Gamecast-link | nem kell | sportolónként 6 óra, csapatlista 7 nap; legfeljebb 30 kérés/perc |
+| ESPN csapatmenetrend | NBA, WNBA, NFL | Naptár: a csapat következő meccsei, ellenfél, hazai/idegen, liga és szakasz, helyszín, Gamecast-link; „Legutóbbi egymás elleni meccsek” (aktuális + előző alapszakasz) | nem kell | sportolónként 6 óra, csapatlista 7 nap, előző szezon 7 nap; legfeljebb 30 kérés/perc |
+| ESPN játékosadatok (`common/v3` keresés + `gamelog`) | NBA, WNBA, NFL | NFL-játékos meccsnaplója, szezonösszesítője és formagörbéje; NBA/WNBA tartalék (meccsnapló, szezonátlag), ha a Basketball Reference / wehoop nem ad; NFL-összehasonlítás | nem kell | meccsnapló 6 óra, azonosító 7 nap; a közös ESPN 30/perc keretből |
+| NBA CDN élő scoreboard | NBA | „Élő” sáv és „Élő mérkőzés” kártya: állás, negyed, óra | nem kell | 45 mp; HTTP 403-nál automatikusan ESPN-tartalék |
+| ESPN élő scoreboardok | WNBA, NFL, foci (NBA tartalék) | „Élő” sáv, „Élő mérkőzés” kártya; a mai végeredmény gyorsabb „Új eredmény” értesítése | nem kell | 45 mp; látható oldalon 30 mp-enként |
+| ESPN meccsösszefoglaló (`soccer/{liga}/summary`) | foci | lenyitható „Idővonal”: gólok, lapok, cserék perccel | nem kell | befejezett meccs végleges, élő meccs 60 mp |
+| OpenLigaDB | Bundesliga, 2. Bundesliga, Frauen-Bundesliga | német csapatok utolsó és következő meccsei, gólszerzők (idővonal), naptár, egymás elleni meccsek – ha a többi forrás nem ad | nem kell | csapatlista 7 nap, szezon-meccslista 1 óra; legfeljebb 30 kérés/perc |
 | GitHub Releases | alkalmazás | frissítés-ellenőrzés: a legfrissebb kiadás verziója és oldala | nem kell | 12 óra; hitelesítés nélkül 60 kérés/óra |
 | RapidAPI Darts API | darts | legfeljebb 8 versenycímke | RapidAPI | 6 óra; Free 1000/hó |
 | RapidAPI WNBA API | WNBA | Bio, csapat, 9 statisztika és legfeljebb 4 díj | RapidAPI | 7 nap; Free 100/hó |
-| Live Tennis API | tenisz | ranglista és profiladatok; élő szett-, játék- és pontállás; legfeljebb 5 következő meccs | saját | 10 perc; Free 30/perc és 1000/nap |
+| Live Tennis API | tenisz | ranglista és profiladatok; élő szett-, játék- és pontállás; legfeljebb 5 következő meccs; egymás elleni mérleg (`/h2h`, BASIC) | saját | 10 perc, `/h2h` 7 nap; Free 30/perc és 100/nap |
 | FOX Sports JSON-oldalfeed | NBA, WNBA, foci, tenisz | cím, rövid összefoglaló, kép, valódi publikálási dátum és eredeti cikk | nem kell | sportáganként a legfrissebb 100 cikk/frissítés; 20 perc; tartós helyi archívum |
 | CBS Sports RSS | NBA, foci, tenisz | cím, rövid összefoglaló, kép, dátum és eredeti cikk | nem kell | 20 perc; tartós helyi archívum |
 | ESPN RSS | NBA, WNBA, foci, tenisz | opcionálisan cím, forrás, dátum és kötelező eredeti link | nem kell | 20 perc; külön bekapcsolandó |
@@ -163,7 +188,7 @@ A **Naptár** a követett sportolók közelgő eseményeit a már bekötött for
 | Sportág | Forrás | Megjegyzés |
 |---|---|---|
 | NBA, WNBA, NFL | ESPN csapatmenetrend (`site.api.espn.com/…/teams/{csapat}/schedule`) | kulcs nélkül; a csapatot teljes név, rövidítés vagy becenév alapján oldja fel |
-| Foci | football-data.org (kulccsal), különben TheSportsDB következő meccsei | Aitana Bonmatí / „Femení” csapatnál az ESPN Liga F (`esp.w.1`) |
+| Foci | football-data.org (kulccsal), különben TheSportsDB következő meccsei; német csapatnál, ha ezek nem adnak, az OpenLigaDB | Aitana Bonmatí / „Femení” csapatnál az ESPN Liga F (`esp.w.1`) |
 | Tenisz | Live Tennis API közelgő meccsei és fixture-jei | kulcs kell; kulcs nélkül megjegyzés jelzi |
 | Darts | TheSportsDB (a játékos nevét tartalmazó események), RapidAPI Darts (kulccsal, ha a versenylista dátumot is ad) | az ingyenes források ritkán adnak játékosszintű menetrendet |
 
@@ -175,6 +200,23 @@ A **Naptár** a követett sportolók közelgő eseményeit a már bekötött for
 **.ics export.** Minden eseménynél a **Hozzáadás a naptárhoz** gomb egy egyeseményes `.ics` fájlt ír az ideiglenes mappába (`%TEMP%\courtboard`), és megnyitja az alapértelmezett naptáralkalmazással (Outlook, Windows Naptár…). Az **Összes exportálása** a listában éppen látható eseményeket egyetlen fájlba menti: a mentési ablakban választható a hely (alapnév: `courtboard-naptar.ics`); ha a mentési ablak nem érhető el, a fájl a `%USERPROFILE%\Downloads\courtboard-naptar.ics` helyre kerül. A megjelenő üzenet **Megnyitás** gombja megnyitja a fájlt.
 
 A fájl kézzel írt, RFC 5545 szerinti iCalendar: `PRODID:-//Courtboard//HU`, UTC időpontok, sportág szerinti alapértelmezett hossz (kosárlabda, foci és tenisz 2 óra, NFL 3,5 óra, darts 3 óra), bizonytalan időpontnál egész napos esemény, escape-elt szöveg és 75 bájtos sortördelés. Az esemény azonosítója (`UID`) a forrásból, sportolóból, kezdésből és ellenfélből képzett stabil hash, így ugyanazt az eseményt újra importálva a naptárprogram frissíti, nem duplikálja.
+
+## Élő eredmények, egymás elleni mérleg és idővonal
+
+**Élő eredmények.** A követett sportolók csapatainak mai meccsei kulcs nélkül: NBA-nél az NBA hivatalos CDN-scoreboardja (`cdn.nba.com/…/todaysScoreboard_00.json`; ha egy hálózatról HTTP 403-at ad, automatikusan az ESPN NBA-scoreboardja a tartalék, a forrás jelölésével), WNBA-nél, NFL-nél és focinál az ESPN scoreboardjai (a foci a `soccer/all` napi összesítő, a Liga F az `esp.w.1`). A scoreboardok 45 másodpercig gyorsítótárból jönnek, így a nyitólap, a profil és a háttérfigyelő együtt sem kérdez gyakrabban.
+
+- **Nyitólap:** a lap tetején „Élő” sáv jelenik meg – **csak akkor, ha éppen zajlik** egy követett csapat meccse – állással és negyeddel / perccel; kattintásra megnyílik a sportoló profilja.
+- **Profil:** „Élő mérkőzés” kártya (a ma már befejezett meccsnél „Mai mérkőzés · vége”) állással, negyeddel és órával, focinál lenyitható idővonallal.
+- A frissítés 30 másodpercenként fut, amíg az oldal látható; ha nincs zajló vagy 20 percen belül kezdődő meccs, 5 percenként. **Szünetel**, ha az ablak a tálcán van vagy kis méretű, illetve ha az oldal nem látható; az oldal elhagyásakor minden időzítő leáll.
+
+**Egymás elleni mérleg.** A naptárban sportolónként a **következő** meccsnél, a profilon a „Következő mérkőzés” sorban lenyitható sáv mutatja (csak lenyitáskor kér adatot):
+
+- **NBA, WNBA, NFL:** „Legutóbbi egymás elleni meccsek” az ESPN csapatmenetrendjéből (az aktuális és az előző alapszakasz), GY–V mérleggel.
+- **Foci:** Liga F-nél az ESPN elmúlt egy évéből, német csapatnál az OpenLigaDB idei szezonjából, egyébként a Csapatmérkőzések kártya legutóbbi meccseiből.
+- **Tenisz:** a Live Tennis API `/h2h` végpontja (7 napos cache). Ez **BASIC** csomagot igényel: Free kulccsal a válasz 403, ilyenkor a sáv „Nem elérhető a Free csomagban” megjegyzést mutat. (Az app ezt a dokumentált válaszalakra építi; valódi BASIC-kulccsal nem volt ellenőrizhető.)
+- **Darts:** a TheSportsDB eredménysoraiból, ha az ellenfél neve szerepel bennük – az ingyenes adat ritkán ad ilyet.
+
+**Foci-idővonal.** A focimeccs-sorokon (Liga F, élő meccs, OpenLigaDB-eredmények és minden sor, ahol ESPN-mérkőzésazonosító ismert) lenyitható **Idővonal** mutatja a gólokat (büntető, öngól jelöléssel és az állással), a sárga és piros lapokat és a cseréket percre pontosan, Material ikonokkal. Forrás: az ESPN meccsösszefoglalója (a befejezett meccs idővonala végleges gyorsítótárba kerül, a zajlóé 60 másodpercig érvényes), OpenLigaDB-meccsnél a gólszerzők a meccslistából.
 
 ## Frissítés-ellenőrzés
 
@@ -204,11 +246,12 @@ Induláskor az app a GitHub Releases API-tól (`/repos/mp3pintyo/Courtboard/rele
 **Értesítések.** Az app a háttérben – a tálcán is – figyeli azokat a sportolókat, akiknél a profilon bekapcsoltad az **Értesítés** gombot, és Windows-értesítést küld; kattintásra előjön az ablak, és megnyílik a sportoló profilja (több sportolót érintő hírösszesítőnél a Hírek oldal).
 
 - **Meccskezdés:** 15 perccel a kezdés előtt, eseményenként egyszer (a már jelzett események újraindítás után sem ismétlődnek). A következő ellenőrzés előtt esedékes kezdésekhez pontos emlékeztető időzítődik.
-- **Új eredmény:** NBA-, WNBA- és NFL-sportolóknál az ESPN csapatmenetrendjéből (óránként legfeljebb egy kérés csapatonként); az új eredmény a nyitólap kártyáján is megjelenik. Más sportágnál ez még nem automatikus.
+- **Új eredmény:** NBA-, WNBA- és NFL-sportolóknál az ESPN csapatmenetrendjéből (óránként legfeljebb egy kérés csapatonként); az új eredmény a nyitólap kártyáján is megjelenik. A mai végeredmény az élő scoreboardról (45 mp-es cache) már a menetrend frissülése előtt jelez – focinál ez az egyetlen automatikus eredményforrás. Ugyanaz a meccs a két forrásból csak egyszer jelez.
+- **Élő eredményváltozás** (alapból kikapcsolva): zajló meccsen az állás változásakor, ellenőrzésenként legfeljebb egy értesítés meccsenként.
 - **Új hír:** a hírfrissítés (forrásonként legfeljebb 20 percenként) után a sportolóhoz kapcsolódó új cikkek; több hír egy összesítő értesítésbe kerül.
 - Az **első ellenőrzés** csak megjegyzi a meglévő eredményeket és híreket, így bekapcsoláskor nincs értesítésözön.
 
-**Beállítások → Értesítések:** fő kapcsoló, típusonkénti kapcsolók (meccskezdés, eredmény, hír), ellenőrzési gyakoriság (5 / 15 / 30 / 60 perc, alapból 15), **Csendes órák** (például 23:00–07:00; ilyenkor és szüneteltetés alatt nem jelenik meg értesítés, és utólag sem pótlódik) és **Teszt értesítés** gomb. A háttérellenőrzés a források gyorsítótárát és kvótáját tartja: a menetrend legfeljebb 6 óránként, az eredmények óránként, a hírek 20 percenként frissülnek, akármilyen sűrű is az ellenőrzés.
+**Beállítások → Értesítések:** fő kapcsoló, típusonkénti kapcsolók (meccskezdés, eredmény, élő eredményváltozás, hír), ellenőrzési gyakoriság (5 / 15 / 30 / 60 perc, alapból 15), **Csendes órák** (például 23:00–07:00; ilyenkor és szüneteltetés alatt nem jelenik meg értesítés, és utólag sem pótlódik) és **Teszt értesítés** gomb. A háttérellenőrzés a források gyorsítótárát és kvótáját tartja: a menetrend legfeljebb 6 óránként, az eredmények óránként, a hírek 20 percenként frissülnek, akármilyen sűrű is az ellenőrzés.
 
 **Technikai megjegyzések.**
 
@@ -222,11 +265,11 @@ Induláskor az app a GitHub Releases API-tól (`/repos/mp3pintyo/Courtboard/rele
 
 ### NBA
 
-Az API-Sports, a BALLDONTLIE és a TheSportsDB profilhívásai egymástól függetlenül futnak, majd egy közös profilba kerülnek. Egyikük hibája nem dobja el a többiek eredményét. A Basketball Reference közvetlen Dart HTML-feldolgozása adja az aktuális NBA alapszakasz per-game összesítőjét: mérkőzés, perc, pont, összes lepattanó, assziszt, labdaszerzés, eladott labda és FG%. Ugyanez a kliens egészíti ki a profilt az alapszakasz és a rájátszás utolsó öt meccsével.
+Az API-Sports, a BALLDONTLIE és a TheSportsDB profilhívásai egymástól függetlenül futnak, majd egy közös profilba kerülnek. Egyikük hibája nem dobja el a többiek eredményét. A Basketball Reference közvetlen Dart HTML-feldolgozása adja az aktuális NBA alapszakasz per-game összesítőjét: mérkőzés, perc, pont, összes lepattanó, assziszt, labdaszerzés, eladott labda és FG%. Ugyanez a kliens egészíti ki a profilt az alapszakasz és a rájátszás utolsó öt meccsével. Az ESPN kulcs nélküli játékosvégpontjai (keresés + meccsnapló, 6 órás cache) kiegészítő és tartalékforrásként futnak: az „ESPN” chip a forrásállapotok között látszik, és ha a Basketball Reference nem ad meccsnaplót vagy szezonátlagot (például ideiglenes tiltás), az ESPN-é jelenik meg – a forrás feliratával.
 
 ### WNBA
 
-A wehoop adja a teljes aktuális alapszakasz box score-jait. Ezekből az app valódi meccsenkénti átlagot számol a játszott percre, pontra, összes lepattanóra, asszisztra, labdaszerzésre és eladott labdára; az FG% a teljes bedobott és megkísérelt mezőnydobás arányából készül. A wehoop adja továbbá a formaadatot, a meccseket és az ESPN játékosazonosítót. A névfeloldás ékezet- és névsorrend-független, ezért például a `Juhász Dorka` bevitel a `Dorka Juhasz` ESPN-rekordhoz és a `4398938` azonosítóhoz illeszkedik. A Basketball Reference külön utolsó 5 meccses forrás. Ha a RapidAPI WNBA előfizetés és kulcs is rendelkezésre áll, az app hozzáadja a Player Bio, Advanced Statistics és díjadatokat, köztük az elérhető `TO`/`TOV` mutatót is. A Bio és Advanced hívás egymás után fut, hogy csökkentse a `429 Too Many Requests` hibák esélyét.
+A wehoop adja a teljes aktuális alapszakasz box score-jait. Ezekből az app valódi meccsenkénti átlagot számol a játszott percre, pontra, összes lepattanóra, asszisztra, labdaszerzésre és eladott labdára; az FG% a teljes bedobott és megkísérelt mezőnydobás arányából készül. A wehoop adja továbbá a formaadatot, a meccseket és az ESPN játékosazonosítót. A névfeloldás ékezet- és névsorrend-független, ezért például a `Juhász Dorka` bevitel a `Dorka Juhasz` ESPN-rekordhoz és a `4398938` azonosítóhoz illeszkedik. A Basketball Reference külön utolsó 5 meccses forrás. Ha a wehoop szezonfájlja nem érhető el vagy a játékos nem szerepel benne, a meccsnapló és a szezonátlag az ESPN játékos-meccsnaplójából jön (a kártya ezt megjegyzésben jelzi). Ha a RapidAPI WNBA előfizetés és kulcs is rendelkezésre áll, az app hozzáadja a Player Bio, Advanced Statistics és díjadatokat, köztük az elérhető `TO`/`TOV` mutatót is. A Bio és Advanced hívás egymás után fut, hogy csökkentse a `429 Too Many Requests` hibák esélyét.
 
 ### Foci és női foci
 
@@ -234,7 +277,7 @@ Az API-Sports Free kompatibilis, `season` alapú mérkőzéslekérést használ.
 
 A szezonkártyán a csapat, versenysorozat, értékelésátlag, játszott mérkőzések, gólok, gólpasszok, sárga és piros lapok látszanak. A névfeloldás az ékezeteket és a keresztnév–vezetéknév sorrendet is kezeli. A football-data.org adapter már nem beégetett csapatazonosítókból dolgozik: a Free csapatlistában dinamikusan oldja fel a klubot, majd az aktuális keretben név alapján keresi meg a játékost. A profilkártyán klub, poszt, nemzetiség, születési dátum, mezszám és football-data.org játékosazonosító jelenhet meg. A 12 Free `TIER_ONE` verseny keretei 7 napos lemezcache-be kerülnek, a lekérések pedig a 10 kérés/perces korláthoz igazodnak.
 
-A football-data.org Free csomag nem ad játékosonkénti meccsaggregációt, ezért a gól-, gólpassz-, lap- és értékelésadatokat továbbra is a FotMob vagy az API-Sports egészíti ki. Ha egy klub ligája nem része a football-data.org Free kínálatának – ilyen az MLS és az Inter Miami –, a csapat utolsó és következő mérkőzéseit a kulcs nélküli TheSportsDB fallback tölti be. Aitana Bonmatí esetén külön ESPN Liga F (`esp.w.1`) adapter szűri a Barcelona Femení meccseit; férfi Barcelona-eredményt nem kever a profilba.
+A football-data.org Free csomag nem ad játékosonkénti meccsaggregációt, ezért a gól-, gólpassz-, lap- és értékelésadatokat továbbra is a FotMob vagy az API-Sports egészíti ki. Ha egy klub ligája nem része a football-data.org Free kínálatának – ilyen az MLS és az Inter Miami –, a csapat utolsó és következő mérkőzéseit a kulcs nélküli TheSportsDB fallback tölti be. Aitana Bonmatí esetén külön ESPN Liga F (`esp.w.1`) adapter szűri a Barcelona Femení meccseit; férfi Barcelona-eredményt nem kever a profilba. Német csapatnál (Bundesliga, 2. Bundesliga, Frauen-Bundesliga), ha a többi forrás nem ad eredményt vagy menetrendet, a kulcs nélküli **OpenLigaDB** pótolja – a gólszerzőkkel együtt, amelyek a meccssor „Idővonal” sávjában látszanak.
 
 ### Darts
 
@@ -242,7 +285,7 @@ A TheSportsDB adja a játékosprofilt és az utolsó 5 eredményt. A Sportbex Ra
 
 ### NFL
 
-Az API-Sports adapter és válaszkezelés be van kötve, de a részletes, játékosonkénti NFL megjelenítés jelenleg még korlátozott. Az Adatforrás-kézikönyv ezt nem jelöli teljes értékű statisztikai feednek.
+A **Játékos-meccsnapló** kártya az ESPN kulcs nélküli játékosvégpontjaiból (keresés szigorú névegyezéssel, meccsnapló 6 órás cache-sel) valódi, játékosonkénti adatot ad: szezonösszesítő a szerepkörhöz illő mutatókkal (passzolt / futott / elkapott yard, TD, INT, passz%, QB rating, szerelés), formagörbe a pozíció fő mutatójából (irányítónál passzolt, futónál futott, elkapónál elkapott yard) szezonátlag-vonallal, és a legutóbbi meccsek. Az NFL-játékosok ebből az **Összehasonlítás** oldalon is összevethetők (meccsenkénti átlagok; csak a mindkettőjüknél létező mutató kerül a radarra). Az API-Sports adapter kulccsal továbbra is fut. A profil **Csapatforma** kártyája az ESPN kulcs nélküli menetrendjéből (60 perces gyorsítótárral) a csapat legutóbbi befejezett mérkőzéseit mutatja pontgörbével és GY/V sorral.
 
 ### Tenisz
 
@@ -250,7 +293,7 @@ Az API-Sports adapter és válaszkezelés be van kötve, de a részletes, játé
 
 Az élő mérkőzésnél az ellenfél, a verseny, a szett-, játék- és pontállás látható. A közelgő meccseket az azonosítóval rendelkező upcoming feed és a név alapú fixture lista együtt tölti ki. A játékos saját sorozatkódját csak akkor küldjük szűrőként, ha egyértelműen `atp` vagy `wta`, mert az alsóbb sorozatok profilkódjai eltérnek az API szűrőértékeitől.
 
-A Free csomaghoz tartozó `completed`, `/history`, piac-, modell- és WebSocket-végpontokat az app nem hívja. Egy profil friss betöltése legfeljebb öt kvótás kérést használ, a `/usage` ellenőrzés kvótamentes; a 10 perces lemezcache védi a napi 1000 kéréses keretet. A kézi frissítés tudatosan megkerüli a cache-t.
+A Free csomaghoz nem tartozó `completed`, `/history`, piac-, modell- és WebSocket-végpontokat az app nem hívja; az egymás elleni mérleg (`/h2h`, BASIC) csak a sáv lenyitásakor kér, és Free kulcsnál „Nem elérhető a Free csomagban” jelzést ad. Egy profil friss betöltése legfeljebb öt kvótás kérést használ, a `/usage` ellenőrzés kvótamentes; a 10 perces lemezcache védi a napi keretet (a 2026. szeptemberi dokumentáció szerint 100 kérés/nap, a helyi számláló ehhez igazodik). A kézi frissítés tudatosan megkerüli a cache-t.
 
 ### Hírek és tartós hírarchívum
 
@@ -289,9 +332,14 @@ A sportolói profilon a felhasználó YouTube URL-t vagy videóazonosítót adha
 | `%APPDATA%\courtboard_cache\football_data\free_players.json` | football-data.org Free csapatkeretek és játékos-alapadatok | 7 nap; hálózati hibánál a régebbi mentés is használható |
 | `%APPDATA%\courtboard_cache\live_tennis` | teniszprofil, élő és közelgő mérkőzések, kvótaállapot | 10 perc |
 | `%APPDATA%\Courtboard\cache\images` | profilfotók, videó-bélyegképek és hírképek | 30 nap; hibánál a régebbi példány is használható, 90 nap után törlődik |
-| `%APPDATA%\Courtboard\cache\highlights` | a profilokon és a naptárban betöltött legutóbbi eredmény és következő esemény sportolónként (a nyitólaphoz) | a következő betöltésig |
+| `%APPDATA%\Courtboard\cache\highlights` | a profilokon és a naptárban betöltött legutóbbi eredmények (legfeljebb 6) és következő esemény sportolónként (a nyitólaphoz és a Követés hírfolyamhoz) | a következő betöltésig |
+| `%APPDATA%\Courtboard\cache\ranking_history` | teniszezők ranglista-helyezése és -pontja, naponta legfeljebb egy mérés (a formagörbéhez) | legfeljebb 90 mérés játékosonként |
 | `%APPDATA%\Courtboard\cache\upcoming_events` | a naptár közelgő eseményei sportolónként | 6 óra; hibánál a régebbi lista is használható |
-| `%APPDATA%\Courtboard\cache\espn` | ESPN NBA/WNBA/NFL csapatlisták; a háttérfigyelő befejezett mérkőzései | csapatlista 7 nap, eredmények 60 perc |
+| `%APPDATA%\Courtboard\cache\espn` | ESPN NBA/WNBA/NFL csapatlisták; a háttérfigyelő befejezett mérkőzései; az előző szezon eredményei (egymás elleni mérleg) | csapatlista 7 nap, eredmények 60 perc, előző szezon 7 nap |
+| `%APPDATA%\Courtboard\cache\espn_athletes` | ESPN játékosazonosítók és meccsnaplók (NFL, NBA/WNBA tartalék) | napló 6 óra, azonosító 7 nap (sikertelen keresés 24 óra) |
+| `%APPDATA%\Courtboard\cache\live_scores` | NBA CDN / ESPN napi scoreboardok | 45 mp |
+| `%APPDATA%\Courtboard\cache\match_timeline` | ESPN foci-meccsösszefoglalók idővonala | befejezett meccs végleges, zajló 60 mp |
+| `%APPDATA%\Courtboard\cache\openligadb` | OpenLigaDB csapatlisták és szezon-meccslisták | csapatlista 7 nap, meccslista 1 óra |
 | `%APPDATA%\Courtboard\cache\watcher` | a háttérfigyelő emlékezete: már jelzett meccskezdések, látott eredmények és hírek | a jelzett események 2 napig; törlés után az első ellenőrzés csak újra megjegyzi a meglévőt |
 | `%APPDATA%\Courtboard\cache\update_check` | a legfrissebb GitHub-kiadás adatai | 12 óra |
 | `%APPDATA%\Courtboard\courtboard_news.sqlite` | letöltött hírek, sport- és forráskapcsolatok, feedbeállítások és frissítési állapot | tartós; nincs automatikus törlés |
