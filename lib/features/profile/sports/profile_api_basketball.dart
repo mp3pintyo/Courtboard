@@ -59,6 +59,7 @@ class ApiSportsCard extends ConsumerWidget {
           data: bundle.data,
           accent: accent,
           season: bundle.season,
+          athleteName: athleteName,
         ),
         _ => EmptyState(
           compact: true,

@@ -40,6 +40,7 @@ class TimelineEvent {
     this.team = '',
     this.home,
     this.score = '',
+    this.assist = '',
   });
 
   final TimelineEventType type;
@@ -63,6 +64,22 @@ class TimelineEvent {
   /// Gólnál az állás a gól után („2–1”), ha a forrás adja.
   final String score;
 
+  /// Gólnál a gólpasszt adó játékos, ha a forrás adja (öngólnál soha).
+  final String assist;
+
+  /// Ugyanez az esemény a gól utáni állással.
+  TimelineEvent withScore(String value) => TimelineEvent(
+    type: type,
+    minute: minute,
+    sortKey: sortKey,
+    player: player,
+    secondaryPlayer: secondaryPlayer,
+    team: team,
+    home: home,
+    score: value,
+    assist: assist,
+  );
+
   Map<String, Object?> toJson() => {
     'type': type.name,
     'minute': minute,
@@ -72,6 +89,7 @@ class TimelineEvent {
     'team': team,
     'home': home,
     'score': score,
+    if (assist.isNotEmpty) 'assist': assist,
   };
 
   static TimelineEvent? fromJson(Object? json) {
@@ -90,6 +108,49 @@ class TimelineEvent {
       team: jsonString(map['team']) ?? '',
       home: home is bool ? home : null,
       score: jsonString(map['score']) ?? '',
+      assist: jsonString(map['assist']) ?? '',
+    );
+  }
+}
+
+/// Egy játékos meccsstatisztikája az ESPN-összefoglaló `rosters` részéből:
+/// saját gólok (öngól nélkül), gólpasszok és öngólok.
+class MatchPlayerStats {
+  const MatchPlayerStats({
+    required this.name,
+    this.home,
+    this.goals = 0,
+    this.assists = 0,
+    this.ownGoals = 0,
+  });
+
+  final String name;
+
+  /// Igaz: hazai csapat játékosa, hamis: vendég, `null`: ismeretlen.
+  final bool? home;
+  final int goals;
+  final int assists;
+  final int ownGoals;
+
+  Map<String, Object?> toJson() => {
+    'name': name,
+    'home': home,
+    'goals': goals,
+    'assists': assists,
+    'ownGoals': ownGoals,
+  };
+
+  static MatchPlayerStats? fromJson(Object? json) {
+    final map = jsonMap(json);
+    final name = jsonString(map['name']);
+    if (name == null || name.isEmpty) return null;
+    final home = map['home'];
+    return MatchPlayerStats(
+      name: name,
+      home: home is bool ? home : null,
+      goals: jsonIntOrNull(map['goals']) ?? 0,
+      assists: jsonIntOrNull(map['assists']) ?? 0,
+      ownGoals: jsonIntOrNull(map['ownGoals']) ?? 0,
     );
   }
 }
@@ -105,6 +166,8 @@ class MatchTimeline {
     this.finished = false,
     this.status = '',
     this.source = 'ESPN',
+    this.players = const [],
+    this.hasPlayerStats = false,
   });
 
   /// Időrendben.
@@ -119,6 +182,14 @@ class MatchTimeline {
   final String status;
   final String source;
 
+  /// A gólt, gólpasszt vagy öngólt szerző játékosok meccsstatisztikája
+  /// (az ESPN `rosters` részéből); a többiek nem kerülnek bele.
+  final List<MatchPlayerStats> players;
+
+  /// Igaz, ha a forrás teljes játékoskeretet adott statisztikával: ekkor a
+  /// [players]-ben nem szereplő játékos biztosan nem szerzett gólt/gólpasszt.
+  final bool hasPlayerStats;
+
   Map<String, Object?> toJson() => {
     'home': home,
     'away': away,
@@ -128,6 +199,9 @@ class MatchTimeline {
     'status': status,
     'source': source,
     'events': [for (final event in events) event.toJson()],
+    if (hasPlayerStats) 'hasPlayerStats': true,
+    if (players.isNotEmpty)
+      'players': [for (final player in players) player.toJson()],
   };
 
   static MatchTimeline fromJson(Object? json) {
@@ -144,6 +218,11 @@ class MatchTimeline {
       events: [
         for (final raw in jsonList(map['events']))
           if (TimelineEvent.fromJson(raw) case final event?) event,
+      ],
+      hasPlayerStats: map['hasPlayerStats'] == true,
+      players: [
+        for (final raw in jsonList(map['players']))
+          if (MatchPlayerStats.fromJson(raw) case final player?) player,
       ],
     );
   }
@@ -199,7 +278,9 @@ class MatchTimelineRepository {
     EspnMatchRef match, {
     bool forceRefresh = false,
   }) async => (await _cache.getOrFetch<MatchTimeline>(
-    'summary_${match.league}_${match.eventId}',
+    // `v2`: 0.16.0 óta a gólpassz és a játékosstatisztika is benne van (a
+    // régi, végleges bejegyzésekből ez hiányozna).
+    'summary_v2_${match.league}_${match.eventId}',
     ttl: finalCacheLifetime,
     // A nem befejezett meccs „hiányként” csak 60 mp-ig érvényes.
     isMiss: (value) => !value.finished,
@@ -213,7 +294,10 @@ class MatchTimelineRepository {
   )).value;
 
   /// Az ESPN `summary` válasza: a `keyEvents[]` (tartalékként a
-  /// `header.competitions[0].details[]`) gól-, lap- és cseresorai.
+  /// `header.competitions[0].details[]`) gól-, lap- és cseresorai. A gólnál
+  /// a résztvevők sorrendje: gólszerző, gólpasszt adó. A `rosters[]`
+  /// játékosstatisztikájából (`totalGoals`, `goalAssists`, `ownGoals`) a
+  /// pontot szerző játékosok kerülnek a [MatchTimeline.players]-be.
   static MatchTimeline parseEspnSummary(Map<String, dynamic> payload) {
     final competition = jsonMapList(
       jsonMap(payload['header'])['competitions'],
@@ -292,6 +376,9 @@ class MatchTimelineRepository {
           secondaryPlayer: type == TimelineEventType.substitution
               ? participants.skip(1).firstOrNull ?? ''
               : '',
+          assist: type.isGoal && type != TimelineEventType.ownGoal
+              ? participants.skip(1).firstOrNull ?? ''
+              : '',
           team: jsonString(team['displayName']) ?? '',
           home: id == null
               ? null
@@ -317,15 +404,7 @@ class MatchTimelineRepository {
             } else {
               awayGoals++;
             }
-            return TimelineEvent(
-              type: event.type,
-              minute: event.minute,
-              sortKey: event.sortKey,
-              player: event.player,
-              team: event.team,
-              home: event.home,
-              score: '$homeGoals–$awayGoals',
-            );
+            return event.withScore('$homeGoals–$awayGoals');
           }()
         else
           event,
@@ -336,6 +415,11 @@ class MatchTimelineRepository {
       return jsonString(raw) ?? '';
     }
 
+    final (players, hasPlayerStats) = _parseRosters(
+      jsonMapList(payload['rosters']),
+      homeId: homeId,
+      awayId: awayId,
+    );
     return MatchTimeline(
       events: withScore,
       home: teamName(home),
@@ -344,7 +428,67 @@ class MatchTimelineRepository {
       awayScore: score(away),
       finished: finished,
       status: jsonString(statusType['shortDetail']) ?? '',
+      players: players,
+      hasPlayerStats: hasPlayerStats,
     );
+  }
+
+  /// A `rosters[].roster[]` sorai közül azok, akik gólt, gólpasszt vagy
+  /// öngólt szereztek; a második érték igaz, ha a keret statisztikával
+  /// érkezett (legalább egy sorban van `totalGoals` vagy `goalAssists`).
+  static (List<MatchPlayerStats>, bool) _parseRosters(
+    List<Map<String, dynamic>> rosters, {
+    required String homeId,
+    required String awayId,
+  }) {
+    final players = <MatchPlayerStats>[];
+    var hasStats = false;
+    for (final roster in rosters) {
+      final side = jsonString(roster['homeAway']);
+      final teamId = jsonString(jsonMap(roster['team'])['id']);
+      final bool? home = switch (side) {
+        'home' => true,
+        'away' => false,
+        _ =>
+          teamId == null || teamId.isEmpty
+              ? null
+              : teamId == homeId
+              ? true
+              : teamId == awayId
+              ? false
+              : null,
+      };
+      for (final entry in jsonMapList(roster['roster'])) {
+        final athlete = jsonMap(entry['athlete']);
+        final name =
+            jsonString(athlete['displayName']) ??
+            jsonString(athlete['fullName']) ??
+            '';
+        final stats = <String, int>{
+          for (final stat in jsonMapList(entry['stats']))
+            if (jsonString(stat['name']) case final key?)
+              key: (jsonDoubleOrNull(stat['value']) ?? 0).round(),
+        };
+        if (stats.containsKey('totalGoals') ||
+            stats.containsKey('goalAssists')) {
+          hasStats = true;
+        }
+        final goals = stats['totalGoals'] ?? 0;
+        final assists = stats['goalAssists'] ?? 0;
+        final ownGoals = stats['ownGoals'] ?? 0;
+        if (name.isEmpty || goals + assists + ownGoals == 0) continue;
+        players.add(
+          MatchPlayerStats(
+            name: name,
+            home: home,
+            goals: goals,
+            assists: assists,
+            ownGoals: ownGoals,
+          ),
+        );
+      }
+    }
+    return (players, hasStats);
   }
 }
 

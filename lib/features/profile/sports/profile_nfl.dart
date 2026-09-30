@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:courtboard/shared/components.dart';
 import 'package:courtboard/shared/format.dart';
 import 'package:courtboard/data/espn_athletes.dart';
+import 'package:courtboard/data/player_contributions.dart';
 import 'package:courtboard/features/profile/profile_form.dart';
 import 'package:courtboard/features/profile/profile_providers.dart';
 import 'package:courtboard/domain/sport.dart';
@@ -100,20 +101,30 @@ class NflGameLogView extends StatelessWidget {
           icon: Icons.sports_football,
           color: accent,
         ),
-        for (final game in log.games.take(5))
-          MatchRow(
-            date: game.date,
-            venue: game.homeAway == 'away' ? 'Idegen' : 'Hazai',
-            opponent: game.opponent,
-            subtitle: [
-              nflGameSummary(game),
-              if (game.phase == EspnSeasonPhase.postseason)
-                game.note.isEmpty ? 'Rájátszás' : game.note,
-            ].where((part) => part.isNotEmpty).join(' · '),
-            score: game.score.isEmpty ? null : game.score,
-            outcome: MatchOutcome.parse(game.outcome),
-          ),
+        for (final game in log.games.take(5)) _row(game, athlete.displayName),
       ],
+    );
+  }
+
+  /// Egy meccssor a játékos saját touchdownjaival és pontjaival; a
+  /// passzolt TD a halvány megjegyzésben (nem a statisztikasorban) látszik.
+  Widget _row(EspnGameLogEntry game, String athleteName) {
+    final contribution = nflContribution(game)?.withAthlete(athleteName);
+    return MatchRow(
+      date: game.date,
+      venue: game.homeAway == 'away' ? 'Idegen' : 'Hazai',
+      opponent: game.opponent,
+      subtitle: [
+        nflGameSummary(
+          game,
+          includePassingTouchdowns: contribution?.note == null,
+        ),
+        if (game.phase == EspnSeasonPhase.postseason)
+          game.note.isEmpty ? 'Rájátszás' : game.note,
+      ].where((part) => part.isNotEmpty).join(' · '),
+      score: game.score.isEmpty ? null : game.score,
+      outcome: MatchOutcome.parse(game.outcome),
+      contribution: contribution,
     );
   }
 }

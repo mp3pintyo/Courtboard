@@ -1,0 +1,318 @@
+{
+ "_fixtureNote": "Trimmed live response of www.fotmob.com/api/data/playerData?id=887411 (Aitana Bonmati, fetched 2026-09-30).",
+ "id": 887411,
+ "name": "Aitana Bonmatí",
+ "primaryTeam": {
+  "teamId": 401657,
+  "teamName": "Barcelona"
+ },
+ "mainLeague": {
+  "leagueId": 9907,
+  "leagueName": "Liga F",
+  "season": "2026/2027",
+  "stats": [
+   {
+    "title": "Goals",
+    "localizedTitleId": "goals",
+    "value": 0
+   },
+   {
+    "title": "Assists",
+    "localizedTitleId": "assists",
+    "value": 0
+   },
+   {
+    "title": "Started",
+    "localizedTitleId": "started",
+    "value": 0
+   },
+   {
+    "title": "Matches",
+    "localizedTitleId": "matches_uppercase",
+    "value": 1
+   },
+   {
+    "title": "Minutes played",
+    "localizedTitleId": "minutes_played",
+    "value": 12
+   },
+   {
+    "title": "Rating",
+    "localizedTitleId": "rating",
+    "value": 6.32
+   },
+   {
+    "title": "Yellow cards",
+    "localizedTitleId": "yellow_cards",
+    "value": 0
+   },
+   {
+    "title": "Red cards",
+    "localizedTitleId": "red_cards",
+    "value": 0
+   }
+  ]
+ },
+ "recentMatches": [
+  {
+   "teamId": 401657,
+   "teamName": "Barcelona (W)",
+   "opponentTeamId": 628292,
+   "opponentTeamName": "Logroño United (W)",
+   "isHomeTeam": false,
+   "id": 5882302,
+   "matchDate": {
+    "utcTime": "2026-09-26T14:30:00.000Z"
+   },
+   "leagueId": 9907,
+   "leagueName": "Liga F",
+   "homeScore": 0,
+   "awayScore": 2,
+   "minutesPlayed": 12,
+   "goals": 0,
+   "assists": 0,
+   "yellowCards": 0,
+   "redCards": 0,
+   "ratingProps": {
+    "rating": "6.3",
+    "isTopRating": false
+   },
+   "onBench": false,
+   "playedInMatch": true
+  },
+  {
+   "teamId": 244165,
+   "teamName": "Spain (W)",
+   "opponentTeamId": 159979,
+   "opponentTeamName": "Iceland (W)",
+   "isHomeTeam": false,
+   "id": 5063106,
+   "matchDate": {
+    "utcTime": "2026-06-09T19:00:00.000Z"
+   },
+   "leagueId": 10357,
+   "leagueName": "World Cup Qualification (W) UEFA",
+   "homeScore": 1,
+   "awayScore": 6,
+   "minutesPlayed": 44,
+   "goals": 1,
+   "assists": 0,
+   "yellowCards": 0,
+   "redCards": 0,
+   "ratingProps": {
+    "rating": 0,
+    "isTopRating": false
+   },
+   "onBench": false,
+   "playedInMatch": true
+  },
+  {
+   "teamId": 244165,
+   "teamName": "Spain (W)",
+   "opponentTeamId": 5811,
+   "opponentTeamName": "England (W)",
+   "isHomeTeam": true,
+   "id": 5063103,
+   "matchDate": {
+    "utcTime": "2026-06-05T19:00:00.000Z"
+   },
+   "leagueId": 10357,
+   "leagueName": "World Cup Qualification (W) UEFA",
+   "homeScore": 4,
+   "awayScore": 0,
+   "minutesPlayed": 13,
+   "goals": 0,
+   "assists": 0,
+   "yellowCards": 0,
+   "redCards": 0,
+   "ratingProps": {
+    "rating": 0,
+    "isTopRating": false
+   },
+   "onBench": false,
+   "playedInMatch": true
+  },
+  {
+   "teamId": 401657,
+   "teamName": "Barcelona (W)",
+   "opponentTeamId": 603631,
+   "opponentTeamName": "Madrid CFF (W)",
+   "isHomeTeam": false,
+   "id": 4910449,
+   "matchDate": {
+    "utcTime": "2026-05-31T14:00:00.000Z"
+   },
+   "leagueId": 9907,
+   "leagueName": "Liga F",
+   "homeScore": 0,
+   "awayScore": 4,
+   "minutesPlayed": 45,
+   "goals": 0,
+   "assists": 0,
+   "yellowCards": 0,
+   "redCards": 0,
+   "ratingProps": {
+    "rating": "7.0",
+    "isTopRating": false
+   },
+   "onBench": false,
+   "playedInMatch": true
+  },
+  {
+   "teamId": 401657,
+   "teamName": "Barcelona (W)",
+   "opponentTeamId": 858300,
+   "opponentTeamName": "Real Sociedad (W)",
+   "isHomeTeam": true,
+   "id": 4910442,
+   "matchDate": {
+    "utcTime": "2026-05-27T17:00:00.000Z"
+   },
+   "leagueId": 9907,
+   "leagueName": "Liga F",
+   "homeScore": 2,
+   "awayScore": 1,
+   "minutesPlayed": 90,
+   "goals": 1,
+   "assists": 0,
+   "yellowCards": 0,
+   "redCards": 0,
+   "ratingProps": {
+    "rating": "8.2",
+    "isTopRating": true
+   },
+   "onBench": false,
+   "playedInMatch": true
+  },
+  {
+   "teamId": 401657,
+   "teamName": "Barcelona (W)",
+   "opponentTeamId": 394119,
+   "opponentTeamName": "OL Lyonnes (W)",
+   "isHomeTeam": true,
+   "id": 5103040,
+   "matchDate": {
+    "utcTime": "2026-05-23T16:00:00.000Z"
+   },
+   "leagueId": 9375,
+   "leagueName": "Women's Champions League",
+   "homeScore": 4,
+   "awayScore": 0,
+   "minutesPlayed": 19,
+   "goals": 0,
+   "assists": 0,
+   "yellowCards": 0,
+   "redCards": 0,
+   "ratingProps": {
+    "rating": "6.4",
+    "isTopRating": false
+   },
+   "onBench": false,
+   "playedInMatch": true
+  },
+  {
+   "teamId": 401657,
+   "teamName": "Barcelona (W)",
+   "opponentTeamId": 671936,
+   "opponentTeamName": "Atlético Madrid (W)",
+   "isHomeTeam": true,
+   "id": 5425849,
+   "matchDate": {
+    "utcTime": "2026-05-16T19:00:00.000Z"
+   },
+   "leagueId": 10651,
+   "leagueName": "Copa de la Reina",
+   "homeScore": 3,
+   "awayScore": 1,
+   "minutesPlayed": 0,
+   "goals": 0,
+   "assists": 0,
+   "yellowCards": 0,
+   "redCards": 0,
+   "ratingProps": {
+    "rating": 0,
+    "isTopRating": false
+   },
+   "onBench": true,
+   "playedInMatch": false
+  },
+  {
+   "teamId": 401657,
+   "teamName": "Barcelona (W)",
+   "opponentTeamId": 628715,
+   "opponentTeamName": "UD Tenerife (W)",
+   "isHomeTeam": false,
+   "id": 4910432,
+   "matchDate": {
+    "utcTime": "2026-05-10T17:00:00.000Z"
+   },
+   "leagueId": 9907,
+   "leagueName": "Liga F",
+   "homeScore": 1,
+   "awayScore": 3,
+   "minutesPlayed": 63,
+   "goals": 0,
+   "assists": 0,
+   "yellowCards": 0,
+   "redCards": 0,
+   "ratingProps": {
+    "rating": "7.0",
+    "isTopRating": false
+   },
+   "onBench": false,
+   "playedInMatch": true
+  },
+  {
+   "teamId": 401657,
+   "teamName": "Barcelona (W)",
+   "opponentTeamId": 687411,
+   "opponentTeamName": "Levante (W)",
+   "isHomeTeam": true,
+   "id": 4910423,
+   "matchDate": {
+    "utcTime": "2026-05-06T16:45:00.000Z"
+   },
+   "leagueId": 9907,
+   "leagueName": "Liga F",
+   "homeScore": 5,
+   "awayScore": 0,
+   "minutesPlayed": 45,
+   "goals": 0,
+   "assists": 0,
+   "yellowCards": 0,
+   "redCards": 0,
+   "ratingProps": {
+    "rating": "6.8",
+    "isTopRating": false
+   },
+   "onBench": false,
+   "playedInMatch": true
+  },
+  {
+   "teamId": 401657,
+   "teamName": "Barcelona (W)",
+   "opponentTeamId": 671935,
+   "opponentTeamName": "Bayern München (W)",
+   "isHomeTeam": true,
+   "id": 5103037,
+   "matchDate": {
+    "utcTime": "2026-05-03T14:30:00.000Z"
+   },
+   "leagueId": 9375,
+   "leagueName": "Women's Champions League",
+   "homeScore": 4,
+   "awayScore": 2,
+   "minutesPlayed": 22,
+   "goals": 0,
+   "assists": 0,
+   "yellowCards": 0,
+   "redCards": 0,
+   "ratingProps": {
+    "rating": "6.4",
+    "isTopRating": false
+   },
+   "onBench": false,
+   "playedInMatch": true
+  }
+ ]
+}

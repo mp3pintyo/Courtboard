@@ -31,11 +31,14 @@ import 'package:courtboard/data/football_data_players.dart';
 import 'package:courtboard/data/football_season_repository.dart';
 import 'package:courtboard/data/json_file_cache.dart';
 import 'package:courtboard/data/live_tennis.dart';
+import 'package:courtboard/data/match_timeline.dart';
 import 'package:courtboard/data/multi_provider.dart';
 import 'package:courtboard/data/providers.dart';
+import 'package:courtboard/data/player_contributions.dart';
 import 'package:courtboard/data/rapidapi_wnba.dart';
 import 'package:courtboard/data/upcoming_events.dart';
 import 'package:courtboard/data/wehoop_wnba.dart';
+import 'package:courtboard/domain/player_contribution.dart';
 import 'package:courtboard/domain/sport.dart';
 import 'package:courtboard/features/profile/profile_common.dart';
 import 'package:courtboard/shared/components.dart';
@@ -366,6 +369,34 @@ final footballTeamGamesProvider = FutureProvider.autoDispose
         store: ref.read(highlightStoreProvider),
       );
     }, name: 'footballTeamGamesProvider');
+
+/// Egy ESPN-focimeccs kérése a játékos saját pontszerzéséhez: a meccs, a
+/// sportoló és (ha ismert) hogy a csapata hazai-e.
+typedef EspnMatchContributionRequest = ({
+  EspnMatchRef match,
+  String athlete,
+  bool? teamHome,
+});
+
+/// A játékos gólja és gólpassza egy lejátszott ESPN-meccsen, az
+/// összefoglalóból (a befejezett meccsé végleges gyorsítótárból, így
+/// meccsenként egyetlen kérés); `null`, ha nem szerzett vagy nem
+/// szerepel. Csak a látható (legfeljebb 5) lejátszott sorhoz kérjük le,
+/// és csak ha a FotMob nem ismeri a meccset.
+final espnMatchContributionProvider = FutureProvider.autoDispose
+    .family<PlayerContribution?, EspnMatchContributionRequest>((
+      ref,
+      request,
+    ) async {
+      final timeline = await ref
+          .read(matchTimelineRepositoryProvider)
+          .timeline(request.match);
+      return footballContributionFromTimeline(
+        timeline,
+        request.athlete,
+        teamHome: request.teamHome,
+      );
+    }, name: 'espnMatchContributionProvider');
 
 /// A játékos football-data.org-profilja (a csapat aktuális keretéből); a
 /// football-data kulcs változásakor újratölt.

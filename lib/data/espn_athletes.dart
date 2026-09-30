@@ -689,14 +689,19 @@ List<(String, double?, int)> nflSeasonLines(EspnGameLog log) => [
 ];
 
 /// Rövid meccsenkénti összegzés NFL-hez („21/31 · 245 YD · 2 TD · 1 INT”).
-String nflGameSummary(EspnGameLogEntry game) {
+/// Ha a passzolt touchdownok külön látszanak (a sor pontszerzés-jelölése
+/// mellett), [includePassingTouchdowns] hamis.
+String nflGameSummary(
+  EspnGameLogEntry game, {
+  bool includePassingTouchdowns = true,
+}) {
   String n(String name) => (game.stat(name) ?? 0).round().toString();
   final parts = <String>[];
   if (game.stats.containsKey('passingYards')) {
     parts.add(
       '${n('completions')}/${n('passingAttempts')} · ${n('passingYards')} passz yd',
     );
-    if ((game.stat('passingTouchdowns') ?? 0) > 0) {
+    if (includePassingTouchdowns && (game.stat('passingTouchdowns') ?? 0) > 0) {
       parts.add('${n('passingTouchdowns')} TD');
     }
     if ((game.stat('interceptions') ?? 0) > 0) {

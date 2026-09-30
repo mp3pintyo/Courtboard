@@ -1,0 +1,177 @@
+{
+ "labels": [
+  "1-19\t",
+  "20-29\t",
+  "30-39",
+  "40-49\t",
+  "50+",
+  "LNG",
+  "FG%",
+  "FG",
+  "AVG",
+  "XP",
+  "PTS"
+ ],
+ "names": [
+  "fieldGoalsMade1_19-fieldGoalAttempts1_19",
+  "fieldGoalsMade20_29-fieldGoalAttempts20_29",
+  "fieldGoalsMade30_39-fieldGoalAttempts30_39",
+  "fieldGoalsMade40_49-fieldGoalAttempts40_49",
+  "fieldGoalsMade50-fieldGoalAttempts50",
+  "longFieldGoalMade",
+  "fieldGoalPct",
+  "fieldGoalsMade-fieldGoalAttempts",
+  "fieldGoalsMadeYardsAverage",
+  "extraPointsMade-extraPointAttempts",
+  "totalKickingPoints"
+ ],
+ "displayNames": [
+  "FGM 1-19 yards",
+  "FGM 20-29 yards",
+  "FGM 30-39 yards",
+  "FGM 40-49 yards",
+  "FGM 50+ yards",
+  "Long Field Goal Made",
+  "Field Goal Percentage",
+  "Field goals made",
+  "Average field goal length",
+  "Extra Points Made",
+  "Total Kicking Points"
+ ],
+ "events": {
+  "401872963": {
+   "id": "401872963",
+   "gameDate": "2026-09-29T00:15:00.000+00:00",
+   "atVs": "@",
+   "homeTeamScore": "27",
+   "awayTeamScore": "7",
+   "gameResult": "L",
+   "score": "27-7",
+   "opponent": {
+    "displayName": "Chicago Bears",
+    "abbreviation": "CHI"
+   },
+   "team": {
+    "abbreviation": "PHI"
+   }
+  },
+  "401872939": {
+   "id": "401872939",
+   "gameDate": "2026-09-20T17:00:00.000+00:00",
+   "atVs": "@",
+   "homeTeamScore": "20",
+   "awayTeamScore": "24",
+   "gameResult": "W",
+   "score": "24-20",
+   "opponent": {
+    "displayName": "Tennessee Titans",
+    "abbreviation": "TEN"
+   },
+   "team": {
+    "abbreviation": "PHI"
+   }
+  },
+  "401872929": {
+   "id": "401872929",
+   "gameDate": "2026-09-13T20:25:00.000+00:00",
+   "atVs": "vs",
+   "homeTeamScore": "24",
+   "awayTeamScore": "22",
+   "gameResult": "W",
+   "score": "24-22",
+   "opponent": {
+    "displayName": "Washington Commanders",
+    "abbreviation": "WSH"
+   },
+   "team": {
+    "abbreviation": "PHI"
+   }
+  }
+ },
+ "seasonTypes": [
+  {
+   "displayName": "2026 Regular Season",
+   "displayTeam": "PHI",
+   "categories": [
+    {
+     "displayName": "Regular Season Stats",
+     "type": "event",
+     "splitType": "2",
+     "events": [
+      {
+       "eventId": "401872963",
+       "stats": [
+        "0-0",
+        "0-0",
+        "0-0",
+        "0-0",
+        "0-0",
+        "0",
+        "0.0",
+        "0-0",
+        "-",
+        "1-1",
+        "1"
+       ]
+      },
+      {
+       "eventId": "401872939",
+       "stats": [
+        "0-0",
+        "0-0",
+        "0-0",
+        "0-0",
+        "1-1",
+        "58",
+        "100.0",
+        "1-1",
+        "58",
+        "3-3",
+        "6"
+       ]
+      },
+      {
+       "eventId": "401872929",
+       "stats": [
+        "0-0",
+        "0-0",
+        "1-1",
+        "0-0",
+        "0-0",
+        "35",
+        "100.0",
+        "1-1",
+        "35",
+        "3-3",
+        "5"
+       ]
+      }
+     ]
+    }
+   ],
+   "summary": {
+    "displayName": "Regular Season Stats",
+    "stats": [
+     {
+      "displayName": "Totals",
+      "stats": [
+       "0-0",
+       "0-0",
+       "1-1",
+       "0-0",
+       "1-1",
+       "58",
+       "100.0",
+       "2-2",
+       "-",
+       "7-7",
+       "13"
+      ],
+      "type": "total"
+     }
+    ]
+   }
+  }
+ ],
+ "_fixtureNote": "Trimmed live ESPN gamelog (Jake Elliott, PK, 2026 season, fetched 2026-09-30). Note: totalKickingPoints of the 2026-09-13 game is 5 although FG 1-1 + XP 3-3 = 6."
+}

@@ -624,7 +624,9 @@ void main() {
       findsOneWidget,
     );
     expect(find.text('San Antonio Spurs'), findsOneWidget);
-    expect(find.text('23 PTS · 8 REB · 1 AST · 18 MIN'), findsOneWidget);
+    // A pont kiemelve, a statisztikasorban már nincs PTS (0.16.0).
+    expect(find.text('23 pont'), findsOneWidget);
+    expect(find.text('8 REB · 1 AST · 18 MIN'), findsOneWidget);
   });
 
   testWidgets('NBA season summary shows every requested metric', (
@@ -760,7 +762,8 @@ void main() {
     expect(find.text('104–72'), findsOneWidget);
     expect(find.byTooltip('Győzelem'), findsOneWidget);
     expect(find.text('IDEGEN'), findsOneWidget);
-    expect(find.text('12 PTS · 5 REB · 2 AST · 22 MIN'), findsOneWidget);
+    expect(find.text('12 pont'), findsOneWidget);
+    expect(find.text('5 REB · 2 AST · 22 MIN'), findsOneWidget);
   });
 
   testWidgets('merged darts profile shows TheSportsDB results and providers', (

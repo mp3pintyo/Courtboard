@@ -9,6 +9,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:courtboard/domain/player_contribution.dart';
 import 'package:courtboard/shared/common_ui.dart';
 import 'package:courtboard/shared/format.dart';
 import 'package:courtboard/shared/theme/courtboard_theme.dart';
@@ -607,8 +608,87 @@ class ResultBadge extends StatelessWidget {
   }
 }
 
+/// A sportoló saját pontszerzése egy meccssorban: kiemelt címke
+/// sportág-ikonnal („2 gól · 1 gólpassz”, „24 pont”, „2 TD · 12 pont”) és
+/// halvány megjegyzés („3 passzolt TD”). Semmit sem rajzol, ha nincs mit
+/// mutatni; a képernyőolvasó egyetlen mondatot hall.
+class PlayerContributionBadge extends StatelessWidget {
+  const PlayerContributionBadge(this.contribution, {super.key});
+
+  final PlayerContribution contribution;
+
+  static IconData iconOf(ContributionKind kind) => switch (kind) {
+    ContributionKind.football => Icons.sports_soccer,
+    ContributionKind.basketball => Icons.sports_basketball,
+    ContributionKind.nfl => Icons.sports_football,
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    if (!contribution.isVisible) return const SizedBox.shrink();
+    final cb = context.cb;
+    final badge = contribution.badgeText;
+    final note = contribution.note;
+    return Semantics(
+      container: true,
+      label: contribution.semanticsLabel,
+      excludeSemantics: true,
+      child: Wrap(
+        key: const Key('player-contribution'),
+        spacing: 8,
+        runSpacing: 4,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [
+          if (badge != null)
+            Container(
+              padding: const EdgeInsets.fromLTRB(7, 3, 9, 3),
+              decoration: BoxDecoration(
+                color: cb.accentSoft,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: cb.tint(cb.accent, .45)),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    iconOf(contribution.kind),
+                    size: 14,
+                    color: cb.readable(cb.accent, on: cb.accentSoft),
+                  ),
+                  const SizedBox(width: 5),
+                  Flexible(
+                    child: Text(
+                      badge,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: context.text.labelSmall?.copyWith(
+                        color: cb.textPrimary,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 0,
+                        fontFeatures: const [FontFeature.tabularFigures()],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          if (note != null)
+            Text(
+              note,
+              style: context.text.labelSmall?.copyWith(
+                color: cb.textMuted,
+                letterSpacing: 0,
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
 /// Egységes mérkőzéssor minden sportághoz: dátum (és hazai/idegen),
-/// ellenfél, részletsor, eredmény és GY/V/D jelvény.
+/// ellenfél, részletsor, a sportoló saját pontszerzése, eredmény és GY/V/D
+/// jelvény.
 class MatchRow extends StatelessWidget {
   const MatchRow({
     super.key,
@@ -622,6 +702,7 @@ class MatchRow extends StatelessWidget {
     this.grade,
     this.live = false,
     this.footer,
+    this.contribution,
   });
 
   final String opponent;
@@ -642,6 +723,10 @@ class MatchRow extends StatelessWidget {
   /// Teljesítményjegy (A+, B…), ha a forrás ad hozzá alapot.
   final String? grade;
   final bool live;
+
+  /// A sportoló saját pontszerzése ezen a meccsen (gól/gólpassz, pont,
+  /// touchdown); csak akkor látszik, ha van mit mutatni (> 0).
+  final PlayerContribution? contribution;
 
   @override
   Widget build(BuildContext context) {
@@ -725,6 +810,10 @@ class MatchRow extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: context.text.bodySmall,
                 ),
+              if (contribution case final shown? when shown.isVisible) ...[
+                const SizedBox(height: 6),
+                PlayerContributionBadge(shown),
+              ],
             ],
           ),
         ),

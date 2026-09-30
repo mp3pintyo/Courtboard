@@ -56,6 +56,11 @@ class NbaGameLog {
   String get performance =>
       '$points PTS · $rebounds REB · $assists AST · ${minutes.toStringAsFixed(0)} MIN';
 
+  /// A statisztikasor pontok nélkül — amikor a pont a sor kiemelt
+  /// pontszerzés-jelölésében látszik.
+  String get performanceWithoutPoints =>
+      '$rebounds REB · $assists AST · ${minutes.toStringAsFixed(0)} MIN';
+
   String get grade {
     final score = gameScore;
     if (score == null) return '—';

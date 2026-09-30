@@ -21,7 +21,15 @@ import 'package:courtboard/data/athlete_watcher.dart';
 import 'package:courtboard/data/basketball_reference.dart';
 import 'package:courtboard/data/basketball_season.dart';
 import 'package:courtboard/data/darts.dart';
+import 'package:courtboard/data/espn_athletes.dart';
+import 'package:courtboard/data/espn_schedule.dart';
 import 'package:courtboard/data/espn_soccer_team.dart';
+import 'package:courtboard/data/football_data.dart';
+import 'package:courtboard/data/football_season_repository.dart';
+import 'package:courtboard/data/fotmob_football.dart';
+import 'package:courtboard/data/match_timeline.dart';
+import 'package:courtboard/data/openligadb.dart';
+import 'package:courtboard/data/providers.dart';
 import 'package:courtboard/data/file_util.dart';
 import 'package:courtboard/data/http_service.dart';
 import 'package:courtboard/data/football_season.dart';
@@ -48,6 +56,7 @@ import 'package:courtboard/features/profile/profile_form.dart';
 import 'package:courtboard/features/profile/sports/profile_api_basketball.dart';
 import 'package:courtboard/features/profile/sports/profile_darts.dart';
 import 'package:courtboard/features/profile/sports/profile_football.dart';
+import 'package:courtboard/features/profile/sports/profile_nfl.dart';
 import 'package:courtboard/features/profile/sports/profile_nba_facts.dart';
 import 'package:courtboard/features/profile/sports/profile_tennis.dart';
 import 'package:courtboard/features/profile/sports/profile_wnba.dart';
@@ -1547,6 +1556,18 @@ void main() {
   for (final (accent, brightness) in const [
     (CourtboardAccent.green, Brightness.light),
     (CourtboardAccent.burgundy, Brightness.dark),
+    (CourtboardAccent.green, Brightness.dark),
+  ]) {
+    testWidgets(
+      'player contribution screenshots ${accent.name} ${brightness.name}',
+      skip: _skip,
+      (tester) => _shootContributions(tester, accent, brightness),
+    );
+  }
+
+  for (final (accent, brightness) in const [
+    (CourtboardAccent.green, Brightness.light),
+    (CourtboardAccent.burgundy, Brightness.dark),
   ]) {
     testWidgets(
       'component gallery ${accent.name} ${brightness.name}',
@@ -1580,3 +1601,261 @@ final _aitanaTeam = EspnSoccerTeam.fromHints(
   AthleteSourceHints.ligaFBarcelona,
   'FC Barcelona',
 )!;
+
+// ---------------------------------------------------------------------------
+// Pontszerzés a lejátszott meccsek soraiban (0.16.0)
+// ---------------------------------------------------------------------------
+
+/// Szezonösszesítő a FotMob meccslistájával (a hálózat helyett).
+class _ShotSeason extends FootballSeasonRepository {
+  _ShotSeason(this.matches) : super(const SportsApiConfig());
+  final List<FootballMatchForm> matches;
+
+  @override
+  Future<FootballSeasonResult> fetchWithStatus(
+    String athleteName,
+    String teamName,
+  ) async => matches.isEmpty
+      ? const FootballSeasonResult()
+      : FootballSeasonResult(
+          stats: [
+            FootballSeasonStat(
+              season: '2026/2027',
+              team: 'Barcelona',
+              competition: 'Liga F',
+              source: 'FotMob',
+              appearances: 1,
+              recentMatches: matches,
+            ),
+          ],
+          fetchedAt: DateTime(2026, 9, 30),
+        );
+}
+
+class _ShotTeamGames extends FootballDataRepository {
+  _ShotTeamGames(this.games) : super(SportsApiClient());
+  final FootballTeamGames games;
+
+  @override
+  Future<FootballTeamGames> fetchTeamGames(
+    String teamName, {
+    String? competition,
+  }) async => games;
+}
+
+EspnGameLog _shotNflLog(String file, String name, String position) =>
+    EspnAthleteRepository.parseGameLog(
+      fixture(file),
+      EspnAthleteRef(
+        id: '1',
+        displayName: name,
+        league: EspnLeague.nfl,
+        team: position == 'QB' ? 'Buffalo Bills' : 'Philadelphia Eagles',
+        position: position,
+      ),
+    );
+
+Future<void> _shootContributions(
+  WidgetTester tester,
+  CourtboardAccent accent,
+  Brightness brightness,
+) async {
+  tester.view.devicePixelRatio = 1;
+  tester.view.physicalSize = const Size(1000, 3400);
+  addTearDown(() {
+    tester.view.resetPhysicalSize();
+    tester.view.resetDevicePixelRatio();
+  });
+  final openLiga = [
+    for (final raw
+        in jsonDecode(
+              File('test/fixtures/openligadb_bl1_2026.json').readAsStringSync(),
+            )
+            as List)
+      raw as Map<String, dynamic>,
+  ];
+  final bayern = OpenLigaDbRepository.parseTeamGames(
+    openLiga,
+    league: OpenLigaLeague.bundesliga,
+    teamId: 40,
+    teamName: 'FC Bayern München',
+    now: DateTime.utc(2026, 9, 30, 12),
+  ).recentGames();
+  final http = FakeHttpService({
+    '/apis/site/v2/sports/soccer/esp.w.1/summary': fixture(
+      'espn_soccer_summary_barcelona.json',
+    ),
+  });
+  final aitana = EspnSoccerTeam.fromHints(
+    AthleteSourceHints.ligaFBarcelona,
+    'FC Barcelona',
+  )!;
+  await tester.pumpWidget(
+    RepaintBoundary(
+      key: _shotKey,
+      child: ProviderScope(
+        retry: noAutomaticRetry,
+        overrides: [
+          footballSeasonRepositoryProvider.overrideWithValue(
+            _ShotSeason(
+              FotMobFootballRepository.parseRecentMatches(
+                fixture('fotmob_player_aitana.json'),
+              ),
+            ),
+          ),
+          matchTimelineRepositoryProvider.overrideWithValue(
+            MatchTimelineRepository(
+              http: http,
+              cacheStorage: MemoryCacheStorage(),
+            ),
+          ),
+          footballDataRepositoryProvider.overrideWithValue(
+            _ShotTeamGames(
+              FootballTeamGames(recent: bayern, source: 'OpenLigaDB'),
+            ),
+          ),
+        ],
+        child: MaterialApp(
+          debugShowCheckedModeBanner: false,
+          theme: buildCourtboardTheme(accent, brightness),
+          home: Scaffold(
+            body: SingleChildScrollView(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  SurfaceCard(
+                    child: EspnSoccerGameList(
+                      team: aitana,
+                      athleteName: 'Aitana Bonmatí',
+                      accent: const Color(0xFF9CAAF7),
+                      games: [
+                        EspnSoccerGame(
+                          date: DateTime.utc(2026, 9, 26, 14, 30),
+                          opponent: 'Dux Logroño',
+                          teamScore: 2,
+                          opponentScore: 0,
+                          home: false,
+                          eventId: '401882506',
+                        ),
+                        EspnSoccerGame(
+                          date: DateTime.utc(2026, 5, 27, 17),
+                          opponent: 'Real Sociedad',
+                          teamScore: 2,
+                          opponentScore: 1,
+                          home: true,
+                          eventId: '749217',
+                        ),
+                        EspnSoccerGame(
+                          date: DateTime.utc(2025, 3, 2, 12),
+                          opponent: 'Real Sociedad',
+                          teamScore: 2,
+                          opponentScore: 1,
+                          home: true,
+                          eventId: '749217',
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  const FootballDataCard(
+                    athleteName: 'Harry Kane',
+                    teamName: 'FC Bayern München',
+                    accent: Color(0xFFE894A7),
+                  ),
+                  const SizedBox(height: 16),
+                  SurfaceCard(
+                    child: BasketballReferenceGameList(
+                      athleteName: 'Nikola Jokić',
+                      accent: const Color(0xFFE9B86E),
+                      league: Sport.nba,
+                      games: [
+                        NbaGameLog(
+                          date: DateTime(2026, 4, 12),
+                          opponent: 'San Antonio Spurs',
+                          outcome: 'WIN',
+                          location: 'AWAY',
+                          minutes: 34.3,
+                          points: 31,
+                          rebounds: 14,
+                          assists: 12,
+                          steals: 2,
+                          blocks: 1,
+                          score: '118-104',
+                          gameScore: 28.4,
+                        ),
+                        NbaGameLog(
+                          date: DateTime(2026, 4, 10),
+                          opponent: 'Phoenix Suns',
+                          outcome: 'LOSS',
+                          location: 'HOME',
+                          minutes: 4,
+                          points: 0,
+                          rebounds: 1,
+                          assists: 0,
+                          steals: 0,
+                          blocks: 0,
+                          score: '109-112',
+                          gameScore: 0.4,
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  SurfaceCard(
+                    child: WnbaRecentGameList(
+                      athleteName: 'Caitlin Clark',
+                      games: [
+                        WnbaGameLog(
+                          gameId: '1',
+                          athleteId: '1',
+                          date: DateTime(2026, 7, 30),
+                          team: 'Indiana Fever',
+                          opponent: 'Chicago Sky',
+                          teamScore: 88,
+                          opponentScore: 80,
+                          result: WnbaResult.win,
+                          points: 24,
+                          rebounds: 6,
+                          assists: 9,
+                          steals: 1,
+                          blocks: 0,
+                          minutes: 33,
+                          headshotUrl: '',
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  SurfaceCard(
+                    child: NflGameLogView(
+                      log: _shotNflLog(
+                        'espn_nfl_gamelog_allen.json',
+                        'Josh Allen',
+                        'QB',
+                      ),
+                      accent: const Color(0xFF8ED19C),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  SurfaceCard(
+                    child: NflGameLogView(
+                      log: _shotNflLog(
+                        'espn_nfl_gamelog_elliott.json',
+                        'Jake Elliott',
+                        'PK',
+                      ),
+                      accent: const Color(0xFF8ED19C),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
+  await _settleUntil(tester, () => find.text('1 gól').evaluate().length >= 3);
+  await _capture(tester, 'contributions_${brightness.name}_${accent.name}');
+}

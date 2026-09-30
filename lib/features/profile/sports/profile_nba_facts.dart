@@ -6,6 +6,7 @@ import 'package:courtboard/data/multi_provider.dart';
 import 'package:courtboard/features/profile/form_data.dart';
 import 'package:courtboard/features/profile/profile_form.dart';
 import 'package:courtboard/features/profile/sport_profile_spec.dart';
+import 'package:courtboard/domain/player_contribution.dart';
 import 'package:courtboard/domain/sport.dart';
 
 class UnifiedAthleteFacts extends StatelessWidget {
@@ -14,10 +15,14 @@ class UnifiedAthleteFacts extends StatelessWidget {
     required this.data,
     required this.accent,
     this.season,
+    this.athleteName = '',
   });
 
   final UnifiedAthleteData data;
   final Color accent;
+
+  /// A sportoló neve (a pontszerzés képernyőolvasós mondatához).
+  final String athleteName;
 
   /// A szezonösszesítő (a formagörbe szezonátlag-vonalához), ha van.
   final BasketballSeasonStat? season;
@@ -77,10 +82,23 @@ class UnifiedAthleteFacts extends StatelessWidget {
         accent: accent,
         league: Sport.nba,
         source: data.gamesSource,
+        athleteName: athleteName,
       ),
     ],
   );
 }
+
+/// A kosárlabdameccs saját pontszerzése: a pont kiemelve („24 pont”), ha
+/// több mint nulla — ekkor a statisztikasorból kimarad a PTS.
+PlayerContribution basketballContribution(
+  int points, {
+  String athlete = '',
+  String source = '',
+}) => PlayerContribution.basketball(
+  points: points,
+  athlete: athlete,
+  source: source,
+);
 
 class BasketballReferenceGameList extends StatelessWidget {
   const BasketballReferenceGameList({
@@ -89,7 +107,11 @@ class BasketballReferenceGameList extends StatelessWidget {
     required this.accent,
     required this.league,
     this.source = 'Basketball Reference',
+    this.athleteName = '',
   });
+
+  /// A sportoló neve (a pontszerzés képernyőolvasós mondatához).
+  final String athleteName;
 
   final List<NbaGameLog> games;
   final Color accent;
@@ -118,16 +140,27 @@ class BasketballReferenceGameList extends StatelessWidget {
               : 'A Basketball Reference nem adott friss ${league.shortLabel} játékos-box score-t.',
         )
       else
-        for (final game in games)
-          MatchRow(
-            date: game.date,
-            venue: game.location == 'HOME' ? 'Hazai' : 'Idegen',
-            opponent: game.opponent,
-            subtitle: game.performance,
-            score: game.score,
-            outcome: MatchOutcome.parse(game.outcome),
-            grade: game.grade,
-          ),
+        for (final game in games) _row(game),
     ],
   );
+
+  Widget _row(NbaGameLog game) {
+    final contribution = basketballContribution(
+      game.points,
+      athlete: athleteName,
+      source: source,
+    );
+    return MatchRow(
+      date: game.date,
+      venue: game.location == 'HOME' ? 'Hazai' : 'Idegen',
+      opponent: game.opponent,
+      subtitle: contribution.hasBadge
+          ? game.performanceWithoutPoints
+          : game.performance,
+      score: game.score,
+      outcome: MatchOutcome.parse(game.outcome),
+      grade: game.grade,
+      contribution: contribution,
+    );
+  }
 }

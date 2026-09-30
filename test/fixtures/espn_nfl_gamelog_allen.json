@@ -1,0 +1,212 @@
+{
+ "labels": [
+  "CMP",
+  "ATT",
+  "YDS",
+  "CMP%",
+  "AVG",
+  "TD",
+  "INT",
+  "LNG",
+  "SACK",
+  "RTG",
+  "QBR",
+  "CAR",
+  "YDS",
+  "AVG",
+  "TD",
+  "LNG"
+ ],
+ "names": [
+  "completions",
+  "passingAttempts",
+  "passingYards",
+  "completionPct",
+  "yardsPerPassAttempt",
+  "passingTouchdowns",
+  "interceptions",
+  "longPassing",
+  "sacks",
+  "QBRating",
+  "adjQBR",
+  "rushingAttempts",
+  "rushingYards",
+  "yardsPerRushAttempt",
+  "rushingTouchdowns",
+  "longRushing"
+ ],
+ "displayNames": [
+  "Completions",
+  "Passing Attempts",
+  "Passing Yards",
+  "Completion Percentage",
+  "Yards Per Pass Attempt",
+  "Passing Touchdowns",
+  "Interceptions",
+  "Longest Pass",
+  "Total Sacks",
+  "Passer Rating",
+  "Adjusted QBR",
+  "Rushing Attempts",
+  "Rushing Yards",
+  "Yards Per Rush Attempt",
+  "Rushing Touchdowns",
+  "Long Rushing"
+ ],
+ "events": {
+  "401872953": {
+   "id": "401872953",
+   "gameDate": "2026-09-27T17:00:00.000+00:00",
+   "atVs": "vs",
+   "homeTeamScore": "24",
+   "awayTeamScore": "16",
+   "gameResult": "W",
+   "score": "24-16",
+   "opponent": {
+    "displayName": "Los Angeles Chargers",
+    "abbreviation": "LAC"
+   },
+   "team": {
+    "abbreviation": "BUF"
+   }
+  },
+  "401872932": {
+   "id": "401872932",
+   "gameDate": "2026-09-18T00:15:00.000+00:00",
+   "atVs": "vs",
+   "homeTeamScore": "41",
+   "awayTeamScore": "31",
+   "gameResult": "W",
+   "score": "41-31",
+   "opponent": {
+    "displayName": "Detroit Lions",
+    "abbreviation": "DET"
+   },
+   "team": {
+    "abbreviation": "BUF"
+   }
+  },
+  "401872660": {
+   "id": "401872660",
+   "gameDate": "2026-09-13T17:00:00.000+00:00",
+   "atVs": "@",
+   "homeTeamScore": "31",
+   "awayTeamScore": "36",
+   "gameResult": "W",
+   "score": "36-31",
+   "opponent": {
+    "displayName": "Houston Texans",
+    "abbreviation": "HOU"
+   },
+   "team": {
+    "abbreviation": "BUF"
+   }
+  }
+ },
+ "seasonTypes": [
+  {
+   "displayName": "2026 Regular Season",
+   "displayTeam": "BUF",
+   "categories": [
+    {
+     "displayName": "Regular Season Stats",
+     "type": "event",
+     "splitType": "2",
+     "events": [
+      {
+       "eventId": "401872953",
+       "stats": [
+        "16",
+        "26",
+        "204",
+        "61.5",
+        "7.8",
+        "0",
+        "2",
+        "37",
+        "4",
+        "54.0",
+        "51.4",
+        "8",
+        "22",
+        "2.8",
+        "2",
+        "8"
+       ]
+      },
+      {
+       "eventId": "401872932",
+       "stats": [
+        "20",
+        "31",
+        "248",
+        "64.5",
+        "8.0",
+        "3",
+        "0",
+        "43",
+        "2",
+        "121.4",
+        "90.0",
+        "14",
+        "69",
+        "4.9",
+        "2",
+        "14"
+       ]
+      },
+      {
+       "eventId": "401872660",
+       "stats": [
+        "20",
+        "29",
+        "334",
+        "69.0",
+        "11.5",
+        "2",
+        "0",
+        "43",
+        "2",
+        "130.5",
+        "80.1",
+        "6",
+        "23",
+        "3.8",
+        "2",
+        "21"
+       ]
+      }
+     ]
+    }
+   ],
+   "summary": {
+    "displayName": "Regular Season Stats",
+    "stats": [
+     {
+      "displayName": "Totals",
+      "stats": [
+       "56",
+       "86",
+       "786",
+       "65.1",
+       "9.1",
+       "5",
+       "2",
+       "43",
+       "8",
+       "104.1",
+       "77.5",
+       "28",
+       "114",
+       "4.1",
+       "6",
+       "21"
+      ],
+      "type": "total"
+     }
+    ]
+   }
+  }
+ ],
+ "_fixtureNote": "Trimmed live ESPN gamelog (Josh Allen, QB, 2026 season, fetched 2026-09-30)."
+}

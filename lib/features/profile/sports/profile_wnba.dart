@@ -53,6 +53,7 @@ class WnbaWehoopCard extends ConsumerWidget {
           accent: accent,
           source: result.source,
           note: result.note,
+          athleteName: athleteName,
         ),
       );
 }
@@ -94,6 +95,7 @@ class WnbaBasketballReferenceCard extends ConsumerWidget {
       games: cached.value,
       accent: accent,
       league: Sport.wnba,
+      athleteName: athleteName,
     ),
   );
 }
@@ -200,11 +202,13 @@ class _WnbaLiveData extends StatelessWidget {
     required this.accent,
     this.source = 'SportsDataverse / wehoop',
     this.note,
+    this.athleteName = '',
   });
   final List<WnbaGameLog> games;
   final Color accent;
   final String source;
   final String? note;
+  final String athleteName;
 
   @override
   Widget build(BuildContext context) {
@@ -228,22 +232,61 @@ class _WnbaLiveData extends StatelessWidget {
         ),
         const SizedBox(height: 24),
         const SubsectionLabel('UTÓBBI MÉRKŐZÉSEK · VALÓS ADAT'),
-        for (final game in games.take(5))
-          MatchRow(
-            date: game.date,
-            opponent: game.opponent,
-            subtitle:
-                '${game.points} PTS · ${game.rebounds} REB · ${game.assists} AST',
-            score: game.teamScore == 0 && game.opponentScore == 0
-                ? null
-                : game.score,
-            outcome: switch (game.result) {
-              WnbaResult.win => MatchOutcome.win,
-              WnbaResult.loss => MatchOutcome.loss,
-              WnbaResult.unknown => MatchOutcome.unknown,
-            },
-          ),
+        WnbaRecentGameList(
+          games: games,
+          athleteName: athleteName,
+          source: source,
+        ),
       ],
+    );
+  }
+}
+
+/// A WNBA-meccsnapló utolsó (legfeljebb 5) meccse: a saját pont kiemelve
+/// („24 pont”), mellette a lepattanók, az asszisztok és a percek —
+/// ugyanúgy, mint az NBA-sorokban.
+class WnbaRecentGameList extends StatelessWidget {
+  const WnbaRecentGameList({
+    super.key,
+    required this.games,
+    this.athleteName = '',
+    this.source = '',
+    this.limit = 5,
+  });
+
+  final List<WnbaGameLog> games;
+  final String athleteName;
+  final String source;
+  final int limit;
+
+  @override
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [for (final game in games.take(limit)) _row(game)],
+  );
+
+  Widget _row(WnbaGameLog game) {
+    final contribution = basketballContribution(
+      game.points,
+      athlete: athleteName,
+      source: source,
+    );
+    return MatchRow(
+      date: game.date,
+      opponent: game.opponent,
+      subtitle: [
+        if (!contribution.hasBadge) '${game.points} PTS',
+        '${game.rebounds} REB',
+        '${game.assists} AST',
+        if (game.minutes > 0) '${game.minutes.toStringAsFixed(0)} MIN',
+      ].join(' · '),
+      score: game.teamScore == 0 && game.opponentScore == 0 ? null : game.score,
+      outcome: switch (game.result) {
+        WnbaResult.win => MatchOutcome.win,
+        WnbaResult.loss => MatchOutcome.loss,
+        WnbaResult.unknown => MatchOutcome.unknown,
+      },
+      contribution: contribution,
     );
   }
 }

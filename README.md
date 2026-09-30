@@ -292,6 +292,14 @@ A TheSportsDB adja a játékosprofilt és az utolsó 5 eredményt. A Sportbex Ra
 
 A **Játékos-meccsnapló** kártya az ESPN kulcs nélküli játékosvégpontjaiból (keresés szigorú névegyezéssel, meccsnapló 6 órás cache-sel) valódi, játékosonkénti adatot ad: szezonösszesítő a szerepkörhöz illő mutatókkal (passzolt / futott / elkapott yard, TD, INT, passz%, QB rating, szerelés), formagörbe a pozíció fő mutatójából (irányítónál passzolt, futónál futott, elkapónál elkapott yard) szezonátlag-vonallal, és a legutóbbi meccsek. Az NFL-játékosok ebből az **Összehasonlítás** oldalon is összevethetők (meccsenkénti átlagok; csak a mindkettőjüknél létező mutató kerül a radarra). Az API-Sports adapter kulccsal továbbra is fut. A profil **Csapatforma** kártyája az ESPN kulcs nélküli menetrendjéből (60 perces gyorsítótárral) a csapat legutóbbi befejezett mérkőzéseit mutatja pontgörbével és GY/V sorral.
 
+### Saját pontszerzés a lejátszott meccsekben
+
+0.16.0-tól az **Élő adatok** lejátszott meccseinek soraiban egy kiemelt címke mutatja, ha a sportoló pontot szerzett (a képernyőolvasó egy mondatban mondja fel, például „Aitana Bonmatí 1 gólt szerzett”). Csak valós, meccsenkénti adatból készül: ha a forrás nem ismeri a játékos adott meccsét, vagy nem szerzett pontot, a sorban nincs jelölés (soha nem „0”).
+
+- **Foci** – „1 gól · 1 gólpassz”. Elsődleges forrás a FotMob játékos-meccslistája (ugyanaz a lekérés, mint a szezonösszesítőé és a formagörbéé); a csapatmeccs-sorhoz a kezdés (±1 nap, időzóna-biztosan) és az ellenfél neve (a „(W)”, „Femenino” utótagok nélkül) párosítja, eltérő névnél csak pontosan egyező kezdés és eredmény esetén. Ha a FotMob nem ismeri a meccset: az OpenLigaDB góllövői, illetve ESPN-meccsnél az összefoglaló (`rosters` statisztika: `totalGoals`, `goalAssists`; tartalékként a gólesemények szerzője és gólpasszadója). Az öngól soha nem a szerzőjének gólja. Az ESPN-összefoglaló csak a látható (legfeljebb 5) lejátszott sorhoz töltődik, a befejezett meccsé véglegesen gyorsítótárazva.
+- **Kosárlabda (NBA, WNBA)** – „24 pont”; ilyenkor a statisztikasor a PTS nélkül folytatódik („14 REB · 12 AST · 34 MIN”), 0 pontnál a sor változatlan.
+- **NFL** – „2 TD · 12 pont” a játékos saját touchdownjaiból (futó, elkapó, védőként interception-visszahordás) az ESPN-meccsnaplóból; rúgónál „9 pont” = 3 × mezőnygól + extra pont. Az irányító passzolt touchdownjai nem a saját pontjai, ezért külön, halványan látszanak („3 passzolt TD”). A kétpontos kísérleteket és a visszahordási touchdownokat az ESPN-meccsnapló nem adja.
+
 ### Tenisz
 
 Új sportoló felvételekor válaszd a **Tenisz** sportágat; csapatot nem kell megadni. A Live Tennis API kulcsa az **Adatforrások** oldalon menthető. A név szerinti játékoskeresés ékezet- és névsorrend-független, majd a részletes profilból az app megjeleníti az aktuális ranglistát, ranglistapontot, sorozatot, országot, ütőkezet, fonákot és születési dátumot.
@@ -345,7 +353,7 @@ A sportolói profilon a felhasználó YouTube URL-t vagy videóazonosítót adha
 | `%APPDATA%\Courtboard\cache\espn_soccer` | ESPN foci-csapatlisták, feloldott klubok (csapat → liga, azonosító), kluberedmények és -menetrendek | csapatlista és feloldás 7 nap (sikertelen keresés 24 óra), eredmények 1 óra, menetrend 6 óra; hibánál a régebbi lista is használható |
 | `%APPDATA%\Courtboard\cache\espn_athletes` | ESPN játékosazonosítók és meccsnaplók (NFL, NBA/WNBA tartalék) | napló 6 óra, azonosító 7 nap (sikertelen keresés 24 óra) |
 | `%APPDATA%\Courtboard\cache\live_scores` | NBA CDN / ESPN napi scoreboardok | 45 mp |
-| `%APPDATA%\Courtboard\cache\match_timeline` | ESPN foci-meccsösszefoglalók idővonala | befejezett meccs végleges, zajló 60 mp |
+| `%APPDATA%\Courtboard\cache\match_timeline` | ESPN foci-meccsösszefoglalók idővonala, gólpasszokkal és a pontszerző játékosokkal | befejezett meccs végleges, zajló 60 mp |
 | `%APPDATA%\Courtboard\cache\openligadb` | OpenLigaDB csapatlisták és szezon-meccslisták | csapatlista 7 nap, meccslista 1 óra |
 | `%APPDATA%\Courtboard\cache\watcher` | a háttérfigyelő emlékezete: már jelzett meccskezdések, látott eredmények és hírek | a jelzett események 2 napig; törlés után az első ellenőrzés csak újra megjegyzi a meglévőt |
 | `%APPDATA%\Courtboard\cache\update_check` | a legfrissebb GitHub-kiadás adatai | 12 óra |

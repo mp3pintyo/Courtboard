@@ -1,0 +1,205 @@
+{
+ "labels": [
+  "CAR",
+  "YDS",
+  "AVG",
+  "TD",
+  "LNG",
+  "REC",
+  "TGTS",
+  "YDS",
+  "AVG",
+  "TD",
+  "LNG",
+  "FUM",
+  "LST",
+  "FF",
+  "KB"
+ ],
+ "names": [
+  "rushingAttempts",
+  "rushingYards",
+  "yardsPerRushAttempt",
+  "rushingTouchdowns",
+  "longRushing",
+  "receptions",
+  "receivingTargets",
+  "receivingYards",
+  "yardsPerReception",
+  "receivingTouchdowns",
+  "longReception",
+  "fumbles",
+  "fumblesLost",
+  "fumblesForced",
+  "kicksBlocked"
+ ],
+ "displayNames": [
+  "Rushing Attempts",
+  "Rushing Yards",
+  "Yards Per Rush Attempt",
+  "Rushing Touchdowns",
+  "Long Rushing",
+  "Receptions",
+  "Receiving Targets",
+  "Receiving Yards",
+  "Yards Per Reception",
+  "Receiving Touchdowns",
+  "Long Reception",
+  "Fumbles",
+  "Fumbles Lost",
+  "Forced Fumbles",
+  "Kicks Blocked"
+ ],
+ "events": {
+  "401772612": {
+   "id": "401772612",
+   "gameDate": "2025-12-20T22:00:00.000+00:00",
+   "atVs": "@",
+   "homeTeamScore": "18",
+   "awayTeamScore": "29",
+   "gameResult": "W",
+   "score": "29-18",
+   "opponent": {
+    "displayName": "Washington Commanders",
+    "abbreviation": "WSH"
+   },
+   "team": {
+    "abbreviation": "PHI"
+   }
+  },
+  "401772867": {
+   "id": "401772867",
+   "gameDate": "2025-10-26T17:00:00.000+00:00",
+   "atVs": "vs",
+   "homeTeamScore": "38",
+   "awayTeamScore": "20",
+   "gameResult": "W",
+   "score": "38-20",
+   "opponent": {
+    "displayName": "New York Giants",
+    "abbreviation": "NYG"
+   },
+   "team": {
+    "abbreviation": "PHI"
+   }
+  },
+  "401772745": {
+   "id": "401772745",
+   "gameDate": "2025-10-05T17:00:00.000+00:00",
+   "atVs": "vs",
+   "homeTeamScore": "17",
+   "awayTeamScore": "21",
+   "gameResult": "L",
+   "score": "21-17",
+   "opponent": {
+    "displayName": "Denver Broncos",
+    "abbreviation": "DEN"
+   },
+   "team": {
+    "abbreviation": "PHI"
+   }
+  }
+ },
+ "seasonTypes": [
+  {
+   "displayName": "2025 Regular Season",
+   "displayTeam": "PHI",
+   "categories": [
+    {
+     "displayName": "Regular Season Stats",
+     "type": "event",
+     "splitType": "2",
+     "events": [
+      {
+       "eventId": "401772612",
+       "stats": [
+        "21",
+        "132",
+        "6.3",
+        "1",
+        "48",
+        "0",
+        "2",
+        "0",
+        "0.0",
+        "0",
+        "0",
+        "0",
+        "0",
+        "-",
+        "-"
+       ]
+      },
+      {
+       "eventId": "401772867",
+       "stats": [
+        "14",
+        "150",
+        "10.7",
+        "1",
+        "65",
+        "4",
+        "5",
+        "24",
+        "6.0",
+        "1",
+        "12",
+        "0",
+        "0",
+        "-",
+        "-"
+       ]
+      },
+      {
+       "eventId": "401772745",
+       "stats": [
+        "6",
+        "30",
+        "5.0",
+        "0",
+        "17",
+        "3",
+        "3",
+        "58",
+        "19.3",
+        "1",
+        "47",
+        "0",
+        "0",
+        "-",
+        "-"
+       ]
+      }
+     ]
+    }
+   ],
+   "summary": {
+    "displayName": "Regular Season Stats",
+    "stats": [
+     {
+      "displayName": "Totals",
+      "stats": [
+       "280",
+       "1,140",
+       "4.1",
+       "7",
+       "65",
+       "37",
+       "50",
+       "273",
+       "7.4",
+       "2",
+       "47",
+       "1",
+       "1",
+       "0",
+       "0"
+      ],
+      "type": "total"
+     }
+    ]
+   }
+  }
+ ],
+ "_fixtureNote": "Trimmed live ESPN gamelog (Saquon Barkley, RB, 2025 season, fetched 2026-09-30)."
+}
