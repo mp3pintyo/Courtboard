@@ -1,0 +1,535 @@
+{
+ "timestamp": "2026-09-29T23:04:58Z",
+ "status": "success",
+ "season": {
+  "year": 2027,
+  "type": 1,
+  "name": "Preseason",
+  "displayName": "2026-27",
+  "half": 1
+ },
+ "team": {
+  "id": "7",
+  "abbreviation": "DEN",
+  "location": "Denver",
+  "name": "Nuggets",
+  "displayName": "Denver Nuggets",
+  "seasonSummary": "2026-27"
+ },
+ "events": [
+  {
+   "id": "401900001",
+   "date": "2026-10-20T01:00Z",
+   "name": "Denver Nuggets at Oklahoma City Thunder",
+   "shortName": "DEN @ OKC",
+   "season": {
+    "year": 2027,
+    "displayName": "2026-27"
+   },
+   "seasonType": {
+    "id": "2",
+    "type": 2,
+    "name": "Regular Season",
+    "abbreviation": "reg"
+   },
+   "timeValid": true,
+   "competitions": [
+    {
+     "id": "401909094",
+     "date": "2026-10-20T01:00Z",
+     "attendance": 0,
+     "type": {
+      "id": "1",
+      "text": "Standard",
+      "abbreviation": "STD",
+      "slug": "standard",
+      "type": "standard"
+     },
+     "timeValid": true,
+     "neutralSite": false,
+     "boxscoreAvailable": false,
+     "ticketsAvailable": true,
+     "venue": {
+      "fullName": "Paycom Center",
+      "address": {
+       "city": "Oklahoma City",
+       "state": "OK"
+      }
+     },
+     "competitors": [
+      {
+       "id": "25",
+       "type": "team",
+       "order": 0,
+       "homeAway": "home",
+       "team": {
+        "id": "25",
+        "location": "Oklahoma City",
+        "abbreviation": "OKC",
+        "displayName": "Oklahoma City Thunder",
+        "shortDisplayName": "Thunder"
+       },
+       "score": {
+        "value": 110.0,
+        "displayValue": "110"
+       }
+      },
+      {
+       "id": "7",
+       "type": "team",
+       "order": 1,
+       "homeAway": "away",
+       "team": {
+        "id": "7",
+        "location": "Denver",
+        "abbreviation": "DEN",
+        "displayName": "Denver Nuggets",
+        "shortDisplayName": "Nuggets"
+       },
+       "score": {
+        "value": 105.0,
+        "displayValue": "105"
+       }
+      }
+     ],
+     "notes": [],
+     "status": {
+      "clock": 0.0,
+      "displayClock": "0.0",
+      "period": 0,
+      "type": {
+       "id": "3",
+       "name": "STATUS_FINAL",
+       "state": "post",
+       "completed": true,
+       "description": "Final",
+       "detail": "Thu, October 22nd at 9:30 PM EDT",
+       "shortDetail": "10/22 - 9:30 PM EDT"
+      }
+     }
+    }
+   ],
+   "links": [
+    {
+     "language": "en-US",
+     "rel": [
+      "summary",
+      "desktop",
+      "event"
+     ],
+     "href": "https://www.espn.com/nba/game/_/gameId/401909094/nuggets-thunder",
+     "text": "Gamecast",
+     "shortText": "Summary",
+     "isExternal": false,
+     "isPremium": false
+    }
+   ]
+  },
+  {
+   "id": "401909094",
+   "date": "2026-10-23T01:30Z",
+   "name": "Denver Nuggets at Oklahoma City Thunder",
+   "shortName": "DEN @ OKC",
+   "season": {
+    "year": 2027,
+    "displayName": "2026-27"
+   },
+   "seasonType": {
+    "id": "2",
+    "type": 2,
+    "name": "Regular Season",
+    "abbreviation": "reg"
+   },
+   "timeValid": true,
+   "competitions": [
+    {
+     "id": "401909094",
+     "date": "2026-10-23T01:30Z",
+     "attendance": 0,
+     "type": {
+      "id": "1",
+      "text": "Standard",
+      "abbreviation": "STD",
+      "slug": "standard",
+      "type": "standard"
+     },
+     "timeValid": true,
+     "neutralSite": false,
+     "boxscoreAvailable": false,
+     "ticketsAvailable": true,
+     "venue": {
+      "fullName": "Paycom Center",
+      "address": {
+       "city": "Oklahoma City",
+       "state": "OK"
+      }
+     },
+     "competitors": [
+      {
+       "id": "25",
+       "type": "team",
+       "order": 0,
+       "homeAway": "home",
+       "team": {
+        "id": "25",
+        "location": "Oklahoma City",
+        "abbreviation": "OKC",
+        "displayName": "Oklahoma City Thunder",
+        "shortDisplayName": "Thunder"
+       }
+      },
+      {
+       "id": "7",
+       "type": "team",
+       "order": 1,
+       "homeAway": "away",
+       "team": {
+        "id": "7",
+        "location": "Denver",
+        "abbreviation": "DEN",
+        "displayName": "Denver Nuggets",
+        "shortDisplayName": "Nuggets"
+       }
+      }
+     ],
+     "notes": [],
+     "status": {
+      "clock": 0.0,
+      "displayClock": "0.0",
+      "period": 0,
+      "type": {
+       "id": "1",
+       "name": "STATUS_SCHEDULED",
+       "state": "pre",
+       "completed": false,
+       "description": "Scheduled",
+       "detail": "Thu, October 22nd at 9:30 PM EDT",
+       "shortDetail": "10/22 - 9:30 PM EDT"
+      }
+     }
+    }
+   ],
+   "links": [
+    {
+     "language": "en-US",
+     "rel": [
+      "summary",
+      "desktop",
+      "event"
+     ],
+     "href": "https://www.espn.com/nba/game/_/gameId/401909094/nuggets-thunder",
+     "text": "Gamecast",
+     "shortText": "Summary",
+     "isExternal": false,
+     "isPremium": false
+    }
+   ]
+  },
+  {
+   "id": "401909859",
+   "date": "2026-10-25T01:00Z",
+   "name": "New Orleans Pelicans at Denver Nuggets",
+   "shortName": "NO @ DEN",
+   "season": {
+    "year": 2027,
+    "displayName": "2026-27"
+   },
+   "seasonType": {
+    "id": "2",
+    "type": 2,
+    "name": "Regular Season",
+    "abbreviation": "reg"
+   },
+   "timeValid": true,
+   "competitions": [
+    {
+     "id": "401909859",
+     "date": "2026-10-25T01:00Z",
+     "attendance": 0,
+     "type": {
+      "id": "1",
+      "text": "Standard",
+      "abbreviation": "STD",
+      "slug": "standard",
+      "type": "standard"
+     },
+     "timeValid": true,
+     "neutralSite": false,
+     "boxscoreAvailable": false,
+     "ticketsAvailable": true,
+     "venue": {
+      "fullName": "Ball Arena",
+      "address": {
+       "city": "Denver",
+       "state": "CO"
+      }
+     },
+     "competitors": [
+      {
+       "id": "7",
+       "type": "team",
+       "order": 0,
+       "homeAway": "home",
+       "team": {
+        "id": "7",
+        "location": "Denver",
+        "abbreviation": "DEN",
+        "displayName": "Denver Nuggets",
+        "shortDisplayName": "Nuggets"
+       }
+      },
+      {
+       "id": "3",
+       "type": "team",
+       "order": 1,
+       "homeAway": "away",
+       "team": {
+        "id": "3",
+        "location": "New Orleans",
+        "abbreviation": "NO",
+        "displayName": "New Orleans Pelicans",
+        "shortDisplayName": "Pelicans"
+       }
+      }
+     ],
+     "notes": [],
+     "status": {
+      "clock": 0.0,
+      "displayClock": "0.0",
+      "period": 0,
+      "type": {
+       "id": "1",
+       "name": "STATUS_SCHEDULED",
+       "state": "pre",
+       "completed": false,
+       "description": "Scheduled",
+       "detail": "Sat, October 24th at 9:00 PM EDT",
+       "shortDetail": "10/24 - 9:00 PM EDT"
+      }
+     }
+    }
+   ],
+   "links": [
+    {
+     "language": "en-US",
+     "rel": [
+      "summary",
+      "desktop",
+      "event"
+     ],
+     "href": "https://www.espn.com/nba/game/_/gameId/401909859/pelicans-nuggets",
+     "text": "Gamecast",
+     "shortText": "Summary",
+     "isExternal": false,
+     "isPremium": false
+    }
+   ]
+  },
+  {
+   "id": "401909876",
+   "date": "2026-10-27T02:00Z",
+   "name": "Golden State Warriors at Denver Nuggets",
+   "shortName": "GS @ DEN",
+   "season": {
+    "year": 2027,
+    "displayName": "2026-27"
+   },
+   "seasonType": {
+    "id": "2",
+    "type": 2,
+    "name": "Regular Season",
+    "abbreviation": "reg"
+   },
+   "timeValid": false,
+   "competitions": [
+    {
+     "id": "401909876",
+     "date": "2026-10-27T02:00Z",
+     "attendance": 0,
+     "type": {
+      "id": "1",
+      "text": "Standard",
+      "abbreviation": "STD",
+      "slug": "standard",
+      "type": "standard"
+     },
+     "timeValid": false,
+     "neutralSite": false,
+     "boxscoreAvailable": false,
+     "ticketsAvailable": true,
+     "venue": {
+      "fullName": "Ball Arena",
+      "address": {
+       "city": "Denver",
+       "state": "CO"
+      }
+     },
+     "competitors": [
+      {
+       "id": "7",
+       "type": "team",
+       "order": 0,
+       "homeAway": "home",
+       "team": {
+        "id": "7",
+        "location": "Denver",
+        "abbreviation": "DEN",
+        "displayName": "Denver Nuggets",
+        "shortDisplayName": "Nuggets"
+       }
+      },
+      {
+       "id": "9",
+       "type": "team",
+       "order": 1,
+       "homeAway": "away",
+       "team": {
+        "id": "9",
+        "location": "Golden State",
+        "abbreviation": "GS",
+        "displayName": "Golden State Warriors",
+        "shortDisplayName": "Warriors"
+       }
+      }
+     ],
+     "notes": [],
+     "status": {
+      "clock": 0.0,
+      "displayClock": "0.0",
+      "period": 0,
+      "type": {
+       "id": "1",
+       "name": "STATUS_SCHEDULED",
+       "state": "pre",
+       "completed": false,
+       "description": "Scheduled",
+       "detail": "Mon, October 26th at 10:00 PM EDT",
+       "shortDetail": "10/26 - 10:00 PM EDT"
+      }
+     }
+    }
+   ],
+   "links": [
+    {
+     "language": "en-US",
+     "rel": [
+      "summary",
+      "desktop",
+      "event"
+     ],
+     "href": "https://www.espn.com/nba/game/_/gameId/401909876/warriors-nuggets",
+     "text": "Gamecast",
+     "shortText": "Summary",
+     "isExternal": false,
+     "isPremium": false
+    }
+   ]
+  },
+  {
+   "id": "401900002",
+   "date": "2026-10-26T00:00Z",
+   "name": "New Orleans Pelicans at Denver Nuggets",
+   "shortName": "NO @ DEN",
+   "season": {
+    "year": 2027,
+    "displayName": "2026-27"
+   },
+   "seasonType": {
+    "id": "2",
+    "type": 2,
+    "name": "Regular Season",
+    "abbreviation": "reg"
+   },
+   "timeValid": true,
+   "competitions": [
+    {
+     "id": "401909859",
+     "date": "2026-10-26T00:00Z",
+     "attendance": 0,
+     "type": {
+      "id": "1",
+      "text": "Standard",
+      "abbreviation": "STD",
+      "slug": "standard",
+      "type": "standard"
+     },
+     "timeValid": true,
+     "neutralSite": false,
+     "boxscoreAvailable": false,
+     "ticketsAvailable": true,
+     "venue": {
+      "fullName": "Ball Arena",
+      "address": {
+       "city": "Denver",
+       "state": "CO"
+      }
+     },
+     "competitors": [
+      {
+       "id": "7",
+       "type": "team",
+       "order": 0,
+       "homeAway": "home",
+       "team": {
+        "id": "7",
+        "location": "Denver",
+        "abbreviation": "DEN",
+        "displayName": "Denver Nuggets",
+        "shortDisplayName": "Nuggets"
+       }
+      },
+      {
+       "id": "3",
+       "type": "team",
+       "order": 1,
+       "homeAway": "away",
+       "team": {
+        "id": "3",
+        "location": "New Orleans",
+        "abbreviation": "NO",
+        "displayName": "New Orleans Pelicans",
+        "shortDisplayName": "Pelicans"
+       }
+      }
+     ],
+     "notes": [],
+     "status": {
+      "clock": 0.0,
+      "displayClock": "0.0",
+      "period": 0,
+      "type": {
+       "id": "1",
+       "name": "STATUS_POSTPONED",
+       "state": "pre",
+       "completed": false,
+       "description": "Scheduled",
+       "detail": "Sat, October 24th at 9:00 PM EDT",
+       "shortDetail": "10/24 - 9:00 PM EDT"
+      }
+     }
+    }
+   ],
+   "links": [
+    {
+     "language": "en-US",
+     "rel": [
+      "summary",
+      "desktop",
+      "event"
+     ],
+     "href": "https://www.espn.com/nba/game/_/gameId/401909859/pelicans-nuggets",
+     "text": "Gamecast",
+     "shortText": "Summary",
+     "isExternal": false,
+     "isPremium": false
+    }
+   ]
+  }
+ ],
+ "requestedSeason": {
+  "year": 2027,
+  "type": 2,
+  "name": "Regular Season",
+  "displayName": "2026-27"
+ }
+}

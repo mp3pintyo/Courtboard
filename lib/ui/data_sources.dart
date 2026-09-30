@@ -64,6 +64,8 @@ class _DataStatusPageState extends State<_DataStatusPage> {
       'NFL',
       'Hírek',
       'Videó',
+      'Naptár',
+      'Alkalmazás',
     ];
     final rows = filterProviderCatalog(_searchController.text, _sport);
     final activeCount = providerCatalog

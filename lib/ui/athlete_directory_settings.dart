@@ -263,7 +263,26 @@ class _SettingsPage extends StatelessWidget {
     required this.onThemeChanged,
     required this.onOverviewSortChanged,
     required this.onAthleteSortChanged,
+    this.appVersion,
+    this.autoUpdateCheck = true,
+    this.onAutoUpdateCheckChanged,
+    this.updateResult,
+    this.onCheckUpdatesNow,
+    this.notificationSettings,
+    this.desktopSettings,
   });
+
+  /// Az „Értesítések” kártya (a shell állítja össze).
+  final Widget? notificationSettings;
+
+  /// A „Tálca és indítás” kártya (a shell állítja össze).
+  final Widget? desktopSettings;
+
+  final String? appVersion;
+  final bool autoUpdateCheck;
+  final ValueChanged<bool>? onAutoUpdateCheckChanged;
+  final UpdateCheckResult? updateResult;
+  final Future<UpdateCheckResult?> Function()? onCheckUpdatesNow;
 
   final String theme;
   final String themeMode;
@@ -396,6 +415,14 @@ class _SettingsPage extends StatelessWidget {
             ],
           ),
         ),
+        if (notificationSettings != null) ...[
+          const SizedBox(height: 16),
+          notificationSettings!,
+        ],
+        if (desktopSettings != null) ...[
+          const SizedBox(height: 16),
+          desktopSettings!,
+        ],
         const SizedBox(height: 16),
         const _SettingsCard(
           title: 'Billentyűparancsok',
@@ -403,6 +430,14 @@ class _SettingsPage extends StatelessWidget {
               'A leggyakoribb műveletek egér nélkül is elérhetők. '
               'A gombok eszköztippje is jelzi a gyorsbillentyűt.',
           child: _ShortcutList(),
+        ),
+        const SizedBox(height: 16),
+        _UpdateSettingsCard(
+          currentVersion: appVersion,
+          autoCheck: autoUpdateCheck,
+          onAutoCheckChanged: onAutoUpdateCheckChanged ?? (_) {},
+          result: updateResult,
+          onCheckNow: onCheckUpdatesNow,
         ),
       ],
     ),
@@ -441,39 +476,6 @@ class _SettingsCard extends StatelessWidget {
             child,
           ],
         ),
-      ),
-    ),
-  );
-}
-
-class _CalendarPage extends StatelessWidget {
-  const _CalendarPage();
-  @override
-  Widget build(BuildContext context) => ColoredBox(
-    color: context.cb.canvas,
-    child: Padding(
-      padding: EdgeInsets.all(MediaQuery.sizeOf(context).width < 800 ? 20 : 34),
-      child: const Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          PageHeader(
-            title: 'Naptár és mérkőzések',
-            subtitle:
-                'Követett sportolóid következő eseményei és utolsó eredményei.',
-          ),
-          SizedBox(height: 28),
-          Expanded(
-            child: Center(
-              key: Key('calendar-empty-state'),
-              child: EmptyState(
-                icon: Icons.event_available_outlined,
-                title: 'Még nincs megjeleníthető esemény.',
-                message:
-                    'A naptár a követett sportolók közelgő eseményeiből épül fel — hamarosan.',
-              ),
-            ),
-          ),
-        ],
       ),
     ),
   );

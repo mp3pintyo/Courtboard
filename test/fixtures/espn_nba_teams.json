@@ -1,0 +1,89 @@
+{
+ "sports": [
+  {
+   "id": "40",
+   "name": "Basketball",
+   "slug": "basketball",
+   "leagues": [
+    {
+     "id": "46",
+     "name": "National Basketball Association",
+     "abbreviation": "NBA",
+     "slug": "nba",
+     "teams": [
+      {
+       "team": {
+        "abbreviation": "DEN",
+        "displayName": "Denver Nuggets",
+        "id": "7",
+        "isActive": true,
+        "isAllStar": false,
+        "location": "Denver",
+        "name": "Nuggets",
+        "nickname": "Denver",
+        "shortDisplayName": "Nuggets",
+        "slug": "denver-nuggets"
+       }
+      },
+      {
+       "team": {
+        "abbreviation": "GS",
+        "displayName": "Golden State Warriors",
+        "id": "9",
+        "isActive": true,
+        "isAllStar": false,
+        "location": "Golden State",
+        "name": "Warriors",
+        "nickname": "Golden State",
+        "shortDisplayName": "Warriors",
+        "slug": "golden-state-warriors"
+       }
+      },
+      {
+       "team": {
+        "abbreviation": "LAL",
+        "displayName": "Los Angeles Lakers",
+        "id": "13",
+        "isActive": true,
+        "isAllStar": false,
+        "location": "Los Angeles",
+        "name": "Lakers",
+        "nickname": "Los Angeles",
+        "shortDisplayName": "Lakers",
+        "slug": "los-angeles-lakers"
+       }
+      },
+      {
+       "team": {
+        "abbreviation": "PHI",
+        "displayName": "Philadelphia 76ers",
+        "id": "20",
+        "isActive": true,
+        "isAllStar": false,
+        "location": "Philadelphia",
+        "name": "76ers",
+        "nickname": "Philadelphia",
+        "shortDisplayName": "76ers",
+        "slug": "philadelphia-76ers"
+       }
+      },
+      {
+       "team": {
+        "abbreviation": "UTAH",
+        "displayName": "Utah Jazz",
+        "id": "26",
+        "isActive": true,
+        "isAllStar": false,
+        "location": "Utah",
+        "name": "Jazz",
+        "nickname": "Utah",
+        "shortDisplayName": "Jazz",
+        "slug": "utah-jazz"
+       }
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

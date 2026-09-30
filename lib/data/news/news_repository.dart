@@ -86,7 +86,21 @@ class NewsRepository {
   /// A frissítés utáni takarítás szabálya.
   final NewsRetention retention;
 
-  Future<NewsRefreshReport> refresh({bool force = false}) async {
+  /// A folyamatban lévő frissítés: a Hírek oldal és a háttérfigyelő
+  /// egyszerre indított kérése nem tölti le kétszer ugyanazt.
+  Future<NewsRefreshReport>? _inFlight;
+
+  Future<NewsRefreshReport> refresh({bool force = false}) {
+    final pending = _inFlight;
+    if (pending != null) return pending;
+    final future = _refresh(force: force);
+    _inFlight = future;
+    return future.whenComplete(() {
+      if (identical(_inFlight, future)) _inFlight = null;
+    });
+  }
+
+  Future<NewsRefreshReport> _refresh({bool force = false}) async {
     final states = (await store.sourceStates())
         .where((state) => state.enabled)
         .toList();

@@ -9,9 +9,41 @@ class CourtboardShell extends StatefulWidget {
     this.apiKeys = const {},
     this.apiKeyStore,
     this.secureStorageAvailable = true,
+    this.appVersion,
+    this.updateChecker,
+    this.upcomingEvents,
+    this.desktop,
+    this.notificationService,
+    this.startupRegistration,
+    this.watcherSource,
+    this.watcherMemoryStore,
     required this.onThemeChanged,
     this.onThemeModeChanged,
   });
+
+  /// Lásd [CourtboardApp.desktop].
+  final DesktopIntegration? desktop;
+
+  /// Lásd [CourtboardApp.notificationService].
+  final NotificationService? notificationService;
+
+  /// Lásd [CourtboardApp.startupRegistration].
+  final StartupRegistration? startupRegistration;
+
+  /// Lásd [CourtboardApp.watcherSource].
+  final WatcherDataSource? watcherSource;
+
+  /// Lásd [CourtboardApp.watcherMemoryStore].
+  final WatcherMemoryStore? watcherMemoryStore;
+
+  /// Lásd [CourtboardApp.appVersion].
+  final String? appVersion;
+
+  /// Lásd [CourtboardApp.updateChecker].
+  final UpdateChecker? updateChecker;
+
+  /// Lásd [CourtboardApp.upcomingEvents].
+  final UpcomingEventsController? upcomingEvents;
 
   /// A futtatás előtt betöltött helyi állapot.
   final CourtboardLocalState initialState;
@@ -73,6 +105,39 @@ class _CourtboardShellState extends State<CourtboardShell> {
   /// A profil adatkártyái által legutóbb mentett eredmények és események
   /// sportolónként (csak már betöltött adatból, hálózati kérés nélkül).
   Map<String, AthleteHighlight> _highlights = const {};
+
+  /// A naptár eseményei (a shellben élnek, így oldalváltáskor megmaradnak,
+  /// és a nyitóoldal „Mai fókusz” blokkja is profitál belőlük).
+  late final UpcomingEventsController _upcoming =
+      widget.upcomingEvents ?? UpcomingEventsController();
+  bool _upcomingWasLoading = false;
+
+  /// Automatikus frissítés-ellenőrzés (Beállítások → Frissítések).
+  bool _autoUpdateCheck = true;
+  UpdateCheckResult? _updateResult;
+  bool _updateBannerDismissed = false;
+
+  /// Az ablak legutóbb mentett helyzete (az asztali integráció jelzi).
+  WindowGeometry? _windowGeometry;
+
+  /// Beállítások → Tálca és indítás.
+  bool _closeToTray = false;
+  bool _closeToTrayHintShown = false;
+  bool _startMinimized = false;
+
+  /// A Windows „Run” bejegyzésének állapota (induláskor kiolvasva).
+  bool _launchAtStartup = false;
+
+  /// Az első tálcára rejtés után a következő megjelenéskor SnackBar-tipp.
+  bool _trayHintPending = false;
+
+  /// Beállítások → Értesítések, és a tálcamenüből indított szünet.
+  NotificationSettings _notificationSettings = const NotificationSettings();
+  DateTime? _notificationsPausedUntil;
+  Timer? _pauseTimer;
+
+  /// A háttérfigyelő (csak ha van értesítési szolgáltatás).
+  AthleteWatcher? _watcher;
 
   /// Billentyűparancsok jelzései a látható oldal felé.
   final CourtboardCommands _commands = CourtboardCommands();
@@ -162,6 +227,270 @@ class _CourtboardShellState extends State<CourtboardShell> {
     unawaited(_loadPlaylist());
     unawaited(_loadHighlights());
     FocusManager.instance.addListener(_keepShellFocus);
+    _upcoming.addListener(_upcomingChanged);
+    // Háttérben (6 órás gyorsítótárral) betöltjük a közelgő eseményeket, hogy
+    // a „Mai fókusz” a naptár megnyitása nélkül is lássa a következőt.
+    unawaited(_loadUpcoming());
+    if (_autoUpdateCheck && widget.updateChecker != null) {
+      unawaited(_checkForUpdates());
+    }
+    _initDesktop();
+  }
+
+  // ---------------------------------------------------------------------------
+  // Asztali integráció: tálca, értesítések, háttérfigyelő
+  // ---------------------------------------------------------------------------
+
+  void _initDesktop() {
+    final notifications = widget.notificationService;
+    if (notifications != null) {
+      notifications.onClick = _onNotificationClick;
+      final watcher = AthleteWatcher(
+        source:
+            widget.watcherSource ??
+            RepositoryWatcherSource(
+              config: () => _apiConfig,
+              news: _newsRepository,
+            ),
+        notifications: notifications,
+        memoryStore: widget.watcherMemoryStore,
+      );
+      _watcher = watcher;
+      _syncWatcher();
+      watcher.start();
+    }
+    final desktop = widget.desktop;
+    if (desktop != null) {
+      desktop
+        ..closeToTray = _closeToTray
+        ..attach(
+          DesktopHandlers(
+            onRefreshNow: _refreshNow,
+            onTogglePause: _togglePause,
+            onHiddenToTray: _hiddenToTray,
+            onWindowShown: _windowShown,
+            onGeometryChanged: _geometryChanged,
+            onBeforeQuit: _beforeQuit,
+          ),
+        );
+      unawaited(
+        desktop.updateTrayMenu(notificationsPaused: _notificationsPaused),
+      );
+    }
+    _schedulePauseExpiry();
+    unawaited(_loadStartupState());
+  }
+
+  /// A profilon értesítésre jelölt sportolók.
+  List<Athlete> get _alertAthletes =>
+      _athletes.where((athlete) => _alerts[athlete.name] == true).toList();
+
+  bool get _notificationsPaused {
+    final until = _notificationsPausedUntil;
+    return until != null && DateTime.now().isBefore(until);
+  }
+
+  void _syncWatcher() => _watcher?.update(
+    athletes: _calendarTargets(_alertAthletes),
+    settings: _notificationSettings,
+    pausedUntil: _notificationsPausedUntil,
+    clearPause: _notificationsPausedUntil == null,
+  );
+
+  /// Tálcamenü „Frissítés most”: azonnali figyelőfutás (a források
+  /// gyorsítótára érvényes), utána a kiemelések újraolvasása.
+  void _refreshNow() => unawaited(_runWatcherNow());
+
+  Future<void> _runWatcherNow() async {
+    await _watcher?.run();
+    if (mounted) await _loadHighlights();
+  }
+
+  /// „Értesítések szüneteltetése 1 órára” / „Értesítések folytatása”.
+  void _togglePause() {
+    setState(
+      () => _notificationsPausedUntil = _notificationsPaused
+          ? null
+          : DateTime.now().add(const Duration(hours: 1)),
+    );
+    _schedulePauseExpiry();
+    _saveLocalState();
+    unawaited(
+      widget.desktop?.updateTrayMenu(notificationsPaused: _notificationsPaused),
+    );
+  }
+
+  /// A szünet lejártakor a tálcamenü felirata is visszaáll.
+  void _schedulePauseExpiry() {
+    _pauseTimer?.cancel();
+    _pauseTimer = null;
+    final until = _notificationsPausedUntil;
+    if (until == null) return;
+    final remaining = until.difference(DateTime.now());
+    if (remaining <= Duration.zero) {
+      _notificationsPausedUntil = null;
+      return;
+    }
+    _pauseTimer = Timer(remaining, () {
+      _pauseTimer = null;
+      if (!mounted) return;
+      setState(() => _notificationsPausedUntil = null);
+      _saveLocalState();
+      unawaited(widget.desktop?.updateTrayMenu(notificationsPaused: false));
+    });
+  }
+
+  /// Az első tálcára rejtéskor egyszeri tipp (értesítés, és a következő
+  /// megjelenéskor SnackBar).
+  void _hiddenToTray() {
+    if (_closeToTrayHintShown) return;
+    _closeToTrayHintShown = true;
+    _trayHintPending = true;
+    _saveLocalState();
+    unawaited(
+      widget.notificationService?.show(
+        const CourtboardNotification(
+          id: 'tray-hint',
+          kind: CourtboardNotificationKind.info,
+          title: 'A Courtboard a tálcán fut tovább',
+          body:
+              'Kattints a tálcaikonra a megnyitáshoz; kilépés a tálcaikon '
+              'menüjéből.',
+        ),
+      ),
+    );
+  }
+
+  void _windowShown() {
+    if (!_trayHintPending) return;
+    _trayHintPending = false;
+    _showSnack(
+      'A Courtboard a tálcán futott tovább. Kilépés: tálcaikon → Kilépés '
+      '(Beállítások → Tálca és indítás).',
+    );
+  }
+
+  void _geometryChanged(WindowGeometry geometry) {
+    _windowGeometry = geometry;
+    _saveLocalState();
+  }
+
+  Future<void> _beforeQuit() async {
+    _watcher?.stop();
+    await _flushLocalState();
+  }
+
+  /// Értesítésre kattintva: ablak előhozása, majd a sportoló profilja
+  /// (hírösszesítőnél a Hírek oldal).
+  void _onNotificationClick(CourtboardNotification notification) {
+    unawaited(widget.desktop?.showWindow());
+    if (!mounted) return;
+    final name = notification.athleteName;
+    final athlete = name == null
+        ? null
+        : _athletes.where((item) => item.name == name).firstOrNull;
+    if (athlete != null) {
+      _openProfile(athlete);
+    } else if (notification.kind == CourtboardNotificationKind.news) {
+      _navigate(3);
+    }
+  }
+
+  Future<void> _loadStartupState() async {
+    final startup = widget.startupRegistration;
+    if (startup == null || !startup.supported) return;
+    final enabled = await startup.isEnabled();
+    if (mounted) setState(() => _launchAtStartup = enabled);
+  }
+
+  Future<void> _setLaunchAtStartup(bool value) async {
+    final startup = widget.startupRegistration;
+    if (startup == null) return;
+    try {
+      await startup.setEnabled(value, minimized: _startMinimized);
+    } catch (_) {
+      _showSnack('Az automatikus indítás beállítása nem sikerült.');
+    }
+    final enabled = await startup.isEnabled();
+    if (mounted) setState(() => _launchAtStartup = enabled);
+  }
+
+  Future<void> _setStartMinimized(bool value) async {
+    setState(() => _startMinimized = value);
+    _saveLocalState();
+    final startup = widget.startupRegistration;
+    if (startup == null || !_launchAtStartup) return;
+    try {
+      await startup.setEnabled(true, minimized: value);
+    } catch (_) {
+      _showSnack('Az automatikus indítás beállítása nem sikerült.');
+    }
+  }
+
+  void _setCloseToTray(bool value) {
+    setState(() => _closeToTray = value);
+    widget.desktop?.closeToTray = value;
+    _saveLocalState();
+  }
+
+  void _setNotificationSettings(NotificationSettings value) {
+    setState(() => _notificationSettings = value);
+    _saveLocalState();
+  }
+
+  Future<bool> _sendTestNotification() async {
+    final service = widget.notificationService;
+    if (service == null) return false;
+    return service.show(
+      const CourtboardNotification(
+        id: 'test',
+        kind: CourtboardNotificationKind.test,
+        title: 'Courtboard – teszt értesítés',
+        body:
+            'Az értesítések működnek. Így jelez a Courtboard meccskezdéskor, '
+            'új eredménynél és új hírnél.',
+      ),
+    );
+  }
+
+  /// Kilépés előtt: az állapot mentésének megvárása.
+  Future<void> _flushLocalState() async {
+    final store = widget.stateStore;
+    if (store == null) return;
+    try {
+      await store.save(_currentState());
+    } catch (_) {
+      // Kilépéskor már nem tudunk mit tenni.
+    }
+  }
+
+  Future<void> _loadUpcoming() =>
+      _upcoming.load(_calendarTargets(_athletes), config: _apiConfig);
+
+  /// Egy betöltési kör végén a kiemelések újraolvasása.
+  void _upcomingChanged() {
+    final loading = _upcoming.isLoading;
+    if (_upcomingWasLoading && !loading) unawaited(_loadHighlights());
+    _upcomingWasLoading = loading;
+  }
+
+  /// Frissítés-ellenőrzés; [force] esetén a 12 órás gyorsítótár nélkül.
+  Future<UpdateCheckResult?> _checkForUpdates({bool force = false}) async {
+    final checker = widget.updateChecker;
+    if (checker == null) return null;
+    final result = await checker.check(force: force);
+    if (!mounted) return result;
+    setState(() {
+      _updateResult = result;
+      if (force) _updateBannerDismissed = false;
+    });
+    return result;
+  }
+
+  void _setAutoUpdateCheck(bool value) {
+    setState(() => _autoUpdateCheck = value);
+    _saveLocalState();
+    if (value && _updateResult == null) unawaited(_checkForUpdates());
   }
 
   @override
@@ -175,6 +504,12 @@ class _CourtboardShellState extends State<CourtboardShell> {
     FocusManager.instance.removeListener(_keepShellFocus);
     _shellFocus.dispose();
     _commands.dispose();
+    _upcoming.removeListener(_upcomingChanged);
+    if (widget.upcomingEvents == null) _upcoming.dispose();
+    _watcher?.dispose();
+    _pauseTimer?.cancel();
+    widget.notificationService?.onClick = null;
+    widget.desktop?.attach(const DesktopHandlers());
     _search.dispose();
     unawaited(_newsRepository.close());
     super.dispose();
@@ -195,6 +530,17 @@ class _CourtboardShellState extends State<CourtboardShell> {
     _selectedTheme = state.theme;
     _selectedThemeMode = state.themeMode;
     _railCollapsed = state.railCollapsed;
+    _autoUpdateCheck = state.autoUpdateCheck;
+    _windowGeometry = state.windowGeometry;
+    _closeToTray = state.closeToTray;
+    _closeToTrayHintShown = state.closeToTrayHintShown;
+    _startMinimized = state.startMinimized;
+    _notificationSettings = state.notifications;
+    final pausedUntil = state.notificationsPausedUntil;
+    _notificationsPausedUntil =
+        pausedUntil != null && pausedUntil.isAfter(DateTime.now())
+        ? pausedUntil
+        : null;
     _athletes.removeWhere(
       (athlete) => _removedAthleteNames.contains(athlete.name),
     );
@@ -252,6 +598,13 @@ class _CourtboardShellState extends State<CourtboardShell> {
     athleteSort: _athleteSort,
     athleteOrder: _athletes.map((athlete) => athlete.name).toList(),
     railCollapsed: _railCollapsed,
+    autoUpdateCheck: _autoUpdateCheck,
+    windowGeometry: _windowGeometry,
+    closeToTray: _closeToTray,
+    closeToTrayHintShown: _closeToTrayHintShown,
+    startMinimized: _startMinimized,
+    notifications: _notificationSettings,
+    notificationsPausedUntil: _notificationsPausedUntil,
     customAthletes: _athletes
         .where((a) => a.isCustom)
         .map(
@@ -269,6 +622,9 @@ class _CourtboardShellState extends State<CourtboardShell> {
   /// Háttérben menti az állapotot (a tároló sorba rendezi az írásokat);
   /// hiba esetén SnackBar jelzi, hogy a módosítás nem került lemezre.
   void _saveLocalState() {
+    // Minden mentett változás (értesítésjelölés, sportolólista, beállítások)
+    // a háttérfigyelőhöz is eljut.
+    _syncWatcher();
     final store = widget.stateStore;
     if (store == null) return;
     unawaited(
@@ -607,6 +963,20 @@ class _CourtboardShellState extends State<CourtboardShell> {
                               onMenu: () =>
                                   _scaffoldKey.currentState?.openDrawer(),
                             ),
+                          if (_updateResult?.updateAvailable == true &&
+                              !_updateBannerDismissed)
+                            _UpdateBanner(
+                              result: _updateResult!,
+                              onDownload: () => unawaited(
+                                openExternalUrl(
+                                  context,
+                                  _updateResult!.latest?.htmlUrl ??
+                                      widget.updateChecker!.releasesPage,
+                                ),
+                              ),
+                              onDismiss: () =>
+                                  setState(() => _updateBannerDismissed = true),
+                            ),
                           Expanded(child: _ContentFrame(child: page)),
                         ],
                       ),
@@ -642,7 +1012,11 @@ class _CourtboardShellState extends State<CourtboardShell> {
       onAdd: _openAddAthlete,
       onReorder: _reorderAthletes,
     ),
-    2 => const _CalendarPage(),
+    2 => _CalendarPage(
+      athletes: _athletes,
+      controller: _upcoming,
+      config: _apiConfig,
+    ),
     3 => NewsPage(
       repository: _newsRepository,
       athletes: _athletes
@@ -673,8 +1047,52 @@ class _CourtboardShellState extends State<CourtboardShell> {
       onThemeChanged: _setTheme,
       onOverviewSortChanged: _setOverviewSort,
       onAthleteSortChanged: _setAthleteSort,
+      appVersion: widget.appVersion,
+      autoUpdateCheck: _autoUpdateCheck,
+      onAutoUpdateCheckChanged: _setAutoUpdateCheck,
+      updateResult: _updateResult,
+      onCheckUpdatesNow: widget.updateChecker == null
+          ? null
+          : () => _checkForUpdates(force: true),
+      notificationSettings: _NotificationSettingsCard(
+        settings: _notificationSettings,
+        onChanged: _setNotificationSettings,
+        alertAthleteCount: _alertAthletes.length,
+        serviceDescription: widget.notificationService?.available == true
+            ? widget.notificationService!.description
+            : null,
+        pausedUntil: _notificationsPaused ? _notificationsPausedUntil : null,
+        onResume: _notificationsPaused ? _togglePause : null,
+        onTest: widget.notificationService == null
+            ? null
+            : _sendTestNotification,
+      ),
+      desktopSettings: _buildDesktopSettings(),
     ),
   };
+
+  Widget _buildDesktopSettings() {
+    final startup = widget.startupRegistration;
+    final startupSupported = startup != null && startup.supported;
+    return _DesktopSettingsCard(
+      closeToTray: _closeToTray,
+      onCloseToTrayChanged: widget.desktop?.trayAvailable == true
+          ? _setCloseToTray
+          : null,
+      launchAtStartup: _launchAtStartup,
+      onLaunchAtStartupChanged: startupSupported
+          ? (value) => unawaited(_setLaunchAtStartup(value))
+          : null,
+      startMinimized: _startMinimized,
+      onStartMinimizedChanged: startupSupported
+          ? (value) => unawaited(_setStartMinimized(value))
+          : null,
+      startupUnavailableReason: startup != null && !startup.supported
+          ? startup.unsupportedReason
+          : null,
+      desktopAvailable: widget.desktop != null,
+    );
+  }
 
   void _setTheme(String value) {
     setState(() => _selectedTheme = value);

@@ -283,6 +283,22 @@ class SportsApiClient {
       _get(espnScoreboardUri(league, from: from, to: to, limit: limit),
           provider: 'ESPN');
 
+  /// ESPN labdarúgó scoreboard egy teljes naptári évre (`dates=ÉÉÉÉ`). A
+  /// jövőbe nyúló napi tartományt az ESPN 400-as hibával utasítja el, az
+  /// éves lekérés viszont a még le nem játszott meccseket is tartalmazza.
+  Future<Map<String, dynamic>> espnSoccerScoreboardYear(
+    String league,
+    int year, {
+    int limit = 500,
+  }) =>
+      _get(
+          Uri.https('site.api.espn.com',
+              '/apis/site/v2/sports/soccer/$league/scoreboard', {
+            'dates': '$year',
+            'limit': '$limit',
+          }),
+          provider: 'ESPN');
+
   static Uri espnScoreboardUri(
     String league, {
     required DateTime from,

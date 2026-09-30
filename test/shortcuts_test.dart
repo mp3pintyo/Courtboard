@@ -51,7 +51,8 @@ void main() {
     expect(find.byKey(const Key('athlete-directory-search')), findsOneWidget);
 
     await _press(tester, LogicalKeyboardKey.digit7, control: true);
-    expect(find.byKey(const Key('shortcut-list')), findsOneWidget);
+    // A Beállítások teteje (a billentyűparancs-lista a kártyák alatt van).
+    expect(find.byKey(const Key('theme-mode-setting')), findsOneWidget);
 
     await _press(tester, LogicalKeyboardKey.digit1, control: true);
     expect(find.text('A te személyes sportközpontod'), findsOneWidget);

@@ -255,6 +255,34 @@ const providerCatalog = <ProviderCatalogEntry>[
         'https://site.api.espn.com/apis/site/v2/sports/soccer/esp.w.1/scoreboard?dates=2026',
   ),
   ProviderCatalogEntry(
+    name: 'ESPN · Menetrendek',
+    sports: ['NBA', 'WNBA', 'NFL', 'Naptár'],
+    role:
+        'Az NBA-, WNBA- és NFL-csapatok közelgő mérkőzései a Naptár oldalhoz.',
+    visibleOutput: [
+      'Naptár: a követett sportoló csapatának következő meccsei helyi időben',
+      'Ellenfél, hazai/idegen, liga és szakasz (alapszakasz, rájátszás, NFL-hét)',
+      'Helyszín és az ESPN Gamecast-oldal linkje',
+      'A legközelebbi esemény a nyitóoldal „Mai fókusz” blokkjában',
+    ],
+    capabilities: [
+      'Csapatlista (teams) és csapatmenetrend (teams/{csapat}/schedule) végpont',
+      'Csapatfeloldás teljes névvel, rövidítéssel vagy becenévvel',
+      'Felkészülési időszakban az alapszakasz menetrendjét is lekéri',
+      'Befejezett, elhalasztott és törölt meccset nem mutat; bizonytalan időpontnál „később”',
+    ],
+    authentication: 'Nem kell API-kulcs; nyilvános, nem dokumentált végpont.',
+    limit:
+        'Nincs publikált kvóta; az app legfeljebb 30 kérés/perc sebességgel, best effort módon kérdez.',
+    cache:
+        'Sportolónként 6 órás lemezcache a naptáreseményekre, 7 napos a csapatlistára; hibánál a régebbi lista marad.',
+    setup: 'Nincs teendő; a csapatot a sportoló adatlapján kell megadni.',
+    fallback:
+        'Hiba esetén a naptár apró megjegyzést mutat az adott sportolónál, a többi forrás ettől függetlenül betölt.',
+    docsUrl:
+        'https://site.api.espn.com/apis/site/v2/sports/basketball/nba/teams/den/schedule',
+  ),
+  ProviderCatalogEntry(
     name: 'RapidAPI · Darts API',
     sports: ['Darts'],
     role: 'Sportbex versenyinformációk a darts profil mellett.',
@@ -354,6 +382,30 @@ const providerCatalog = <ProviderCatalogEntry>[
     fallback:
         'Forráshiba vagy internetkimaradás esetén a teljes korábbi helyi archívum megmarad.',
     docsUrl: 'https://www.espn.com/espn/news/story?page=rssinfo',
+  ),
+  ProviderCatalogEntry(
+    name: 'GitHub Releases',
+    sports: ['Alkalmazás'],
+    role: 'Frissítés-ellenőrzés: van-e a futónál újabb Courtboard-kiadás.',
+    visibleOutput: [
+      '„Új verzió érhető el” sáv a felület tetején, a kiadás oldalára mutató Letöltés linkkel',
+      'Beállítások → Frissítések: jelenlegi verzió, utolsó ellenőrzés eredménye',
+    ],
+    capabilities: [
+      'A releases/latest végpont; előzetes (prerelease) és vázlat kiadásról nem szól',
+      'Szemantikus verzió-összevetés a futó alkalmazás verziójával',
+      'Semmit nem tölt le és nem telepít magától',
+    ],
+    authentication: 'Nem kell kulcs; a kérés User-Agent fejlécet küld.',
+    limit:
+        'Hitelesítés nélkül óránként 60 kérés IP-címenként; kéréskorlátnál barátságos üzenet.',
+    cache: '12 órás lemezcache; a „Keresés most” gomb kikerüli.',
+    setup:
+        'Beállítások → Frissítések → Automatikus frissítés-ellenőrzés (alapból bekapcsolva).',
+    fallback:
+        'Hálózati hibánál a legutóbb mentett eredmény, különben csak egy üzenet a Beállításokban.',
+    docsUrl:
+        'https://docs.github.com/en/rest/releases/releases#get-the-latest-release',
   ),
   ProviderCatalogEntry(
     name: 'YouTube oEmbed + helyi lejátszási lista',

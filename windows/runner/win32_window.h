@@ -52,6 +52,12 @@ class Win32Window {
   // If true, closing this window will quit the application.
   void SetQuitOnClose(bool quit_on_close);
 
+  // Courtboard: applies the minimum window size (logical ~800x600 client
+  // area, scaled to the monitor's DPI) to |info|. Also used by
+  // FlutterWindow, because the window_manager plugin answers
+  // WM_GETMINMAXINFO before the runner does.
+  static void ApplyMinimumTrackSize(HWND window, MINMAXINFO* info);
+
   // Return a RECT representing the bounds of the current client area.
   RECT GetClientArea();
 

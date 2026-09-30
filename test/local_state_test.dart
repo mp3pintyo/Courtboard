@@ -5,6 +5,17 @@ import 'package:courtboard/data/api_key_id.dart';
 import 'package:courtboard/data/local_state.dart';
 
 void main() {
+  test('automatic update check defaults to on and round-trips', () {
+    expect(const CourtboardLocalState().autoUpdateCheck, isTrue);
+    // A 0.11.0 előtti állapotfájlokban nincs ilyen mező.
+    expect(CourtboardLocalState.fromJson(const {}).autoUpdateCheck, isTrue);
+    final off = CourtboardLocalState.fromJson(
+      const CourtboardLocalState(autoUpdateCheck: false).toJson(),
+    );
+    expect(off.autoUpdateCheck, isFalse);
+    expect(off.withLegacyApiKeys(const {}).autoUpdateCheck, isFalse);
+  });
+
   test('local state persists notes, alerts, and custom athletes', () async {
     final file =
         File('${Directory.systemTemp.path}/courtboard_state_test.json');

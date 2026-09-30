@@ -33,6 +33,11 @@ const providerLimits = <String, ProviderLimits>{
   'RapidAPI WNBA': ProviderLimits(perMonth: 100),
   // Nem kulcsos API, de percenként 20-nál több kérésnél ideiglenesen tilt.
   'Basketball Reference': ProviderLimits(perMinute: 20),
+  // Nem dokumentált, kulcs nélküli nyilvános API: kímélő, percenként 30.
+  'ESPN': ProviderLimits(perMinute: 30),
+  // Hitelesítés nélkül óránként 60 kérés; a frissítés-ellenőrzés 12 órás
+  // gyorsítótárral ennek töredékét használja.
+  'GitHub': ProviderLimits(perMinute: 10),
 };
 
 /// Csúszóablakos kéréskorlátozó: egy [window] időablakban legfeljebb

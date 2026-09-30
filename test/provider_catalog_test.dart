@@ -45,4 +45,22 @@ void main() {
         isTrue);
     expect(tennis.capabilities.join(' '), contains('nem kéri le'));
   });
+
+  test('ESPN schedules document the calendar source, cache and limit', () {
+    final espn = providerCatalog
+        .singleWhere((entry) => entry.name == 'ESPN · Menetrendek');
+
+    expect(espn.sports, containsAll(['NBA', 'WNBA', 'NFL']));
+    expect(espn.key, ProviderKey.none);
+    expect(espn.isConfigured(const SportsApiConfig()), isTrue);
+    expect(espn.cache, contains('6 órás'));
+    expect(espn.limit, contains('30 kérés/perc'));
+    expect(filterProviderCatalog('naptár', 'NFL'), contains(espn));
+    expect(filterProviderCatalog('', 'Naptár'), [espn]);
+  });
+
+  test('GitHub Releases documents the update check', () {
+    expect(filterProviderCatalog('frissítés', 'Alkalmazás').single.name,
+        'GitHub Releases');
+  });
 }

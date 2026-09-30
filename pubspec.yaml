@@ -2,7 +2,7 @@ name: courtboard
 
 description: Sportolókövető asztali alkalmazás Flutterhez.
 publish_to: none
-version: 0.10.0+11
+version: 0.11.0+12
 
 environment:
   sdk: '>=3.12.0 <4.0.0'
@@ -10,21 +10,46 @@ environment:
 
 dependencies:
   ffi: ^2.2.0
+  file_selector: ^1.1.0
   flutter:
     sdk: flutter
   flutter_localizations:
     sdk: flutter
   html: ^0.15.6
   intl: ^0.20.2
+  local_notifier: ^0.1.6
+  package_info_plus: ^10.2.1
   sqflite_common_ffi: ^2.4.2
+  tray_manager: ^0.5.3
   url_launcher: ^6.3.2
   win32: ^6.4.0
+  window_manager: ^0.5.2
   xml: ^6.6.1
 
 dev_dependencies:
+  fake_async: ^1.3.3
   flutter_test:
     sdk: flutter
   flutter_lints: ^5.0.0
+  msix: ^3.18.0
 
 flutter:
   uses-material-design: true
+  assets:
+    # A tálcaikon (a tray_manager a flutter_assets mappából tölti be).
+    - assets/tray/app_icon.ico
+
+# MSIX csomag (`dart run msix:create`, lásd tool/build_msix.ps1 és README).
+# Aláíró tanúsítvány nélkül a msix csomag saját teszttanúsítványával ír alá;
+# a tanúsítványt SEM a build, SEM a script nem telepíti.
+msix_config:
+  display_name: Courtboard
+  publisher_display_name: Mp3Pintyo
+  identity_name: Mp3Pintyo.Courtboard
+  msix_version: 0.11.0.0
+  logo_path: windows/runner/resources/app_icon.ico
+  capabilities: internetClient
+  languages: hu-hu, en-us
+  store: false
+  install_certificate: false
+  build_windows: false

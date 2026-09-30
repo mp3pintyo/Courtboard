@@ -12,6 +12,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:courtboard/data/athlete_highlights.dart';
+import 'package:courtboard/data/athlete_watcher.dart';
 import 'package:courtboard/data/basketball_reference.dart';
 import 'package:courtboard/data/basketball_season.dart';
 import 'package:courtboard/data/darts.dart';
@@ -21,11 +22,16 @@ import 'package:courtboard/data/json_file_cache.dart';
 import 'package:courtboard/data/live_tennis.dart';
 import 'package:courtboard/data/local_state.dart';
 import 'package:courtboard/data/multi_provider.dart';
+import 'package:courtboard/data/notification_settings.dart';
 import 'package:courtboard/data/news.dart';
 import 'package:courtboard/data/rapidapi_wnba.dart';
+import 'package:courtboard/data/upcoming_events.dart';
 import 'package:courtboard/data/wehoop_wnba.dart';
+import 'package:courtboard/desktop/startup_registration.dart';
 import 'package:courtboard/main.dart';
 import 'package:courtboard/theme/courtboard_theme.dart';
+
+import '../support/fake_desktop.dart';
 
 final bool _enabled = Platform.environment['COURTBOARD_SCREENSHOTS'] == '1';
 
@@ -393,6 +399,285 @@ Future<void> _shootApp(
   debugDisableShadows = true;
 }
 
+/// Minta-naptáresemények a követett sportolókhoz (a tesztben nincs hálózat,
+/// ezért a naptár a gyorsítótárba előre betöltött listákat mutatja).
+Future<void> _seedCalendar() async {
+  final repository = UpcomingEventsRepository();
+  final now = DateTime.now();
+  DateTime day(int offset, int hour, [int minute = 0]) =>
+      DateTime(now.year, now.month, now.day + offset, hour, minute);
+  UpcomingEvent event(
+    UpcomingEventsTarget target,
+    DateTime start,
+    String home,
+    String away, {
+    required String competition,
+    String? venue,
+    String source = 'ESPN',
+    bool timeKnown = true,
+  }) {
+    final isHome = home == target.team || home == target.name;
+    return UpcomingEvent(
+      athleteName: target.name,
+      sport: target.sport,
+      title: '$home – $away',
+      opponent: isHome ? away : home,
+      homeAway: isHome ? 'home' : 'away',
+      competition: competition,
+      start: start,
+      venue: venue,
+      source: source,
+      url: 'https://www.espn.com/',
+      timeKnown: timeKnown,
+    );
+  }
+
+  const jokic = UpcomingEventsTarget(
+    name: 'Nikola Jokić',
+    sport: 'NBA',
+    team: 'Denver Nuggets',
+  );
+  const clark = UpcomingEventsTarget(
+    name: 'Caitlin Clark',
+    sport: 'WNBA',
+    team: 'Indiana Fever',
+  );
+  const dorka = UpcomingEventsTarget(
+    name: 'Juhász Dorka',
+    sport: 'WNBA',
+    team: 'Minnesota Lynx',
+  );
+  const barkley = UpcomingEventsTarget(
+    name: 'Saquon Barkley',
+    sport: 'NFL',
+    team: 'Philadelphia Eagles',
+  );
+  const aitana = UpcomingEventsTarget(
+    name: 'Aitana Bonmatí',
+    sport: 'Foci',
+    team: 'FC Barcelona',
+  );
+  const humphries = UpcomingEventsTarget(
+    name: 'Luke Humphries',
+    sport: 'Darts',
+  );
+
+  final later = now.add(const Duration(hours: 2));
+  await repository.seed(jokic, [
+    event(
+      jokic,
+      DateTime(later.year, later.month, later.day, later.hour),
+      'Denver Nuggets',
+      'Utah Jazz',
+      competition: 'NBA · Felkészülési mérkőzés',
+      venue: 'Ball Arena, Denver',
+    ),
+    event(
+      jokic,
+      day(3, 4),
+      'Golden State Warriors',
+      'Denver Nuggets',
+      competition: 'NBA · Alapszakasz',
+      venue: 'Chase Center, San Francisco',
+    ),
+    event(
+      jokic,
+      day(5, 3, 30),
+      'Denver Nuggets',
+      'Los Angeles Lakers',
+      competition: 'NBA · Alapszakasz',
+      venue: 'Ball Arena, Denver',
+    ),
+  ]);
+  await repository.seed(clark, [
+    event(
+      clark,
+      day(1, 1, 30),
+      'Las Vegas Aces',
+      'Indiana Fever',
+      competition: 'WNBA · Rájátszás',
+      venue: 'Michelob ULTRA Arena, Las Vegas',
+    ),
+  ]);
+  await repository.seed(dorka, [
+    event(
+      dorka,
+      day(1, 3),
+      'Minnesota Lynx',
+      'Phoenix Mercury',
+      competition: 'WNBA · Rájátszás',
+      venue: 'Target Center, Minneapolis',
+    ),
+    event(
+      dorka,
+      day(6, 2),
+      'Phoenix Mercury',
+      'Minnesota Lynx',
+      competition: 'WNBA · Rájátszás',
+      venue: 'PHX Arena, Phoenix',
+      timeKnown: false,
+    ),
+  ]);
+  await repository.seed(aitana, [
+    event(
+      aitana,
+      day(1, 12),
+      'Real Madrid Femenino',
+      'Barcelona Femení',
+      competition: 'Liga F',
+      venue: 'Estadio Alfredo Di Stéfano, Madrid',
+    ),
+  ]);
+  await repository.seed(barkley, [
+    event(
+      barkley,
+      day(4, 19),
+      'Philadelphia Eagles',
+      'Los Angeles Rams',
+      competition: 'NFL · Alapszakasz · 5. hét',
+      venue: 'Lincoln Financial Field, Philadelphia',
+    ),
+  ]);
+  await repository.seed(
+    humphries,
+    [
+      event(
+        humphries,
+        day(2, 20),
+        'Luke Humphries',
+        'Luke Littler',
+        competition: 'World Grand Prix · 2. forduló',
+        venue: 'Mattioli Arena, Leicester',
+        source: 'TheSportsDB',
+      ),
+    ],
+    notes: const ['RapidAPI Darts: a versenylista nem ad időpontot.'],
+  );
+}
+
+Future<void> _shootCalendar(
+  WidgetTester tester, {
+  required String mode,
+  required Size size,
+}) async {
+  tester.view.devicePixelRatio = 1;
+  tester.view.physicalSize = size;
+  tester.platformDispatcher.platformBrightnessTestValue = mode == 'dark'
+      ? Brightness.dark
+      : Brightness.light;
+  debugDisableShadows = false;
+  addTearDown(() {
+    tester.view.resetPhysicalSize();
+    tester.view.resetDevicePixelRatio();
+    tester.platformDispatcher.clearPlatformBrightnessTestValue();
+  });
+  // Tiszta gyorsítótár: csak a mintaesemények és -kiemelések látszanak.
+  CacheStorage.shared = MemoryCacheStorage();
+  await tester.runAsync(_seedNews);
+  await _seedHighlights();
+  await _seedCalendar();
+
+  await tester.pumpWidget(
+    RepaintBoundary(
+      key: _shotKey,
+      child: CourtboardApp(initialState: _state('green', mode)),
+    ),
+  );
+  await _settle(tester);
+  final prefix = '${mode}_green_${size.width.toInt()}_';
+  // A naptár háttérbetöltése a „Mai fókusz”-t is frissíti.
+  await _capture(tester, '${prefix}08a_attekintes_naptarbol');
+  await _openNav(tester, 'Naptár');
+  await _capture(tester, '${prefix}08_naptar');
+  await _captureTall(tester, size, '${prefix}08_naptar_teljes');
+
+  await tester.pumpWidget(const SizedBox());
+  await _settle(tester, rounds: 2);
+  CacheStorage.shared = MemoryCacheStorage();
+  debugDisableShadows = true;
+}
+
+/// A Beállítások új kártyái (Értesítések, Tálca és indítás) hamis asztali
+/// szolgáltatásokkal, hogy a kapcsolók engedélyezett állapotban látsszanak.
+Future<void> _shootDesktopSettings(
+  WidgetTester tester, {
+  required String mode,
+  required Size size,
+}) async {
+  tester.view.devicePixelRatio = 1;
+  tester.view.physicalSize = size;
+  tester.platformDispatcher.platformBrightnessTestValue = mode == 'dark'
+      ? Brightness.dark
+      : Brightness.light;
+  debugDisableShadows = false;
+  addTearDown(() {
+    tester.view.resetPhysicalSize();
+    tester.view.resetDevicePixelRatio();
+    tester.platformDispatcher.clearPlatformBrightnessTestValue();
+  });
+  final startup = MemoryStartupRegistration(
+    command: startupCommand(
+      MemoryStartupRegistration.executablePath,
+      minimized: true,
+    ),
+  );
+  final base = _state('green', mode);
+  await tester.pumpWidget(
+    RepaintBoundary(
+      key: _shotKey,
+      child: CourtboardApp(
+        initialState: CourtboardLocalState(
+          theme: base.theme,
+          themeMode: base.themeMode,
+          customAthletes: base.customAthletes,
+          alerts: const {'Nikola Jokić': true, 'Caitlin Clark': true},
+          closeToTray: true,
+          startMinimized: true,
+          notifications: const NotificationSettings(quietHours: true),
+          notificationsPausedUntil: DateTime.now().add(
+            const Duration(minutes: 40),
+          ),
+        ),
+        desktop: FakeDesktopIntegration(startup: startup),
+        notificationService: FakeNotificationService(),
+        startupRegistration: startup,
+        watcherSource: FakeWatcherSource(),
+        watcherMemoryStore: MemoryWatcherMemoryStore(),
+      ),
+    ),
+  );
+  await _settle(tester);
+  await _openNav(tester, 'Beállítások');
+  final prefix = '${mode}_green_${size.width.toInt()}_';
+  final settingsList = find
+      .descendant(
+        of: find.byType(ListView).last,
+        matching: find.byType(Scrollable),
+      )
+      .first;
+  await tester.scrollUntilVisible(
+    find.byKey(const Key('notifications-enabled-setting')),
+    200,
+    scrollable: settingsList,
+  );
+  await _settle(tester, rounds: 2);
+  await _capture(tester, '${prefix}09_beallitasok_ertesitesek');
+  await tester.scrollUntilVisible(
+    find.byKey(const Key('start-minimized-setting')),
+    200,
+    scrollable: settingsList,
+  );
+  // A kártya címe kerüljön a nézet tetejére.
+  await tester.ensureVisible(find.text('Tálca és indítás'));
+  await _settle(tester, rounds: 2);
+  await _capture(tester, '${prefix}09_beallitasok_talca');
+  await _captureTall(tester, size, '${prefix}09_beallitasok_teljes');
+
+  await tester.pumpWidget(const SizedBox());
+  await _settle(tester, rounds: 2);
+  debugDisableShadows = true;
+}
+
 /// A fókuszban lévő InkWell kulcsa (ha van).
 Key? _focusedInkKey() {
   final context = FocusManager.instance.primaryFocus?.context;
@@ -660,6 +945,30 @@ void main() {
         prefix: '${mode}_${accent}_${label}_',
       );
     });
+  }
+
+  for (final (mode, size) in const [
+    ('light', wide),
+    ('dark', wide),
+    ('light', minimum),
+  ]) {
+    testWidgets(
+      'calendar screenshots $mode ${size.width.toInt()}',
+      skip: _skip,
+      (tester) => _shootCalendar(tester, mode: mode, size: size),
+    );
+  }
+
+  for (final (mode, size) in const [
+    ('light', wide),
+    ('dark', wide),
+    ('light', minimum),
+  ]) {
+    testWidgets(
+      'desktop settings screenshots $mode ${size.width.toInt()}',
+      skip: _skip,
+      (tester) => _shootDesktopSettings(tester, mode: mode, size: size),
+    );
   }
 
   for (final (accent, brightness) in const [

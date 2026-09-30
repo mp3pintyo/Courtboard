@@ -51,7 +51,10 @@ const courtboardShortcutHelp = <(List<String>, String)>[
   ),
   (['Esc'], 'Vissza a profilból; párbeszédablak bezárása'),
   (['Alt', '←'], 'Vissza a profilból'),
-  (['Ctrl', 'R'], 'Az aktuális oldal frissítése (profil adatkártyái, hírek)'),
+  (
+    ['Ctrl', 'R'],
+    'Az aktuális oldal frissítése (profil adatkártyái, naptár, hírek)',
+  ),
   (['F5'], 'Frissítés (ugyanaz, mint a Ctrl+R)'),
   (['Ctrl', '1 … 7'], 'Ugrás a menüpontokra, felülről lefelé'),
   (['Ctrl', 'N'], 'Új sportoló felvétele'),

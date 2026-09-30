@@ -5,6 +5,8 @@ import 'api_key_id.dart';
 import 'app_paths.dart';
 import 'file_util.dart';
 import 'json_util.dart';
+import 'notification_settings.dart';
+import 'window_geometry.dart';
 
 class CustomAthlete {
   const CustomAthlete({
@@ -51,6 +53,13 @@ class CourtboardLocalState {
     this.athleteSort = 'custom',
     this.athleteOrder = const [],
     this.railCollapsed = false,
+    this.autoUpdateCheck = true,
+    this.windowGeometry,
+    this.closeToTray = false,
+    this.closeToTrayHintShown = false,
+    this.startMinimized = false,
+    this.notifications = const NotificationSettings(),
+    this.notificationsPausedUntil,
   });
 
   final Map<String, String> notes;
@@ -78,6 +87,31 @@ class CourtboardLocalState {
   /// Igaz, ha a felhasználó széles ablakban is összecsukta az oldalsávot.
   final bool railCollapsed;
 
+  /// Automatikus frissítés-ellenőrzés indításkor (alapból bekapcsolva; a
+  /// 0.11.0 előtti állapotfájlokból hiányzik).
+  final bool autoUpdateCheck;
+
+  /// Az ablak legutóbbi helyzete és mérete (0.11.0-tól); `null`, ha még
+  /// nincs mentés (ilyenkor a futtató középre igazított alapablaka él).
+  final WindowGeometry? windowGeometry;
+
+  /// Bezáráskor a tálcára kicsinyítés (alapból kikapcsolva).
+  final bool closeToTray;
+
+  /// Igaz, ha az első tálcára rejtéskor megjelent tipp már látszott.
+  final bool closeToTrayHintShown;
+
+  /// Windows-indításkor a tálcára minimalizálva induljon (a Windows-zal
+  /// indítás maga a rendszerleíró adatbázisban él, lásd `StartupRegistration`).
+  final bool startMinimized;
+
+  /// Értesítési beállítások (típusok, gyakoriság, csendes órák).
+  final NotificationSettings notifications;
+
+  /// Az értesítések szüneteltetése eddig az időpontig (a tálcamenü
+  /// „Értesítések szüneteltetése 1 órára” pontja); `null`: nincs szünet.
+  final DateTime? notificationsPausedUntil;
+
   /// Másolat, amelyben a régi, titkosítatlan kulcsok helyén [keys] áll.
   CourtboardLocalState withLegacyApiKeys(Map<ApiKeyId, String> keys) =>
       CourtboardLocalState(
@@ -92,6 +126,36 @@ class CourtboardLocalState {
         athleteSort: athleteSort,
         athleteOrder: athleteOrder,
         railCollapsed: railCollapsed,
+        autoUpdateCheck: autoUpdateCheck,
+        windowGeometry: windowGeometry,
+        closeToTray: closeToTray,
+        closeToTrayHintShown: closeToTrayHintShown,
+        startMinimized: startMinimized,
+        notifications: notifications,
+        notificationsPausedUntil: notificationsPausedUntil,
+      );
+
+  /// Másolat új ablakhelyzettel (a többi mező változatlan).
+  CourtboardLocalState withWindowGeometry(WindowGeometry? geometry) =>
+      CourtboardLocalState(
+        notes: notes,
+        alerts: alerts,
+        removedAthleteNames: removedAthleteNames,
+        legacyApiKeys: legacyApiKeys,
+        customAthletes: customAthletes,
+        theme: theme,
+        themeMode: themeMode,
+        overviewSort: overviewSort,
+        athleteSort: athleteSort,
+        athleteOrder: athleteOrder,
+        railCollapsed: railCollapsed,
+        autoUpdateCheck: autoUpdateCheck,
+        windowGeometry: geometry,
+        closeToTray: closeToTray,
+        closeToTrayHintShown: closeToTrayHintShown,
+        startMinimized: startMinimized,
+        notifications: notifications,
+        notificationsPausedUntil: notificationsPausedUntil,
       );
 
   Map<String, dynamic> toJson() => {
@@ -109,6 +173,16 @@ class CourtboardLocalState {
     'athleteSort': athleteSort,
     'athleteOrder': athleteOrder,
     'railCollapsed': railCollapsed,
+    'autoUpdateCheck': autoUpdateCheck,
+    if (windowGeometry != null) 'window': windowGeometry!.toJson(),
+    'closeToTray': closeToTray,
+    'closeToTrayHintShown': closeToTrayHintShown,
+    'startMinimized': startMinimized,
+    'notifications': notifications.toJson(),
+    if (notificationsPausedUntil != null)
+      'notificationsPausedUntil': notificationsPausedUntil!
+          .toUtc()
+          .toIso8601String(),
   };
 
   factory CourtboardLocalState.fromJson(Map<String, dynamic> json) {
@@ -149,6 +223,16 @@ class CourtboardLocalState {
           ? rawOrder.whereType<String>().toList()
           : const [],
       railCollapsed: json['railCollapsed'] == true,
+      autoUpdateCheck: json['autoUpdateCheck'] != false,
+      windowGeometry: WindowGeometry.fromJson(json['window']),
+      closeToTray: json['closeToTray'] == true,
+      closeToTrayHintShown: json['closeToTrayHintShown'] == true,
+      startMinimized: json['startMinimized'] == true,
+      notifications: NotificationSettings.fromJson(json['notifications']),
+      notificationsPausedUntil: switch (json['notificationsPausedUntil']) {
+        final String value => DateTime.tryParse(value)?.toLocal(),
+        _ => null,
+      },
     );
   }
 }

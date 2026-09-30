@@ -1,0 +1,251 @@
+{
+ "team": {
+  "id": "21",
+  "abbreviation": "PHI",
+  "location": "Philadelphia",
+  "name": "Eagles",
+  "displayName": "Philadelphia Eagles",
+  "seasonSummary": "2026"
+ },
+ "events": [
+  {
+   "id": "401872970",
+   "date": "2026-10-04T17:00Z",
+   "name": "Los Angeles Rams at Philadelphia Eagles",
+   "shortName": "LAR @ PHI",
+   "season": {
+    "year": 2026,
+    "displayName": "2026"
+   },
+   "seasonType": {
+    "id": "2",
+    "type": 2,
+    "name": "Regular Season",
+    "abbreviation": "reg"
+   },
+   "week": {
+    "number": 4,
+    "text": "Week 4"
+   },
+   "timeValid": true,
+   "competitions": [
+    {
+     "id": "401872970",
+     "date": "2026-10-04T17:00Z",
+     "attendance": 0,
+     "type": {
+      "id": "1",
+      "text": "Standard",
+      "abbreviation": "STD",
+      "slug": "standard",
+      "type": "standard"
+     },
+     "timeValid": true,
+     "neutralSite": false,
+     "boxscoreAvailable": false,
+     "ticketsAvailable": true,
+     "venue": {
+      "fullName": "Lincoln Financial Field",
+      "address": {
+       "city": "Philadelphia",
+       "state": "PA",
+       "zipCode": "19148",
+       "country": "USA"
+      }
+     },
+     "competitors": [
+      {
+       "id": "21",
+       "type": "team",
+       "order": 0,
+       "homeAway": "home",
+       "team": {
+        "id": "21",
+        "location": "Philadelphia",
+        "nickname": "Eagles",
+        "abbreviation": "PHI",
+        "displayName": "Philadelphia Eagles",
+        "shortDisplayName": "Eagles"
+       },
+       "curatedRank": {
+        "current": 99
+       }
+      },
+      {
+       "id": "14",
+       "type": "team",
+       "order": 1,
+       "homeAway": "away",
+       "team": {
+        "id": "14",
+        "location": "Los Angeles",
+        "nickname": "Rams",
+        "abbreviation": "LAR",
+        "displayName": "Los Angeles Rams",
+        "shortDisplayName": "Rams"
+       },
+       "curatedRank": {
+        "current": 99
+       }
+      }
+     ],
+     "notes": [],
+     "status": {
+      "clock": 0.0,
+      "displayClock": "0:00",
+      "period": 0,
+      "type": {
+       "id": "1",
+       "name": "STATUS_SCHEDULED",
+       "state": "pre",
+       "completed": false,
+       "description": "Scheduled",
+       "detail": "Sun, October 4th at 1:00 PM EDT",
+       "shortDetail": "10/4 - 1:00 PM EDT"
+      },
+      "isTBDFlex": false
+     }
+    }
+   ],
+   "links": [
+    {
+     "language": "en-US",
+     "rel": [
+      "summary",
+      "desktop",
+      "event"
+     ],
+     "href": "https://www.espn.com/nfl/game/_/gameId/401872970/rams-eagles",
+     "text": "Gamecast",
+     "shortText": "Summary",
+     "isExternal": false,
+     "isPremium": false
+    }
+   ]
+  },
+  {
+   "id": "401872981",
+   "date": "2026-10-11T13:30Z",
+   "name": "Philadelphia Eagles at Jacksonville Jaguars",
+   "shortName": "PHI VS JAX",
+   "season": {
+    "year": 2026,
+    "displayName": "2026"
+   },
+   "seasonType": {
+    "id": "2",
+    "type": 2,
+    "name": "Regular Season",
+    "abbreviation": "reg"
+   },
+   "week": {
+    "number": 5,
+    "text": "Week 5"
+   },
+   "timeValid": true,
+   "competitions": [
+    {
+     "id": "401872981",
+     "date": "2026-10-11T13:30Z",
+     "attendance": 0,
+     "type": {
+      "id": "1",
+      "text": "Standard",
+      "abbreviation": "STD",
+      "slug": "standard",
+      "type": "standard"
+     },
+     "timeValid": true,
+     "neutralSite": true,
+     "boxscoreAvailable": false,
+     "ticketsAvailable": true,
+     "venue": {
+      "fullName": "Tottenham Hotspur Stadium",
+      "address": {
+       "city": "London",
+       "country": "England"
+      }
+     },
+     "competitors": [
+      {
+       "id": "30",
+       "type": "team",
+       "order": 0,
+       "homeAway": "home",
+       "team": {
+        "id": "30",
+        "location": "Jacksonville",
+        "nickname": "Jaguars",
+        "abbreviation": "JAX",
+        "displayName": "Jacksonville Jaguars",
+        "shortDisplayName": "Jaguars"
+       },
+       "curatedRank": {
+        "current": 99
+       }
+      },
+      {
+       "id": "21",
+       "type": "team",
+       "order": 1,
+       "homeAway": "away",
+       "team": {
+        "id": "21",
+        "location": "Philadelphia",
+        "nickname": "Eagles",
+        "abbreviation": "PHI",
+        "displayName": "Philadelphia Eagles",
+        "shortDisplayName": "Eagles"
+       },
+       "curatedRank": {
+        "current": 99
+       }
+      }
+     ],
+     "notes": [
+      {
+       "type": "event",
+       "headline": "NFL London Games"
+      }
+     ],
+     "status": {
+      "clock": 0.0,
+      "displayClock": "0:00",
+      "period": 0,
+      "type": {
+       "id": "1",
+       "name": "STATUS_SCHEDULED",
+       "state": "pre",
+       "completed": false,
+       "description": "Scheduled",
+       "detail": "Sun, October 11th at 9:30 AM EDT",
+       "shortDetail": "10/11 - 9:30 AM EDT"
+      },
+      "isTBDFlex": false
+     }
+    }
+   ],
+   "links": [
+    {
+     "language": "en-US",
+     "rel": [
+      "summary",
+      "desktop",
+      "event"
+     ],
+     "href": "https://www.espn.com/nfl/game/_/gameId/401872981/eagles-jaguars",
+     "text": "Gamecast",
+     "shortText": "Summary",
+     "isExternal": false,
+     "isPremium": false
+    }
+   ]
+  }
+ ],
+ "requestedSeason": {
+  "year": 2026,
+  "type": 2,
+  "name": "Regular Season",
+  "displayName": "2026"
+ }
+}

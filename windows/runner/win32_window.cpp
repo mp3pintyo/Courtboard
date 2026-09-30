@@ -209,16 +209,9 @@ Win32Window::MessageHandler(HWND hwnd,
       }
       return 0;
 
-    case WM_GETMINMAXINFO: {
-      // Courtboard: minimum window size, scaled to the window's DPI.
-      auto info = reinterpret_cast<MINMAXINFO*>(lparam);
-      HMONITOR monitor = MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST);
-      const double scale_factor =
-          FlutterDesktopGetDpiForMonitor(monitor) / 96.0;
-      info->ptMinTrackSize.x = Scale(kMinWindowWidth, scale_factor);
-      info->ptMinTrackSize.y = Scale(kMinWindowHeight, scale_factor);
+    case WM_GETMINMAXINFO:
+      ApplyMinimumTrackSize(hwnd, reinterpret_cast<MINMAXINFO*>(lparam));
       return 0;
-    }
 
     case WM_DPICHANGED: {
       auto newRectSize = reinterpret_cast<RECT*>(lparam);
@@ -290,6 +283,16 @@ RECT Win32Window::GetClientArea() {
 
 HWND Win32Window::GetHandle() {
   return window_handle_;
+}
+
+// static
+void Win32Window::ApplyMinimumTrackSize(HWND window, MINMAXINFO* info) {
+  // Courtboard: minimum window size, scaled to the window's DPI. Keep in sync
+  // with WindowGeometry.minWidth / minHeight (lib/data/window_geometry.dart).
+  HMONITOR monitor = MonitorFromWindow(window, MONITOR_DEFAULTTONEAREST);
+  const double scale_factor = FlutterDesktopGetDpiForMonitor(monitor) / 96.0;
+  info->ptMinTrackSize.x = Scale(kMinWindowWidth, scale_factor);
+  info->ptMinTrackSize.y = Scale(kMinWindowHeight, scale_factor);
 }
 
 void Win32Window::SetQuitOnClose(bool quit_on_close) {

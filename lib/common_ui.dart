@@ -32,6 +32,27 @@ Future<void> openExternalUrl(BuildContext context, String url) async {
   }
 }
 
+/// Helyi fájl (például egy `.ics` naptárfájl) megnyitása a hozzá rendelt
+/// alapértelmezett alkalmazással (Outlook, Naptár…). Sikertelen indításkor
+/// magyar SnackBar jelenik meg; a visszatérési érték a siker.
+Future<bool> openLocalFile(BuildContext context, String path) async {
+  final messenger = ScaffoldMessenger.maybeOf(context);
+  try {
+    final opened = await launchUrl(Uri.file(path));
+    if (opened) return true;
+  } catch (_) {
+    // Lent jelezzük.
+  }
+  messenger?.showSnackBar(
+    const SnackBar(
+      content: Text(
+        'A fájl nem nyitható meg. Van a gépen naptáralkalmazás az .ics fájlokhoz?',
+      ),
+    ),
+  );
+  return false;
+}
+
 /// Egységes hibaállapot: rövid, felhasználóbarát üzenet és opcionális
 /// „Újrapróbálás” gomb. Nyers kivételszöveget soha nem jelenít meg.
 class CourtboardErrorState extends StatelessWidget {

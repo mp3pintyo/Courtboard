@@ -87,7 +87,42 @@ class CourtboardApp extends StatefulWidget {
     this.apiKeys = const {},
     this.apiKeyStore,
     this.secureStorageAvailable = true,
+    this.appVersion,
+    this.updateChecker,
+    this.upcomingEvents,
+    this.desktop,
+    this.notificationService,
+    this.startupRegistration,
+    this.watcherSource,
+    this.watcherMemoryStore,
   });
+
+  /// Ablak, tálcaikon és bezárás kezelése; `null` (például widget-tesztben)
+  /// esetén ezek a funkciók kimaradnak.
+  final DesktopIntegration? desktop;
+
+  /// Asztali értesítések; `null` esetén nincs háttérfigyelő.
+  final NotificationService? notificationService;
+
+  /// „Indítás a Windows-zal”; `null` esetén a kapcsoló letiltott.
+  final StartupRegistration? startupRegistration;
+
+  /// A háttérfigyelő adatforrása (tesztekhez); `null` esetén a meglévő
+  /// repositorykra épülő [RepositoryWatcherSource].
+  final WatcherDataSource? watcherSource;
+
+  /// A háttérfigyelő emlékezete (tesztekhez); `null` esetén a gyorsítótár.
+  final WatcherMemoryStore? watcherMemoryStore;
+
+  /// A futó alkalmazás verziója (`0.11.0`); `null`, ha nem ismert.
+  final String? appVersion;
+
+  /// A GitHub-kiadások figyelője; `null` esetén (például tesztben) nincs
+  /// frissítés-ellenőrzés.
+  final UpdateChecker? updateChecker;
+
+  /// A naptár eseményvezérlője; `null` esetén a shell sajátot hoz létre.
+  final UpcomingEventsController? upcomingEvents;
 
   /// A futtatás előtt egyszer betöltött helyi állapot.
   final CourtboardLocalState initialState;
@@ -137,6 +172,14 @@ class _CourtboardAppState extends State<CourtboardApp> {
         apiKeys: widget.apiKeys,
         apiKeyStore: widget.apiKeyStore,
         secureStorageAvailable: widget.secureStorageAvailable,
+        appVersion: widget.appVersion,
+        updateChecker: widget.updateChecker,
+        upcomingEvents: widget.upcomingEvents,
+        desktop: widget.desktop,
+        notificationService: widget.notificationService,
+        startupRegistration: widget.startupRegistration,
+        watcherSource: widget.watcherSource,
+        watcherMemoryStore: widget.watcherMemoryStore,
         onThemeChanged: (value) => setState(() => _theme = value),
         onThemeModeChanged: (value) => setState(() => _themeMode = value),
       ),
