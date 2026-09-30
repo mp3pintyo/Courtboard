@@ -3,7 +3,8 @@
 import 'package:courtboard/data/api_sports.dart';
 import 'package:courtboard/data/basketball_reference.dart';
 import 'package:courtboard/data/darts.dart';
-import 'package:courtboard/data/espn_liga_f.dart';
+import 'package:courtboard/data/espn_soccer_team.dart';
+import 'package:courtboard/domain/athlete_source_hints.dart';
 import 'package:courtboard/data/local_state.dart';
 import 'package:courtboard/data/multi_provider.dart';
 import 'package:courtboard/data/rapidapi_wnba.dart';
@@ -15,18 +16,20 @@ Future<void> main(List<String> arguments) async {
   // tárolóját: a kulcsok környezeti változóból (vagy egy még át nem
   // költöztetett, régi állapotfájlból) jönnek.
   final saved = await LocalStateStore().load();
-  final config =
-      SportsApiConfig.fromEnvironment().withKeys(saved.legacyApiKeys);
+  final config = SportsApiConfig.fromEnvironment().withKeys(
+    saved.legacyApiKeys,
+  );
 
-  final data =
-      await MultiProviderAthleteRepository(config).fetchNbaPlayer(athleteName);
+  final data = await MultiProviderAthleteRepository(
+    config,
+  ).fetchNbaPlayer(athleteName);
   print('NBA ellenőrzés: $athleteName');
   for (final provider in data.providers) {
     final state = provider.hasData
         ? 'OK'
         : provider.configured
-            ? 'HIBA/NINCS TALÁLAT'
-            : 'NINCS KULCS';
+        ? 'HIBA/NINCS TALÁLAT'
+        : 'NINCS KULCS';
     print('- ${provider.name}: $state');
   }
   for (final fact in data.facts) {
@@ -34,31 +37,40 @@ Future<void> main(List<String> arguments) async {
   }
   print('NBA meccsnapló: ${data.games.length} mérkőzés');
   for (final game in data.games) {
-    print('- ${game.date.toIso8601String().split('T').first}: '
-        '${game.opponent}, ${game.resultLabel}, ${game.performance}');
+    print(
+      '- ${game.date.toIso8601String().split('T').first}: '
+      '${game.opponent}, ${game.resultLabel}, ${game.performance}',
+    );
   }
   if (data.facts.isEmpty) {
     throw StateError('Egyik szolgáltató sem adott NBA-játékosadatot.');
   }
 
-  final wnbaGames = await BasketballReferenceRepository()
-      .recentGames('Dorka Juhász', league: 'wnba');
+  final wnbaGames = await BasketballReferenceRepository().recentGames(
+    'Dorka Juhász',
+    league: 'wnba',
+  );
   print('WNBA Basketball Reference ellenőrzés: ${wnbaGames.length} mérkőzés');
   for (final game in wnbaGames) {
-    print('- ${game.date.toIso8601String().split('T').first}: '
-        '${game.opponent}, ${game.score ?? game.resultLabel}, ${game.performance}');
+    print(
+      '- ${game.date.toIso8601String().split('T').first}: '
+      '${game.opponent}, ${game.score ?? game.resultLabel}, ${game.performance}',
+    );
   }
   if (wnbaGames.isEmpty) {
     throw StateError('A Basketball Reference nem adott WNBA-meccsnaplót.');
   }
 
   if (config.apiSportsKey.isNotEmpty) {
-    final games = await ApiSportsRepository(config.apiSportsKey)
-        .footballRecent('FC Barcelona');
+    final games = await ApiSportsRepository(
+      config.apiSportsKey,
+    ).footballRecent('FC Barcelona');
     print('Foci ellenőrzés: ${games.length} API-Sports mérkőzés');
     if (games.isNotEmpty) {
-      print('- ${games.first.date.toIso8601String()}: '
-          '${games.first.opponent} ${games.first.score}');
+      print(
+        '- ${games.first.date.toIso8601String()}: '
+        '${games.first.opponent} ${games.first.score}',
+      );
     }
   }
 
@@ -66,30 +78,43 @@ Future<void> main(List<String> arguments) async {
   print('Darts ellenőrzés: ${darts.player?['strPlayer'] ?? 'nincs profil'}');
   print('- TheSportsDB eredmények: ${darts.results.length}');
   for (final result in darts.results) {
-    print('- ${result.date.toIso8601String().split('T').first}: '
-        '${result.event}, ${result.detail}');
+    print(
+      '- ${result.date.toIso8601String().split('T').first}: '
+      '${result.event}, ${result.detail}',
+    );
   }
-  print('- RapidAPI versenyek: ${darts.competitions.length} '
-      '(${darts.rapidApiConfigured ? 'kulcs beállítva' : 'kulcs nincs beállítva'})');
+  print(
+    '- RapidAPI versenyek: ${darts.competitions.length} '
+    '(${darts.rapidApiConfigured ? 'kulcs beállítva' : 'kulcs nincs beállítva'})',
+  );
   if (darts.player == null || darts.results.isEmpty) {
     throw StateError('A TheSportsDB nem adott használható darts adatot.');
   }
 
-  final ligaFGames = await LigaFRepository().recentBarcelonaGames();
+  final barcelona = EspnSoccerTeam.fromHints(
+    AthleteSourceHints.ligaFBarcelona,
+    'FC Barcelona',
+  )!;
+  final ligaFGames = await EspnSoccerTeamRepository().recentGames(barcelona);
   print('Liga F ESPN ellenőrzés: ${ligaFGames.length} Barcelona-meccs');
   for (final game in ligaFGames) {
-    print('- ${game.date.toIso8601String().split('T').first}: '
-        '${game.opponent}, ${game.score}, ${game.result}');
+    print(
+      '- ${game.date.toIso8601String().split('T').first}: '
+      '${game.opponent}, ${game.score}, ${game.result}',
+    );
   }
   if (ligaFGames.isEmpty) {
     throw StateError('Az ESPN esp.w.1 nem adott Barcelona-meccseket.');
   }
 
   if (config.rapidApiKey.isNotEmpty) {
-    final rapidWnba =
-        await WnbaRapidApiRepository(config).playerProfile('Caitlin Clark');
-    print('RapidAPI WNBA ellenőrzés: '
-        '${rapidWnba?.team ?? 'nincs profil'}, ${rapidWnba?.facts.length ?? 0} mutató');
+    final rapidWnba = await WnbaRapidApiRepository(
+      config,
+    ).playerProfile('Caitlin Clark');
+    print(
+      'RapidAPI WNBA ellenőrzés: '
+      '${rapidWnba?.team ?? 'nincs profil'}, ${rapidWnba?.facts.length ?? 0} mutató',
+    );
     if (rapidWnba == null || rapidWnba.facts.isEmpty) {
       throw StateError('A RapidAPI WNBA nem adott advanced stat adatot.');
     }

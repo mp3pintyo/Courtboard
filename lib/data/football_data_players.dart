@@ -1,10 +1,10 @@
-import 'athlete_names.dart';
-import 'file_util.dart';
-import 'football_names.dart';
-import 'fotmob_football.dart';
-import 'json_file_cache.dart';
-import 'json_util.dart';
-import 'sports_api.dart';
+import 'package:courtboard/data/athlete_names.dart';
+import 'package:courtboard/data/file_util.dart';
+import 'package:courtboard/data/football_names.dart';
+import 'package:courtboard/data/fotmob_football.dart';
+import 'package:courtboard/data/json_file_cache.dart';
+import 'package:courtboard/data/json_util.dart';
+import 'package:courtboard/data/sports_api.dart';
 
 class FootballDataPlayerProfile {
   const FootballDataPlayerProfile({
@@ -28,15 +28,15 @@ class FootballDataPlayerProfile {
   final int? shirtNumber;
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'name': name,
-        'teamId': teamId,
-        'team': team,
-        'position': position,
-        'dateOfBirth': dateOfBirth,
-        'nationality': nationality,
-        'shirtNumber': shirtNumber,
-      };
+    'id': id,
+    'name': name,
+    'teamId': teamId,
+    'team': team,
+    'position': position,
+    'dateOfBirth': dateOfBirth,
+    'nationality': nationality,
+    'shirtNumber': shirtNumber,
+  };
 
   static FootballDataPlayerProfile? tryFromJson(Object? raw) {
     final json = jsonMap(raw);
@@ -71,10 +71,10 @@ class FootballDataPlayerRepository {
     this.missLifetime = const Duration(hours: 24),
     DateTime Function()? clock,
   }) : _cache = JsonFileCache(
-          'football_data_players',
-          storage: cacheStorage,
-          clock: clock,
-        );
+         'football_data_players',
+         storage: cacheStorage,
+         clock: clock,
+       );
 
   final SportsApiClient _client;
   final JsonFileCache _cache;
@@ -101,8 +101,7 @@ class FootballDataPlayerRepository {
   Future<FootballDataPlayerProfile?> findPlayer(
     String playerName,
     String teamName,
-  ) async =>
-      (await findPlayerCached(playerName, teamName)).value;
+  ) async => (await findPlayerCached(playerName, teamName)).value;
 
   /// A játékos profilja a letöltés idejével; a „nem található” eredmény is
   /// gyorsítótárba kerül [missLifetime] ideig.
@@ -143,8 +142,7 @@ class FootballDataPlayerRepository {
     if (hint.$1) {
       final code = hint.$2;
       if (code == null) return null;
-      return findInTeams(
-          await _competitionTeams(code), playerName, teamName);
+      return findInTeams(await _competitionTeams(code), playerName, teamName);
     }
 
     final competitions = await _cachedJson(
@@ -153,30 +151,33 @@ class FootballDataPlayerRepository {
     );
     for (final code in parseFreeCompetitionCodes(competitions)) {
       final found = findInTeams(
-          await _competitionTeams(code), playerName, teamName);
+        await _competitionTeams(code),
+        playerName,
+        teamName,
+      );
       if (found != null) return found;
     }
     return null;
   }
 
   Future<List<Map<String, dynamic>>> _competitionTeams(String code) async =>
-      parseCompetitionTeams(await _cachedJson(
-        'competition_teams_$code',
-        () => _client.footballData('/v4/competitions/$code/teams'),
-      ));
+      parseCompetitionTeams(
+        await _cachedJson(
+          'competition_teams_$code',
+          () => _client.footballData('/v4/competitions/$code/teams'),
+        ),
+      );
 
   Future<Map<String, dynamic>> _cachedJson(
     String key,
     Future<Map<String, dynamic>> Function() fetch,
-  ) async =>
-      (await _cache.getOrFetch<Map<String, dynamic>>(
-        key,
-        ttl: cacheLifetime,
-        fetch: fetch,
-        encode: (value) => value,
-        decode: jsonMap,
-      ))
-          .value;
+  ) async => (await _cache.getOrFetch<Map<String, dynamic>>(
+    key,
+    ttl: cacheLifetime,
+    fetch: fetch,
+    encode: (value) => value,
+    decode: jsonMap,
+  )).value;
 
   static int? parseTeamId(Map<String, dynamic> payload, String teamName) {
     final teams = payload['teams'];
@@ -236,8 +237,7 @@ class FootballDataPlayerRepository {
   ) {
     final teams = payload['teams'];
     if (teams is! List) return const [];
-    return jsonMapList(teams)
-        .toList(growable: false);
+    return jsonMapList(teams).toList(growable: false);
   }
 
   static FootballDataPlayerProfile? findInTeams(

@@ -93,10 +93,15 @@ void main() {
       clock: () => now,
     );
 
-    final first = await repository.findPlayerCached('Nobody Here', 'Unknown FC');
+    final first = await repository.findPlayerCached(
+      'Nobody Here',
+      'Unknown FC',
+    );
     final calls = [...client.calls];
-    final second =
-        await repository.findPlayerCached('Nobody Here', 'Unknown FC');
+    final second = await repository.findPlayerCached(
+      'Nobody Here',
+      'Unknown FC',
+    );
 
     expect(first.value, isNull);
     expect(calls, [
@@ -118,19 +123,25 @@ void main() {
   test('found players are cached with their freshness', () async {
     final storage = MemoryCacheStorage();
     final client = _FakeSportsApiClient(storage);
-    final repository =
-        FootballDataPlayerRepository(client, cacheStorage: storage);
+    final repository = FootballDataPlayerRepository(
+      client,
+      cacheStorage: storage,
+    );
 
     await repository.findPlayer('Dominik Szoboszlai', 'Liverpool');
-    final cached =
-        await repository.findPlayerCached('Szoboszlai Dominik', 'Liverpool');
+    final cached = await repository.findPlayerCached(
+      'Szoboszlai Dominik',
+      'Liverpool',
+    );
 
     // Más névsorrend új kulcs, de a csapatlista és a keret már gyorsítótárból
     // jön, így nem indul újabb kérés.
     expect(cached.value?.id, 15378);
     expect(client.calls, ['/v4/teams', '/v4/teams/64']);
-    final again =
-        await repository.findPlayerCached('Dominik Szoboszlai', 'Liverpool');
+    final again = await repository.findPlayerCached(
+      'Dominik Szoboszlai',
+      'Liverpool',
+    );
     expect(again.fromCache, isTrue);
     expect(again.value?.name, 'Dominik Szoboszlai');
     expect(client.calls, hasLength(2));

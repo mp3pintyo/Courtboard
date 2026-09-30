@@ -1,17 +1,19 @@
-import 'athlete_names.dart';
-import 'darts.dart';
-import 'espn_liga_f.dart';
-import 'espn_schedule.dart';
-import 'file_util.dart';
-import 'football_data.dart';
-import 'football_names.dart';
-import 'http_service.dart';
-import 'http_util.dart';
-import 'json_file_cache.dart';
-import 'json_util.dart';
-import 'openligadb.dart';
-import 'sports_api.dart';
-import 'upcoming_events.dart';
+import 'package:courtboard/data/athlete_names.dart';
+import 'package:courtboard/data/darts.dart';
+import 'package:courtboard/data/espn_soccer_team.dart';
+import 'package:courtboard/data/espn_schedule.dart';
+import 'package:courtboard/data/file_util.dart';
+import 'package:courtboard/data/football_data.dart';
+import 'package:courtboard/data/football_names.dart';
+import 'package:courtboard/data/http_service.dart';
+import 'package:courtboard/data/http_util.dart';
+import 'package:courtboard/data/json_file_cache.dart';
+import 'package:courtboard/data/json_util.dart';
+import 'package:courtboard/data/openligadb.dart';
+import 'package:courtboard/data/sports_api.dart';
+import 'package:courtboard/data/upcoming_events.dart';
+import 'package:courtboard/domain/athlete_source_hints.dart';
+import 'package:courtboard/domain/sport.dart';
 
 /// Egy korábbi egymás elleni mérkőzés a követett sportoló (csapat)
 /// szemszögéből.
@@ -114,11 +116,13 @@ class HeadToHeadRepository {
   static const tennisCacheLifetime = Duration(days: 7);
 
   /// A mérleg a naptár / profil [event] eseményéhez; [team] a sportoló
-  /// csapata (csapatsportnál kötelező).
+  /// csapata (csapatsportnál kötelező), [sourceHints] a sportolóval mentett
+  /// adatforrás-tippek (például Liga F).
   Future<HeadToHeadRecord> forEvent(
     UpcomingEvent event, {
     required SportsApiConfig config,
     String team = '',
+    AthleteSourceHints sourceHints = AthleteSourceHints.none,
   }) async {
     final opponent = event.opponent.trim();
     if (opponent.isEmpty) {
@@ -128,10 +132,10 @@ class HeadToHeadRepository {
     }
     final league = EspnLeague.fromSport(event.sport);
     if (league != null) return _espnTeams(league, team, opponent);
-    return switch (event.sport) {
-      'Foci' => _football(event, team, opponent, config),
-      'Tenisz' => _tennis(event.athleteName, opponent, config),
-      'Darts' => _darts(event.athleteName, opponent, config),
+    return switch (Sport.fromLabel(event.sport)) {
+      Sport.football => _football(event, team, opponent, config, sourceHints),
+      Sport.tennis => _tennis(event.athleteName, opponent, config),
+      Sport.darts => _darts(event.athleteName, opponent, config),
       _ => throw const HeadToHeadUnavailable(
         'Ehhez a sportághoz nincs egymás elleni adatforrás.',
       ),
@@ -182,25 +186,29 @@ class HeadToHeadRepository {
     String teamName,
     String opponent,
     SportsApiConfig config,
+    AthleteSourceHints sourceHints,
   ) async {
     final target = UpcomingEventsTarget(
       name: event.athleteName,
-      sport: event.sport,
+      sport: Sport.football,
       team: teamName,
+      sourceHints: sourceHints,
     );
-    if (target.isLigaF) {
-      final games = await LigaFRepository(
+    final espnTeam = target.hasEspnSoccerLeague ? target.espnSoccerTeam : null;
+    if (espnTeam != null) {
+      final games = await EspnSoccerTeamRepository(
         SportsApiClient(
           config: config,
           http: _http,
           cacheStorage: _cacheStorage,
         ),
-      ).recentBarcelonaGames(window: const Duration(days: 365));
+      ).recentGames(espnTeam, window: const Duration(days: 365));
+      final competition = espnTeam.competitionLabel;
       return HeadToHeadRecord(
         opponent: opponent,
-        source: 'ESPN · Liga F',
+        source: 'ESPN · $competition',
         team: true,
-        note: 'Az elmúlt egy év Liga F-meccseiből.',
+        note: 'Az elmúlt egy év $competition-meccseiből.',
         meetings: [
           for (final game in games)
             if (footballTeamNamesMatch(opponent, game.opponent) ||
@@ -214,7 +222,7 @@ class HeadToHeadRepository {
                   'VERESÉG' => 'loss',
                   _ => 'draw',
                 },
-                competition: 'Liga F',
+                competition: competition,
               ),
         ],
       );

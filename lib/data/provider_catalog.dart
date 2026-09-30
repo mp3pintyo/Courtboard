@@ -1,4 +1,4 @@
-import 'sports_api.dart';
+import 'package:courtboard/data/sports_api.dart';
 
 enum ProviderKey {
   none,
@@ -377,8 +377,7 @@ const providerCatalog = <ProviderCatalogEntry>[
     ],
     authentication: 'Nem kell API-kulcs; nyilvános, nem dokumentált végpont.',
     limit: 'Az ESPN közös, 30 kérés/perc korlátja.',
-    cache:
-        'Befejezett meccs: végleges (10 év) lemezcache; zajló meccs: 60 mp.',
+    cache: 'Befejezett meccs: végleges (10 év) lemezcache; zajló meccs: 60 mp.',
     setup: 'Nincs teendő.',
     fallback:
         'Hibánál a lenyitott sáv rövid üzenetet mutat; a meccssor ettől független. Az OpenLigaDB-meccseknél a gólok az OpenLigaDB-ből jönnek.',
@@ -423,7 +422,8 @@ const providerCatalog = <ProviderCatalogEntry>[
     authentication: 'RapidAPI előfizetés és X-RapidAPI-Key szükséges.',
     limit: 'Free csomag: 1000 kérés/hó.',
     cache: '6 órás cache.',
-    setup: 'Adatforrások → RapidAPI közös kulcs, vagy RAPIDAPI_KEY (a régi RAPIDAPI_DARTS_KEY is működik).',
+    setup:
+        'Adatforrások → RapidAPI közös kulcs, vagy RAPIDAPI_KEY (a régi RAPIDAPI_DARTS_KEY is működik).',
     fallback:
         'A TheSportsDB profilja és eredményei a RapidAPI nélkül is működnek.',
     docsUrl: 'https://rapidapi.com/sportbex-api-default-api/api/darts-api',

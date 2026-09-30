@@ -2,10 +2,11 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:courtboard/common_ui.dart';
-import 'package:courtboard/format.dart';
+import 'package:courtboard/shared/common_ui.dart';
+import 'package:courtboard/shared/format.dart';
 import 'package:courtboard/data/api_key_id.dart';
 import 'package:courtboard/data/api_key_store.dart';
 import 'package:courtboard/data/secret_store.dart';
@@ -13,15 +14,24 @@ import 'package:courtboard/data/http_util.dart';
 import 'package:courtboard/data/local_state.dart';
 import 'package:courtboard/data/multi_provider.dart';
 import 'package:courtboard/data/news.dart';
+import 'package:courtboard/data/providers.dart';
 import 'package:courtboard/data/basketball_reference.dart';
 import 'package:courtboard/data/basketball_season.dart';
 import 'package:courtboard/data/darts.dart';
 import 'package:courtboard/data/live_tennis.dart';
-import 'package:courtboard/data/espn_liga_f.dart';
+import 'package:courtboard/data/espn_soccer_team.dart';
 import 'package:courtboard/data/rapidapi_wnba.dart';
 import 'package:courtboard/data/wehoop_wnba.dart';
-import 'package:courtboard/main.dart';
-import 'package:courtboard/news_page.dart';
+import 'package:courtboard/app/courtboard_app.dart';
+import 'package:courtboard/domain/athlete.dart';
+import 'package:courtboard/features/dashboard/dashboard_page.dart';
+import 'package:courtboard/features/news/news_page.dart';
+import 'package:courtboard/features/profile/sports/profile_api_basketball.dart';
+import 'package:courtboard/features/profile/sports/profile_darts.dart';
+import 'package:courtboard/features/profile/sports/profile_football.dart';
+import 'package:courtboard/features/profile/sports/profile_nba_facts.dart';
+import 'package:courtboard/features/profile/sports/profile_tennis.dart';
+import 'package:courtboard/features/profile/sports/profile_wnba.dart';
 
 const _seedNames = {
   'Nikola Jokić',
@@ -57,34 +67,43 @@ class _FailingNewsStore extends NewsStore {
 
 void main() {
   test('athlete sorting and team visibility follow the saved preferences', () {
-    Athlete athlete(String name, String sport, String team) => Athlete(
-          name: name,
-          sport: sport,
-          team: team,
-          country: 'Teszt',
-          photoUrl: '',
-          accent: Colors.blue,
-          seasonLabel: '',
-          seasonValue: '',
-          primaryLabel: '',
-          primaryValue: '',
-          metrics: const [],
-          matches: const [],
-        );
+    Athlete athlete(String name, Sport sport, String team) => Athlete(
+      name: name,
+      sport: sport,
+      team: team,
+      country: 'Teszt',
+      photoUrl: '',
+      accent: Colors.blue,
+      seasonLabel: '',
+      seasonValue: '',
+      primaryLabel: '',
+      primaryValue: '',
+      metrics: const [],
+      matches: const [],
+    );
 
-    final darts = athlete('Luke Littler', 'Darts', 'Nincs megadva');
-    final nba = athlete('Nikola Jokić', 'NBA', 'Denver Nuggets');
-    final football = athlete('Aitana Bonmatí', 'Foci', 'FC Barcelona');
-    final tennis = athlete('Iga Świątek', 'Tenisz', 'Nincs megadva');
+    final darts = athlete('Luke Littler', Sport.darts, 'Nincs megadva');
+    final nba = athlete('Nikola Jokić', Sport.nba, 'Denver Nuggets');
+    final football = athlete('Aitana Bonmatí', Sport.football, 'FC Barcelona');
+    final tennis = athlete('Iga Świątek', Sport.tennis, 'Nincs megadva');
 
     expect(darts.showsTeam, isFalse);
     expect(darts.sportAndTeam, 'Darts');
     expect(tennis.sportAndTeam, 'Tenisz');
     expect(nba.sportAndTeam, 'NBA · Denver Nuggets');
-    expect(sortAthletes([nba, darts, football], 'name').map((a) => a.name),
-        ['Aitana Bonmatí', 'Luke Littler', 'Nikola Jokić']);
-    expect(sortAthletes([nba, darts, football], 'sport').map((a) => a.sport),
-        ['Darts', 'Foci', 'NBA']);
+    expect(sortAthletes([nba, darts, football], 'name').map((a) => a.name), [
+      'Aitana Bonmatí',
+      'Luke Littler',
+      'Nikola Jokić',
+    ]);
+    expect(
+      sortAthletes([
+        nba,
+        darts,
+        football,
+      ], 'sport').map((a) => a.sport.shortLabel),
+      ['Darts', 'Foci', 'NBA'],
+    );
   });
 
   test('friendlyError maps provider failures to Hungarian messages', () {
@@ -144,16 +163,22 @@ void main() {
     expect(courtboardGreeting(DateTime(2026, 1, 1, 2)), 'Jó estét.');
   });
 
-  testWidgets('empty dashboard shows an add-athlete call to action',
-      (tester) async {
+  testWidgets('empty dashboard shows an add-athlete call to action', (
+    tester,
+  ) async {
     _desktopView(tester);
-    await tester.pumpWidget(const CourtboardApp(
-      initialState: CourtboardLocalState(removedAthleteNames: _seedNames),
-    ));
+    await tester.pumpWidget(
+      const CourtboardApp(
+        initialState: CourtboardLocalState(removedAthleteNames: _seedNames),
+      ),
+    );
     await tester.pumpAndSettle();
 
     expect(find.byKey(const Key('dashboard-empty-state')), findsOneWidget);
-    expect(find.text('Még nem követsz egyetlen sportolót sem.'), findsOneWidget);
+    expect(
+      find.text('Még nem követsz egyetlen sportolót sem.'),
+      findsOneWidget,
+    );
     expect(find.textContaining('MAI FÓKUSZ'), findsNothing);
 
     await tester.tap(find.byKey(const Key('dashboard-add-athlete')));
@@ -170,12 +195,12 @@ void main() {
     await tester.enterText(find.byType(TextField).first, 'jokic');
     await tester.pump();
     expect(find.byKey(const ValueKey('athlete-Nikola Jokić')), findsOneWidget);
-    expect(
-        find.byKey(const ValueKey('athlete-Luke Humphries')), findsNothing);
+    expect(find.byKey(const ValueKey('athlete-Luke Humphries')), findsNothing);
   });
 
-  testWidgets('add-athlete dialog rejects an already followed athlete',
-      (tester) async {
+  testWidgets('add-athlete dialog rejects an already followed athlete', (
+    tester,
+  ) async {
     _desktopView(tester);
     await tester.pumpWidget(const CourtboardApp());
     await tester.pumpAndSettle();
@@ -185,17 +210,22 @@ void main() {
     await tester.pumpAndSettle();
 
     await tester.enterText(
-        find.byKey(const Key('add-athlete-name')), 'nikola jokic');
+      find.byKey(const Key('add-athlete-name')),
+      'nikola jokic',
+    );
     await tester.tap(find.byKey(const Key('add-athlete-submit')));
     await tester.pump();
 
     expect(find.byKey(const Key('add-athlete-error')), findsOneWidget);
-    expect(find.text('Ez a sportoló már szerepel a követettek között.'),
-        findsOneWidget);
+    expect(
+      find.text('Ez a sportoló már szerepel a követettek között.'),
+      findsOneWidget,
+    );
   });
 
-  testWidgets('profile keeps origin navigation and dashboard filter',
-      (tester) async {
+  testWidgets('profile keeps origin navigation and dashboard filter', (
+    tester,
+  ) async {
     _desktopView(tester);
     await tester.pumpWidget(const CourtboardApp());
     await tester.pumpAndSettle();
@@ -213,34 +243,39 @@ void main() {
     await tester.tap(find.text('Vissza: Áttekintés'));
     await tester.pumpAndSettle();
     final chip = tester.widget<ChoiceChip>(
-        find.widgetWithText(ChoiceChip, 'Darts'));
+      find.widgetWithText(ChoiceChip, 'Darts'),
+    );
     expect(chip.selected, isTrue);
     expect(find.byKey(const ValueKey('athlete-Nikola Jokić')), findsNothing);
 
     await tester.tap(find.text('Sportolók'));
     await tester.pumpAndSettle();
-    await tester
-        .tap(find.byKey(const ValueKey('directory-athlete-Luke Humphries')));
+    await tester.tap(
+      find.byKey(const ValueKey('directory-athlete-Luke Humphries')),
+    );
     await tester.pumpAndSettle();
     expect(find.text('Vissza: Sportolók'), findsOneWidget);
   });
 
   testWidgets('saved custom order drives the directory list', (tester) async {
     _desktopView(tester);
-    await tester.pumpWidget(const CourtboardApp(
-      initialState: CourtboardLocalState(
-        athleteOrder: ['Saquon Barkley', 'Luke Humphries', 'Nikola Jokić'],
+    await tester.pumpWidget(
+      const CourtboardApp(
+        initialState: CourtboardLocalState(
+          athleteOrder: ['Saquon Barkley', 'Luke Humphries', 'Nikola Jokić'],
+        ),
       ),
-    ));
+    );
     await tester.pumpAndSettle();
     await tester.tap(find.text('Sportolók'));
     await tester.pumpAndSettle();
 
-    expect(find.byKey(const Key('athlete-directory-reorderable')),
-        findsOneWidget);
-    double top(String name) => tester
-        .getTopLeft(find.byKey(ValueKey('directory-athlete-$name')))
-        .dy;
+    expect(
+      find.byKey(const Key('athlete-directory-reorderable')),
+      findsOneWidget,
+    );
+    double top(String name) =>
+        tester.getTopLeft(find.byKey(ValueKey('directory-athlete-$name'))).dy;
     expect(top('Saquon Barkley'), lessThan(top('Luke Humphries')));
     expect(top('Luke Humphries'), lessThan(top('Nikola Jokić')));
     expect(top('Nikola Jokić'), lessThan(top('Aitana Bonmatí')));
@@ -257,21 +292,21 @@ void main() {
     expect(find.byIcon(Icons.notifications_none), findsNothing);
   });
 
-  testWidgets('news page shows a retryable error when the archive fails',
-      (tester) async {
+  testWidgets('news page shows a retryable error when the archive fails', (
+    tester,
+  ) async {
     _desktopView(tester);
     final repository = NewsRepository(store: _FailingNewsStore());
     addTearDown(repository.close);
 
-    await tester.pumpWidget(MaterialApp(
-      home: Scaffold(
-        body: NewsPage(
-          athletes: const [],
-          repository: repository,
-          autoRefresh: false,
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [newsRepositoryProvider.overrideWithValue(repository)],
+        child: const MaterialApp(
+          home: Scaffold(body: NewsPage(athletes: [], autoRefresh: false)),
         ),
       ),
-    ));
+    );
     await tester.pumpAndSettle();
 
     expect(find.byKey(const Key('news-load-error')), findsOneWidget);
@@ -280,8 +315,9 @@ void main() {
     expect(find.byType(CircularProgressIndicator), findsNothing);
   });
 
-  testWidgets('overview settings button opens configurable settings',
-      (tester) async {
+  testWidgets('overview settings button opens configurable settings', (
+    tester,
+  ) async {
     tester.view.devicePixelRatio = 1.0;
     tester.view.physicalSize = const Size(1440, 900);
     addTearDown(() {
@@ -308,8 +344,9 @@ void main() {
     expect(Theme.of(context).colorScheme.primary, const Color(0xFF7A263A));
   });
 
-  testWidgets('athlete directory supports name search and sport filtering',
-      (tester) async {
+  testWidgets('athlete directory supports name search and sport filtering', (
+    tester,
+  ) async {
     tester.view.devicePixelRatio = 1.0;
     tester.view.physicalSize = const Size(1440, 900);
     addTearDown(() {
@@ -323,19 +360,29 @@ void main() {
     await tester.pumpAndSettle();
 
     await tester.enterText(
-        find.byKey(const Key('athlete-directory-search')), 'Aitana');
+      find.byKey(const Key('athlete-directory-search')),
+      'Aitana',
+    );
     await tester.pump();
-    expect(find.byKey(const ValueKey('directory-athlete-Aitana Bonmatí')),
-        findsOneWidget);
-    expect(find.byKey(const ValueKey('directory-athlete-Nikola Jokić')),
-        findsNothing);
+    expect(
+      find.byKey(const ValueKey('directory-athlete-Aitana Bonmatí')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('directory-athlete-Nikola Jokić')),
+      findsNothing,
+    );
 
     await tester.enterText(
-        find.byKey(const Key('athlete-directory-search')), '');
+      find.byKey(const Key('athlete-directory-search')),
+      '',
+    );
     await tester.tap(find.byKey(const ValueKey('athlete-sport-Darts')));
     await tester.pump();
-    expect(find.byKey(const ValueKey('directory-athlete-Luke Humphries')),
-        findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('directory-athlete-Luke Humphries')),
+      findsOneWidget,
+    );
     expect(find.text('Darts · PDC'), findsNothing);
     expect(find.text('Darts'), findsWidgets);
   });
@@ -354,8 +401,10 @@ void main() {
 
     expect(find.byKey(const Key('profile-hero')), findsOneWidget);
     expect(find.byTooltip('Továbbiak'), findsOneWidget);
-    expect(find.text('LEGUTÓBBI NBA MECCSEK · BASKETBALL REFERENCE'),
-        findsOneWidget);
+    expect(
+      find.text('LEGUTÓBBI NBA MECCSEK · BASKETBALL REFERENCE'),
+      findsOneWidget,
+    );
     expect(find.text('Szezon összesítő'), findsOneWidget);
   });
 
@@ -373,7 +422,9 @@ void main() {
 
     expect(find.text('Adatforrás-kézikönyv'), findsOneWidget);
     await tester.enterText(
-        find.byKey(const Key('provider-doc-search')), 'Aitana');
+      find.byKey(const Key('provider-doc-search')),
+      'Aitana',
+    );
     await tester.pump();
 
     expect(find.text('1 találat'), findsOneWidget);
@@ -381,15 +432,19 @@ void main() {
     expect(find.text('TheSportsDB'), findsNothing);
 
     await tester.enterText(
-        find.byKey(const Key('provider-doc-search')), 'beégetett');
+      find.byKey(const Key('provider-doc-search')),
+      'beégetett',
+    );
     await tester.pump();
 
     expect(find.text('1 találat'), findsOneWidget);
     expect(find.text('football-data.org'), findsWidgets);
     await tester.tap(find.text('football-data.org').last);
     await tester.pumpAndSettle();
-    expect(find.textContaining('nincs beégetett Liverpool-azonosító'),
-        findsOneWidget);
+    expect(
+      find.textContaining('nincs beégetett Liverpool-azonosító'),
+      findsOneWidget,
+    );
   });
 
   Future<void> saveLiveTennisKey(WidgetTester tester, String value) async {
@@ -400,9 +455,12 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Live Tennis API-kulcs'), findsOneWidget);
     await tester.enterText(
-        find.descendant(
-            of: find.byType(AlertDialog), matching: find.byType(TextField)),
-        value);
+      find.descendant(
+        of: find.byType(AlertDialog),
+        matching: find.byType(TextField),
+      ),
+      value,
+    );
     await tester.tap(find.text('Mentés'));
     await tester.pumpAndSettle();
   }
@@ -410,9 +468,9 @@ void main() {
   testWidgets('API keys are saved to the secret store', (tester) async {
     _desktopView(tester);
     final secrets = MemorySecretStore();
-    await tester.pumpWidget(CourtboardApp(
-      apiKeyStore: ApiKeyStore(secrets: secrets),
-    ));
+    await tester.pumpWidget(
+      CourtboardApp(apiKeyStore: ApiKeyStore(secrets: secrets)),
+    );
 
     await saveLiveTennisKey(tester, '  lt-secret  ');
 
@@ -420,46 +478,59 @@ void main() {
     expect(find.byKey(const Key('secure-storage-warning')), findsNothing);
   });
 
-  testWidgets('secret store failure keeps the key and shows a warning',
-      (tester) async {
+  testWidgets('secret store failure keeps the key and shows a warning', (
+    tester,
+  ) async {
     _desktopView(tester);
-    await tester.pumpWidget(CourtboardApp(
-      apiKeyStore: ApiKeyStore(secrets: MemorySecretStore(failing: true)),
-    ));
+    await tester.pumpWidget(
+      CourtboardApp(
+        apiKeyStore: ApiKeyStore(secrets: MemorySecretStore(failing: true)),
+      ),
+    );
 
     await saveLiveTennisKey(tester, 'lt-secret');
 
     expect(find.byKey(const Key('secure-storage-warning')), findsOneWidget);
-    expect(find.textContaining('nem menthető a biztonságos tárolóba'),
-        findsOneWidget);
+    expect(
+      find.textContaining('nem menthető a biztonságos tárolóba'),
+      findsOneWidget,
+    );
     // A kulcs memóriában él: az újranyitott szerkesztő már ezt mutatja.
     await tester.pump(const Duration(seconds: 5));
     await tester.tap(find.byKey(const Key('api-key-button-liveTennis')));
     await tester.pumpAndSettle();
-    final field = tester.widget<TextField>(find.descendant(
-        of: find.byType(AlertDialog), matching: find.byType(TextField)));
+    final field = tester.widget<TextField>(
+      find.descendant(
+        of: find.byType(AlertDialog),
+        matching: find.byType(TextField),
+      ),
+    );
     expect(field.controller?.text, 'lt-secret');
   });
 
-  testWidgets('startup secure storage failure is shown on Data Sources',
-      (tester) async {
+  testWidgets('startup secure storage failure is shown on Data Sources', (
+    tester,
+  ) async {
     _desktopView(tester);
-    await tester.pumpWidget(const CourtboardApp(
-      secureStorageAvailable: false,
-      initialState: CourtboardLocalState(
-        legacyApiKeys: {ApiKeyId.liveTennis: 'legacy-secret'},
+    await tester.pumpWidget(
+      const CourtboardApp(
+        secureStorageAvailable: false,
+        initialState: CourtboardLocalState(
+          legacyApiKeys: {ApiKeyId.liveTennis: 'legacy-secret'},
+        ),
       ),
-    ));
+    );
     await tester.tap(find.text('Adatforrások'));
     await tester.pumpAndSettle();
 
     expect(find.byKey(const Key('secure-storage-warning')), findsOneWidget);
-    expect(find.textContaining('Windows biztonságos kulcstárolója'),
-        findsOneWidget);
+    expect(
+      find.textContaining('Windows biztonságos kulcstárolója'),
+      findsOneWidget,
+    );
   });
 
-  testWidgets('NFL athlete gets the ESPN player game log card',
-      (tester) async {
+  testWidgets('NFL athlete gets the ESPN player game log card', (tester) async {
     tester.view.devicePixelRatio = 1.0;
     tester.view.physicalSize = const Size(1440, 900);
     addTearDown(() {
@@ -469,8 +540,11 @@ void main() {
 
     await tester.pumpWidget(const CourtboardApp());
     final barkley = find.byKey(const ValueKey('athlete-Saquon Barkley'));
-    await tester.scrollUntilVisible(barkley, 300,
-        scrollable: find.byType(Scrollable).first);
+    await tester.scrollUntilVisible(
+      barkley,
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
     await tester.tap(barkley);
     await tester.pumpAndSettle();
 
@@ -480,24 +554,39 @@ void main() {
     expect(find.text('TELJESÍTMÉNYPROFIL'), findsNothing);
   });
 
-  testWidgets('merged NBA facts and every provider status are visible',
-      (tester) async {
-    final data = UnifiedAthleteData(facts: const [
-      AthleteFact(label: 'Poszt', value: 'C', source: 'API-Sports'),
-      AthleteFact(
-          label: 'Csapat', value: 'Denver Nuggets', source: 'TheSportsDB'),
-    ], providers: const [
-      DataProviderStatus(name: 'API-Sports', configured: true, hasData: true),
-      DataProviderStatus(
+  testWidgets('merged NBA facts and every provider status are visible', (
+    tester,
+  ) async {
+    final data = UnifiedAthleteData(
+      facts: const [
+        AthleteFact(label: 'Poszt', value: 'C', source: 'API-Sports'),
+        AthleteFact(
+          label: 'Csapat',
+          value: 'Denver Nuggets',
+          source: 'TheSportsDB',
+        ),
+      ],
+      providers: const [
+        DataProviderStatus(name: 'API-Sports', configured: true, hasData: true),
+        DataProviderStatus(
           name: 'BALLDONTLIE',
           configured: false,
           hasData: false,
-          message: 'Nincs API-kulcs'),
-      DataProviderStatus(name: 'TheSportsDB', configured: true, hasData: true),
-      DataProviderStatus(
-          name: 'Basketball Reference', configured: true, hasData: true),
-    ], games: [
-      NbaGameLog(
+          message: 'Nincs API-kulcs',
+        ),
+        DataProviderStatus(
+          name: 'TheSportsDB',
+          configured: true,
+          hasData: true,
+        ),
+        DataProviderStatus(
+          name: 'Basketball Reference',
+          configured: true,
+          hasData: true,
+        ),
+      ],
+      games: [
+        NbaGameLog(
           date: DateTime(2026, 4, 12),
           opponent: 'San Antonio Spurs',
           outcome: 'WIN',
@@ -508,26 +597,35 @@ void main() {
           assists: 1,
           steals: 0,
           blocks: 1,
-          gameScore: 22.4)
-    ]);
+          gameScore: 22.4,
+        ),
+      ],
+    );
 
-    await tester.pumpWidget(MaterialApp(
+    await tester.pumpWidget(
+      MaterialApp(
         home: Scaffold(
-            body: UnifiedAthleteFacts(data: data, accent: Colors.amber))));
+          body: UnifiedAthleteFacts(data: data, accent: Colors.amber),
+        ),
+      ),
+    );
 
     expect(find.text('API-Sports'), findsNWidgets(2));
     expect(find.text('BALLDONTLIE'), findsOneWidget);
     expect(find.text('TheSportsDB'), findsNWidgets(2));
     expect(find.text('C'), findsOneWidget);
     expect(find.text('Denver Nuggets'), findsOneWidget);
-    expect(find.text('LEGUTÓBBI NBA MECCSEK · BASKETBALL REFERENCE'),
-        findsOneWidget);
+    expect(
+      find.text('LEGUTÓBBI NBA MECCSEK · BASKETBALL REFERENCE'),
+      findsOneWidget,
+    );
     expect(find.text('San Antonio Spurs'), findsOneWidget);
     expect(find.text('23 PTS · 8 REB · 1 AST · 18 MIN'), findsOneWidget);
   });
 
-  testWidgets('NBA season summary shows every requested metric',
-      (tester) async {
+  testWidgets('NBA season summary shows every requested metric', (
+    tester,
+  ) async {
     const summary = BasketballSeasonStat(
       league: 'NBA',
       season: '2025/2026',
@@ -543,10 +641,16 @@ void main() {
       fieldGoalPercentage: 56.9,
     );
 
-    await tester.pumpWidget(const MaterialApp(
+    await tester.pumpWidget(
+      const MaterialApp(
         home: Scaffold(
-            body: BasketballSeasonSummaryFacts(
-                summary: summary, accent: Colors.amber))));
+          body: BasketballSeasonSummaryFacts(
+            summary: summary,
+            accent: Colors.amber,
+          ),
+        ),
+      ),
+    );
 
     for (final label in const [
       'MÉRKŐZÉS',
@@ -566,8 +670,9 @@ void main() {
     expect(find.text('NBA · 2025/2026'), findsOneWidget);
   });
 
-  testWidgets('WNBA season summary shows every requested metric',
-      (tester) async {
+  testWidgets('WNBA season summary shows every requested metric', (
+    tester,
+  ) async {
     final games = [
       WnbaGameLog(
         gameId: '1',
@@ -588,8 +693,11 @@ void main() {
       ),
     ];
 
-    await tester.pumpWidget(MaterialApp(
-        home: Scaffold(body: WnbaSeasonSummaryFacts(games: games))));
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(body: WnbaSeasonSummaryFacts(games: games)),
+      ),
+    );
 
     for (final label in const [
       'MECCS',
@@ -608,31 +716,42 @@ void main() {
     expect(find.textContaining('WNBA 2026'), findsOneWidget);
   });
 
-  testWidgets('Basketball Reference WNBA games show score and box score',
-      (tester) async {
+  testWidgets('Basketball Reference WNBA games show score and box score', (
+    tester,
+  ) async {
     final games = [
       NbaGameLog(
-          date: DateTime(2026, 7, 30),
-          opponent: 'Toronto Tempo',
-          outcome: 'WIN',
-          location: 'AWAY',
-          minutes: 22,
-          points: 12,
-          rebounds: 5,
-          assists: 2,
-          steals: 1,
-          blocks: 0,
-          score: '104-72',
-          gameScore: 11.6),
+        date: DateTime(2026, 7, 30),
+        opponent: 'Toronto Tempo',
+        outcome: 'WIN',
+        location: 'AWAY',
+        minutes: 22,
+        points: 12,
+        rebounds: 5,
+        assists: 2,
+        steals: 1,
+        blocks: 0,
+        score: '104-72',
+        gameScore: 11.6,
+      ),
     ];
 
-    await tester.pumpWidget(MaterialApp(
+    await tester.pumpWidget(
+      MaterialApp(
         home: Scaffold(
-            body: BasketballReferenceGameList(
-                games: games, accent: Colors.orange, league: 'WNBA'))));
+          body: BasketballReferenceGameList(
+            games: games,
+            accent: Colors.orange,
+            league: Sport.wnba,
+          ),
+        ),
+      ),
+    );
 
-    expect(find.text('LEGUTÓBBI WNBA MECCSEK · BASKETBALL REFERENCE'),
-        findsOneWidget);
+    expect(
+      find.text('LEGUTÓBBI WNBA MECCSEK · BASKETBALL REFERENCE'),
+      findsOneWidget,
+    );
     expect(find.text('Toronto Tempo'), findsOneWidget);
     expect(find.text('104–72'), findsOneWidget);
     expect(find.byTooltip('Győzelem'), findsOneWidget);
@@ -640,24 +759,34 @@ void main() {
     expect(find.text('12 PTS · 5 REB · 2 AST · 22 MIN'), findsOneWidget);
   });
 
-  testWidgets('merged darts profile shows TheSportsDB results and providers',
-      (tester) async {
-    final data = DartsProfileData(player: const {
-      'strPlayer': 'Luke Littler',
-      'strTeam': 'PDC Mens',
-      'strNationality': 'England',
-      'dateBorn': '2007-01-21',
-      'strStatus': 'Active',
-    }, results: [
-      DartsResult(
+  testWidgets('merged darts profile shows TheSportsDB results and providers', (
+    tester,
+  ) async {
+    final data = DartsProfileData(
+      player: const {
+        'strPlayer': 'Luke Littler',
+        'strTeam': 'PDC Mens',
+        'strNationality': 'England',
+        'dateBorn': '2007-01-21',
+        'strStatus': 'Active',
+      },
+      results: [
+        DartsResult(
           date: DateTime(2026, 7, 26),
           event: 'Betfred World Matchplay Day 9',
-          detail: 'WIN')
-    ], rapidApiConfigured: false);
+          detail: 'WIN',
+        ),
+      ],
+      rapidApiConfigured: false,
+    );
 
-    await tester.pumpWidget(MaterialApp(
+    await tester.pumpWidget(
+      MaterialApp(
         home: Scaffold(
-            body: DartsProfileFacts(data: data, accent: Colors.pink))));
+          body: DartsProfileFacts(data: data, accent: Colors.pink),
+        ),
+      ),
+    );
 
     expect(find.text('TheSportsDB'), findsOneWidget);
     expect(find.text('RapidAPI · Darts API'), findsOneWidget);
@@ -667,18 +796,33 @@ void main() {
     expect(find.text(formatMatchDate(DateTime(2026, 7, 26))), findsOneWidget);
   });
 
-  testWidgets('Liga F list shows Barcelona result and opponent',
-      (tester) async {
-    await tester.pumpWidget(MaterialApp(
-        home: Scaffold(
-            body: LigaFGameList(games: [
-      LigaFGame(
-          date: DateTime(2026, 4, 22),
-          opponent: 'Espanyol',
-          teamScore: 4,
-          opponentScore: 1,
-          home: false)
-    ], accent: Colors.blue))));
+  testWidgets('Liga F list shows Barcelona result and opponent', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        child: MaterialApp(
+          home: Scaffold(
+            body: EspnSoccerGameList(
+              team: EspnSoccerTeam.fromHints(
+                AthleteSourceHints.ligaFBarcelona,
+                'FC Barcelona',
+              )!,
+              games: [
+                EspnSoccerGame(
+                  date: DateTime(2026, 4, 22),
+                  opponent: 'Espanyol',
+                  teamScore: 4,
+                  opponentScore: 1,
+                  home: false,
+                ),
+              ],
+              accent: Colors.blue,
+            ),
+          ),
+        ),
+      ),
+    );
 
     expect(find.text('Espanyol'), findsOneWidget);
     expect(find.text('4–1'), findsOneWidget);
@@ -687,73 +831,85 @@ void main() {
     expect(find.byTooltip('Győzelem'), findsOneWidget);
   });
 
-  testWidgets('RapidAPI WNBA facts show advanced stats and awards',
-      (tester) async {
+  testWidgets('RapidAPI WNBA facts show advanced stats and awards', (
+    tester,
+  ) async {
     const profile = WnbaRapidProfile(
-        playerId: '4433403',
-        team: 'Indiana Fever',
-        season: 2026,
-        facts: [WnbaAdvancedFact('PTS', '21.5')],
-        awards: ['1x Rookie of the Year']);
+      playerId: '4433403',
+      team: 'Indiana Fever',
+      season: 2026,
+      facts: [WnbaAdvancedFact('PTS', '21.5')],
+      awards: ['1x Rookie of the Year'],
+    );
 
-    await tester.pumpWidget(const MaterialApp(
+    await tester.pumpWidget(
+      const MaterialApp(
         home: Scaffold(
-            body: WnbaRapidProfileFacts(
-                profile: profile, accent: Colors.orange))));
+          body: WnbaRapidProfileFacts(profile: profile, accent: Colors.orange),
+        ),
+      ),
+    );
 
     expect(find.text('21,5'), findsOneWidget);
     expect(find.text('PTS'), findsOneWidget);
     expect(find.text('1x Rookie of the Year'), findsOneWidget);
   });
 
-  testWidgets('tennis profile shows ranking live score and next fixture',
-      (tester) async {
+  testWidgets('tennis profile shows ranking live score and next fixture', (
+    tester,
+  ) async {
     final player = TennisPlayer(
-        id: 7,
-        name: 'Iga Swiatek',
-        tour: 'wta',
-        country: 'POL',
-        ranking: 2,
-        rankingPoints: 8000,
-        hand: 'R',
-        backhand: 2);
+      id: 7,
+      name: 'Iga Swiatek',
+      tour: 'wta',
+      country: 'POL',
+      ranking: 2,
+      rankingPoints: 8000,
+      hand: 'R',
+      backhand: 2,
+    );
     final data = TennisProfileData(
       player: player,
       usage: const TennisUsage(tier: 'FREE', today: 12, dailyLimit: 1000),
       liveMatches: [
         TennisMatch(
-            id: 91,
-            tournament: 'Montreal',
-            status: 'live',
-            player1: 'Iga Swiatek',
-            player2: 'Coco Gauff',
-            player1Id: 7,
-            player2Id: 8,
-            score: const TennisScore(sets: [
-              1,
-              0
-            ], games: [
+          id: 91,
+          tournament: 'Montreal',
+          status: 'live',
+          player1: 'Iga Swiatek',
+          player2: 'Coco Gauff',
+          player1Id: 7,
+          player2Id: 8,
+          score: const TennisScore(
+            sets: [1, 0],
+            games: [
               [6, 2],
-              [4, 1]
-            ], points: [
-              '15',
-              '0'
-            ]))
+              [4, 1],
+            ],
+            points: ['15', '0'],
+          ),
+        ),
       ],
       fixtures: [
         TennisFixture(
-            id: 100,
-            tournament: 'Cincinnati',
-            player1: 'Gauff Coco',
-            player2: 'Swiatek Iga',
-            eventDate: DateTime(2026, 8, 4, 17))
+          id: 100,
+          tournament: 'Cincinnati',
+          player1: 'Gauff Coco',
+          player2: 'Swiatek Iga',
+          eventDate: DateTime(2026, 8, 4, 17),
+        ),
       ],
     );
 
-    await tester.pumpWidget(MaterialApp(
+    await tester.pumpWidget(
+      MaterialApp(
         home: Scaffold(
-            body: SingleChildScrollView(
-                child: TennisProfileFacts(data: data, accent: Colors.green)))));
+          body: SingleChildScrollView(
+            child: TennisProfileFacts(data: data, accent: Colors.green),
+          ),
+        ),
+      ),
+    );
 
     expect(find.text('#2'), findsOneWidget);
     expect(find.text('vs. Coco Gauff'), findsOneWidget);

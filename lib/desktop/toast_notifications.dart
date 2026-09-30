@@ -4,7 +4,7 @@ import 'package:ffi/ffi.dart';
 import 'package:local_notifier/local_notifier.dart';
 import 'package:win32/win32.dart';
 
-import '../data/notifications.dart';
+import 'package:courtboard/data/notifications.dart';
 
 /// Windows-értesítések (toast) a `local_notifier` csomaggal (WinToast).
 ///

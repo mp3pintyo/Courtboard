@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'athlete_names.dart' show normalizeAthleteName;
+import 'package:courtboard/data/athlete_names.dart' show normalizeAthleteName;
 
 /// A Courtboard által írt fájlok gyökere.
 ///
@@ -28,7 +28,7 @@ Future<void> writeFileAtomic(File file, String contents) async {
   final temp = File('${file.path}.${pid}_${_tempCounter++}.tmp');
   try {
     await temp.writeAsString(contents, flush: true);
-    for (var attempt = 0;; attempt++) {
+    for (var attempt = 0; ; attempt++) {
       try {
         await temp.rename(file.path);
         return;

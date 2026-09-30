@@ -1,7 +1,8 @@
-import 'athlete_names.dart';
-import 'http_service.dart';
-import 'json_file_cache.dart';
-import 'json_util.dart';
+import 'package:courtboard/data/athlete_names.dart';
+import 'package:courtboard/data/http_service.dart';
+import 'package:courtboard/data/json_file_cache.dart';
+import 'package:courtboard/data/json_util.dart';
+import 'package:courtboard/domain/sport.dart';
 
 /// Az ESPN nyilvános „site” API-jának ligái, amelyekhez csapatmenetrend
 /// kérhető (`/apis/site/v2/sports/{sport}/{league}/teams/{team}/schedule`).
@@ -21,11 +22,16 @@ enum EspnLeague {
   /// Felhasználónak szóló rövid név.
   final String label;
 
-  /// A Courtboard sportág-címkéjéből (`NBA`, `WNBA`, `NFL`).
-  static EspnLeague? fromSport(String sport) => switch (sport.trim()) {
-    'NBA' => EspnLeague.nba,
-    'WNBA' => EspnLeague.wnba,
-    'NFL' => EspnLeague.nfl,
+  /// A Courtboard (mentett, szöveges) sportág-címkéjéből (`NBA`, `WNBA`,
+  /// `NFL`).
+  static EspnLeague? fromSport(String sport) =>
+      forSport(Sport.fromLabel(sport));
+
+  /// A sportághoz tartozó ESPN-liga; csak NBA, WNBA és NFL esetén.
+  static EspnLeague? forSport(Sport? sport) => switch (sport) {
+    Sport.nba => EspnLeague.nba,
+    Sport.wnba => EspnLeague.wnba,
+    Sport.nfl => EspnLeague.nfl,
     _ => null,
   };
 }

@@ -1,6 +1,6 @@
-import 'http_service.dart';
-import 'json_file_cache.dart';
-import 'json_util.dart';
+import 'package:courtboard/data/http_service.dart';
+import 'package:courtboard/data/json_file_cache.dart';
+import 'package:courtboard/data/json_util.dart';
 
 /// Egy idővonal-esemény típusa.
 enum TimelineEventType {

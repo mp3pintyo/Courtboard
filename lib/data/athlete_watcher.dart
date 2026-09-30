@@ -1,16 +1,17 @@
 import 'dart:async';
 import 'dart:convert';
 
-import 'athlete_highlights.dart';
-import 'espn_schedule.dart';
-import 'ics_export.dart' show icsUid;
-import 'json_file_cache.dart';
-import 'live_scores.dart';
-import 'news.dart';
-import 'notification_settings.dart';
-import 'notifications.dart';
-import 'sports_api.dart';
-import 'upcoming_events.dart';
+import 'package:courtboard/data/athlete_highlights.dart';
+import 'package:courtboard/data/espn_schedule.dart';
+import 'package:courtboard/data/ics_export.dart' show icsUid;
+import 'package:courtboard/data/json_file_cache.dart';
+import 'package:courtboard/data/live_scores.dart';
+import 'package:courtboard/data/news.dart';
+import 'package:courtboard/data/notification_settings.dart';
+import 'package:courtboard/data/notifications.dart';
+import 'package:courtboard/data/sports_api.dart';
+import 'package:courtboard/data/upcoming_events.dart';
+import 'package:courtboard/domain/sport.dart';
 
 /// Egy befejezett mérkőzés a figyelő számára.
 class WatchedResult {
@@ -107,7 +108,7 @@ class RepositoryWatcherSource implements WatcherDataSource {
   Future<List<WatchedResult>?> recentResults(
     UpcomingEventsTarget athlete,
   ) async {
-    final league = EspnLeague.fromSport(athlete.sport);
+    final league = EspnLeague.forSport(athlete.sport);
     final teamName = athlete.team.trim();
     if (teamName.isEmpty) return null;
     // A mai, már befejezett meccsek az élő scoreboardról (gyorsabb, mint a
@@ -122,7 +123,7 @@ class RepositoryWatcherSource implements WatcherDataSource {
       liveFinals = const [];
     }
     if (league == null) {
-      return athlete.sport == 'Foci' ? liveFinals : null;
+      return athlete.sport == Sport.football ? liveFinals : null;
     }
     final team = await _espn.findTeam(league, teamName);
     if (team == null) return liveFinals.isEmpty ? null : liveFinals;
@@ -149,7 +150,7 @@ class RepositoryWatcherSource implements WatcherDataSource {
           outcome: game.outcome,
           score: game.score,
           homeAway: game.homeAway,
-          aliases: [resultDayKey(athlete.sport, game.start)],
+          aliases: [resultDayKey(athlete.sport.jsonValue, game.start)],
         ),
     ];
   }

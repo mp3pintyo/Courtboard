@@ -3,8 +3,8 @@
 /// fájljai; ez a barrel változatlanul tartja a meglévő importokat.
 library;
 
-export 'news/news_models.dart';
-export 'news/news_parsers.dart';
-export 'news/news_repository.dart';
-export 'news/news_sources.dart';
-export 'news/news_store.dart';
+export 'package:courtboard/data/news/news_models.dart';
+export 'package:courtboard/data/news/news_parsers.dart';
+export 'package:courtboard/data/news/news_repository.dart';
+export 'package:courtboard/data/news/news_sources.dart';
+export 'package:courtboard/data/news/news_store.dart';

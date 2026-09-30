@@ -1,4 +1,4 @@
-import 'news_models.dart';
+import 'package:courtboard/data/news/news_models.dart';
 
 const newsRefreshInterval = Duration(minutes: 20);
 

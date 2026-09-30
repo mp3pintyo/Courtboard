@@ -1,6 +1,6 @@
-import 'api_key_id.dart';
-import 'local_state.dart';
-import 'secret_store.dart';
+import 'package:courtboard/data/api_key_id.dart';
+import 'package:courtboard/data/local_state.dart';
+import 'package:courtboard/data/secret_store.dart';
 
 /// Az indításkori kulcsbetöltés eredménye.
 class ApiKeyLoadResult {

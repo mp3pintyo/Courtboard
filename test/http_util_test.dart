@@ -50,44 +50,74 @@ void main() {
     expect(json['value'], 42);
   });
 
-  test('429 exposes status and Retry-After without leaking the query key',
-      () async {
-    final future = httpGetText(
-      client,
-      uri('/quota', {'key': 'SECRET-KEY-123', 'q': 'Jokic'}),
-      provider: 'YouTube Data API',
-    );
-    await expectLater(
-      future,
-      throwsA(isA<CourtboardHttpException>()
-          .having((error) => error.statusCode, 'statusCode', 429)
-          .having((error) => error.isRateLimited, 'isRateLimited', isTrue)
-          .having((error) => error.retryAfter, 'retryAfter',
-              const Duration(seconds: 120))
-          .having((error) => '$error', 'message',
-              allOf(contains('YouTube Data API'), contains('kvóta'),
-                  isNot(contains('SECRET-KEY-123'))))
-          .having((error) => '${error.uri}', 'uri',
-              isNot(contains('SECRET-KEY-123')))),
-    );
-  });
+  test(
+    '429 exposes status and Retry-After without leaking the query key',
+    () async {
+      final future = httpGetText(
+        client,
+        uri('/quota', {'key': 'SECRET-KEY-123', 'q': 'Jokic'}),
+        provider: 'YouTube Data API',
+      );
+      await expectLater(
+        future,
+        throwsA(
+          isA<CourtboardHttpException>()
+              .having((error) => error.statusCode, 'statusCode', 429)
+              .having((error) => error.isRateLimited, 'isRateLimited', isTrue)
+              .having(
+                (error) => error.retryAfter,
+                'retryAfter',
+                const Duration(seconds: 120),
+              )
+              .having(
+                (error) => '$error',
+                'message',
+                allOf(
+                  contains('YouTube Data API'),
+                  contains('kvóta'),
+                  isNot(contains('SECRET-KEY-123')),
+                ),
+              )
+              .having(
+                (error) => '${error.uri}',
+                'uri',
+                isNot(contains('SECRET-KEY-123')),
+              ),
+        ),
+      );
+    },
+  );
 
   test('403 is reported as an authentication problem', () async {
     await expectLater(
       httpGetText(client, uri('/forbidden'), provider: 'football-data.org'),
-      throwsA(isA<CourtboardHttpException>()
-          .having((error) => error.isAuthError, 'isAuthError', isTrue)
-          .having((error) => '$error', 'message',
-              startsWith('football-data.org: a kulcs hibás'))),
+      throwsA(
+        isA<CourtboardHttpException>()
+            .having((error) => error.isAuthError, 'isAuthError', isTrue)
+            .having(
+              (error) => '$error',
+              'message',
+              startsWith('football-data.org: a kulcs hibás'),
+            ),
+      ),
     );
   });
 
   test('overall timeout covers the whole request', () async {
     await expectLater(
-      httpGetText(client, uri('/slow'),
-          provider: 'Teszt', timeout: const Duration(milliseconds: 200)),
-      throwsA(isA<CourtboardHttpException>()
-          .having((error) => error.timedOut, 'timedOut', isTrue)),
+      httpGetText(
+        client,
+        uri('/slow'),
+        provider: 'Teszt',
+        timeout: const Duration(milliseconds: 200),
+      ),
+      throwsA(
+        isA<CourtboardHttpException>().having(
+          (error) => error.timedOut,
+          'timedOut',
+          isTrue,
+        ),
+      ),
     );
   });
 
@@ -95,8 +125,10 @@ void main() {
     final now = DateTime.utc(2026, 9, 30, 12);
     expect(parseRetryAfter('30'), const Duration(seconds: 30));
     expect(
-      parseRetryAfter(HttpDate.format(now.add(const Duration(minutes: 5))),
-          now: now),
+      parseRetryAfter(
+        HttpDate.format(now.add(const Duration(minutes: 5))),
+        now: now,
+      ),
       const Duration(minutes: 5),
     );
     expect(parseRetryAfter('garbage'), isNull);

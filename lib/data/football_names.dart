@@ -1,4 +1,5 @@
-import 'athlete_names.dart' show athleteNameMatches, normalizeAthleteName;
+import 'package:courtboard/data/athlete_names.dart'
+    show athleteNameMatches, normalizeAthleteName;
 
 const _clubTokens = {'fc', 'cf', 'afc', 'sc', 'ac'};
 
@@ -25,7 +26,9 @@ bool footballTeamNamesMatch(String query, String candidate) {
   if (expected.isEmpty) return false;
   if (normalizeFootballTeamName(candidate) == expected) return true;
   return athleteNameMatches(
-      footballTeamSearchTerm(query), footballTeamSearchTerm(candidate));
+    footballTeamSearchTerm(query),
+    footballTeamSearchTerm(candidate),
+  );
 }
 
 /// A [query] csapathoz illő elem: először pontos kulcsegyezés, aztán

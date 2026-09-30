@@ -1,9 +1,9 @@
-import 'football_names.dart';
-import 'friendly_error.dart';
-import 'json_util.dart';
-import 'match_timeline.dart';
-import 'openligadb.dart';
-import 'sports_api.dart';
+import 'package:courtboard/data/football_names.dart';
+import 'package:courtboard/data/friendly_error.dart';
+import 'package:courtboard/data/json_util.dart';
+import 'package:courtboard/data/match_timeline.dart';
+import 'package:courtboard/data/openligadb.dart';
+import 'package:courtboard/data/sports_api.dart';
 
 enum FootballResult { win, draw, loss, unknown }
 
@@ -103,7 +103,10 @@ class FootballDataRepository {
         // de a kulcs- vagy kvótahibát a felületnek látnia kell.
         final text = '$error';
         warnings.add(
-            text.startsWith('football-data.org') ? text : 'football-data.org: $text');
+          text.startsWith('football-data.org')
+              ? text
+              : 'football-data.org: $text',
+        );
       }
     }
 
@@ -227,12 +230,14 @@ class FootballDataRepository {
           : own > other
           ? FootballResult.win
           : FootballResult.loss;
-      games.add(FootballGame(
-        date: date,
-        opponent: opponent,
-        score: own == null || other == null ? '–' : '$own–$other',
-        result: result,
-      ));
+      games.add(
+        FootballGame(
+          date: date,
+          opponent: opponent,
+          score: own == null || other == null ? '–' : '$own–$other',
+          result: result,
+        ),
+      );
     }
     return games;
   }
@@ -271,8 +276,10 @@ class FootballDataRepository {
         '${side['name'] ?? ''}',
         '${side['shortName'] ?? ''}',
         '${side['tla'] ?? ''}',
-      ].any((name) =>
-          name.isNotEmpty && normalizeFootballTeamName(name) == expected);
+      ].any(
+        (name) =>
+            name.isNotEmpty && normalizeFootballTeamName(name) == expected,
+      );
     }
 
     final games = <FootballGame>[];
@@ -297,12 +304,14 @@ class FootballDataRepository {
           : winner == 'HOME_TEAM' || winner == 'AWAY_TEAM'
           ? FootballResult.loss
           : FootballResult.unknown;
-      games.add(FootballGame(
-        date: date.toLocal(),
-        opponent: isHome ? awayName : homeName,
-        score: isHome ? '$homeScore–$awayScore' : '$awayScore–$homeScore',
-        result: result,
-      ));
+      games.add(
+        FootballGame(
+          date: date.toLocal(),
+          opponent: isHome ? awayName : homeName,
+          score: isHome ? '$homeScore–$awayScore' : '$awayScore–$homeScore',
+          result: result,
+        ),
+      );
     }
     games.sort((a, b) => b.date.compareTo(a.date));
     return games.take(5).toList();

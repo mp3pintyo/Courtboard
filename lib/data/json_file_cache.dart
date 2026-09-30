@@ -4,8 +4,8 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart' show visibleForTesting;
 
-import 'app_paths.dart';
-import 'file_util.dart';
+import 'package:courtboard/data/app_paths.dart';
+import 'package:courtboard/data/file_util.dart';
 
 /// Gyorsítótárból vagy hálózatról érkezett érték a frissességi adataival.
 class CachedValue<T> {

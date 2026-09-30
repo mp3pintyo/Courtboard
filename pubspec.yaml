@@ -2,7 +2,7 @@ name: courtboard
 
 description: Sportolókövető asztali alkalmazás Flutterhez.
 publish_to: none
-version: 0.12.0+13
+version: 0.13.0+14
 
 environment:
   sdk: '>=3.12.0 <4.0.0'
@@ -16,6 +16,8 @@ dependencies:
     sdk: flutter
   flutter_localizations:
     sdk: flutter
+  flutter_riverpod: ^3.4.3
+  go_router: ^18.0.2
   html: ^0.15.6
   intl: ^0.20.2
   local_notifier: ^0.1.6
@@ -47,7 +49,7 @@ msix_config:
   display_name: Courtboard
   publisher_display_name: Mp3Pintyo
   identity_name: Mp3Pintyo.Courtboard
-  msix_version: 0.12.0.0
+  msix_version: 0.13.0.0
   logo_path: windows/runner/resources/app_icon.ico
   capabilities: internetClient
   languages: hu-hu, en-us

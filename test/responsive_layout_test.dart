@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:courtboard/data/local_state.dart';
-import 'package:courtboard/main.dart';
+import 'package:courtboard/app/courtboard_app.dart';
 
 const _state = CourtboardLocalState(
   customAthletes: [
@@ -88,6 +88,13 @@ void main() {
           'Saquon Barkley',
         ]) {
           await _openNav(tester, 'Sportolók');
+          // A lista görgetési helyzete a router ágában megmarad (0.13.0):
+          // a keresés a lista tetejéről indul.
+          tester
+              .state<ScrollableState>(find.byType(Scrollable).last)
+              .position
+              .jumpTo(0);
+          await tester.pump();
           final tile = find.byKey(ValueKey('directory-athlete-$name'));
           await tester.scrollUntilVisible(
             tile,

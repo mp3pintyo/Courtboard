@@ -120,30 +120,43 @@ void main() {
     String winner,
     int homeGoals,
     int awayGoals,
-  ) =>
-      {
-        'utcDate': '2026-03-01T20:00:00Z',
-        'homeTeam': {'id': homeId, 'name': home},
-        'awayTeam': {'id': awayId, 'name': away},
-        'score': {
-          'winner': winner,
-          'fullTime': {'home': homeGoals, 'away': awayGoals},
-        },
-      };
+  ) => {
+    'utcDate': '2026-03-01T20:00:00Z',
+    'homeTeam': {'id': homeId, 'name': home},
+    'awayTeam': {'id': awayId, 'name': away},
+    'score': {
+      'winner': winner,
+      'fullTime': {'home': homeGoals, 'away': awayGoals},
+    },
+  };
 
   test('FC Barcelona home and away games are detected by team id', () {
-    final games = FootballDataRepository.parseMatches({
-      'matches': [
-        match('FC Barcelona', 81, 'Real Madrid CF', 86, 'HOME_TEAM', 3, 1),
-        {
-          ...match('Real Madrid CF', 86, 'FC Barcelona', 81, 'AWAY_TEAM', 0, 2),
-          'utcDate': '2026-03-08T20:00:00Z',
-        },
-      ],
-    }, 'Barcelona', teamId: 81);
+    final games = FootballDataRepository.parseMatches(
+      {
+        'matches': [
+          match('FC Barcelona', 81, 'Real Madrid CF', 86, 'HOME_TEAM', 3, 1),
+          {
+            ...match(
+              'Real Madrid CF',
+              86,
+              'FC Barcelona',
+              81,
+              'AWAY_TEAM',
+              0,
+              2,
+            ),
+            'utcDate': '2026-03-08T20:00:00Z',
+          },
+        ],
+      },
+      'Barcelona',
+      teamId: 81,
+    );
 
-    expect(games.map((game) => game.opponent),
-        ['Real Madrid CF', 'Real Madrid CF']);
+    expect(games.map((game) => game.opponent), [
+      'Real Madrid CF',
+      'Real Madrid CF',
+    ]);
     expect(games.map((game) => game.score), ['2–0', '3–1']);
     expect(games.every((game) => game.result == FootballResult.win), isTrue);
   });
@@ -168,18 +181,21 @@ void main() {
   });
 
   test('TheSportsDB strTime is UTC and converted to local time', () {
-    final parsed =
-        FootballDataRepository.parseTheSportsDbEventTime('2026-08-09', '19:30:00');
+    final parsed = FootballDataRepository.parseTheSportsDbEventTime(
+      '2026-08-09',
+      '19:30:00',
+    );
     expect(parsed, isNotNull);
     expect(parsed!.isUtc, isFalse);
     expect(parsed.toUtc(), DateTime.utc(2026, 8, 9, 19, 30));
     expect(
-      FootballDataRepository.parseTheSportsDbEventTime('2026-08-09', '')
-          ?.day,
+      FootballDataRepository.parseTheSportsDbEventTime('2026-08-09', '')?.day,
       9,
     );
     expect(
-        FootballDataRepository.parseTheSportsDbEventTime('', '19:30:00'), isNull);
+      FootballDataRepository.parseTheSportsDbEventTime('', '19:30:00'),
+      isNull,
+    );
   });
 
   test('TheSportsDB rows without a date are skipped', () {

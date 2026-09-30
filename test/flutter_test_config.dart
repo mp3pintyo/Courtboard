@@ -6,7 +6,7 @@ import 'package:courtboard/data/http_service.dart';
 import 'package:courtboard/data/json_file_cache.dart';
 import 'package:courtboard/data/rate_limit.dart';
 import 'package:courtboard/data/secret_store.dart';
-import 'package:courtboard/images.dart';
+import 'package:courtboard/shared/images.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 

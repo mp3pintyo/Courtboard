@@ -1,7 +1,7 @@
 import 'dart:io';
 
 import 'package:courtboard/data/news.dart';
-import 'package:courtboard/news_page.dart';
+import 'package:courtboard/features/news/news_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';

@@ -1,3 +1,5 @@
+import 'package:courtboard/domain/athlete_source_hints.dart';
+import 'package:courtboard/domain/sport.dart';
 import 'package:courtboard/data/athlete_highlights.dart';
 import 'package:courtboard/data/http_util.dart';
 import 'package:courtboard/data/json_file_cache.dart';
@@ -10,7 +12,7 @@ import 'support/fake_http.dart';
 
 const _jokic = UpcomingEventsTarget(
   name: 'Nikola Jokić',
-  sport: 'NBA',
+  sport: Sport.nba,
   team: 'Denver Nuggets',
 );
 
@@ -162,7 +164,7 @@ void main() {
         final unknown = await repo.fetchFor(
           const UpcomingEventsTarget(
             name: 'Valaki',
-            sport: 'NBA',
+            sport: Sport.nba,
             team: 'Chicago Bulls',
           ),
           config: const SportsApiConfig(),
@@ -170,14 +172,14 @@ void main() {
         expect(unknown.unavailable, contains('Chicago Bulls'));
 
         final noTeam = await repo.fetchFor(
-          const UpcomingEventsTarget(name: 'Valaki', sport: 'WNBA'),
+          const UpcomingEventsTarget(name: 'Valaki', sport: Sport.wnba),
           config: const SportsApiConfig(),
         );
         expect(noTeam.unavailable, contains('csapatot'));
 
         final requestsBefore = http.requests.length;
         final tennis = await repo.fetchFor(
-          const UpcomingEventsTarget(name: 'Iga Swiatek', sport: 'Tenisz'),
+          const UpcomingEventsTarget(name: 'Iga Swiatek', sport: Sport.tennis),
           config: const SportsApiConfig(),
         );
         expect(tennis.unavailable, contains('Live Tennis API'));
@@ -213,7 +215,7 @@ void main() {
       final result = await repository(http).fetchFor(
         const UpcomingEventsTarget(
           name: 'Lamine Yamal',
-          sport: 'Foci',
+          sport: Sport.football,
           team: 'FC Barcelona',
         ),
         config: const SportsApiConfig(),
@@ -272,8 +274,9 @@ void main() {
         final result = await repository(http).fetchFor(
           const UpcomingEventsTarget(
             name: 'Aitana Bonmatí',
-            sport: 'Foci',
+            sport: Sport.football,
             team: 'FC Barcelona',
+            sourceHints: AthleteSourceHints.ligaF,
           ),
           config: const SportsApiConfig(),
         );
@@ -424,7 +427,7 @@ void main() {
   group('összesítés és napok', () {
     AthleteEventsResult result(String name, List<UpcomingEvent> events) =>
         AthleteEventsResult(
-          target: UpcomingEventsTarget(name: name, sport: 'NBA'),
+          target: UpcomingEventsTarget(name: name, sport: Sport.nba),
           events: events,
         );
 
@@ -450,7 +453,11 @@ void main() {
         'Anna 22',
       ]);
       expect(
-        mergeUpcomingEvents(results, now: now, sport: 'NFL').single.athleteName,
+        mergeUpcomingEvents(
+          results,
+          now: now,
+          sport: Sport.nfl,
+        ).single.athleteName,
         'Béla',
       );
       expect(
@@ -529,10 +536,10 @@ void main() {
 
         final loading = controller.load([
           _jokic,
-          const UpcomingEventsTarget(name: 'Iga Swiatek', sport: 'Tenisz'),
+          const UpcomingEventsTarget(name: 'Iga Swiatek', sport: Sport.tennis),
           const UpcomingEventsTarget(
             name: 'Valaki',
-            sport: 'NBA',
+            sport: Sport.nba,
             team: 'Chicago Bulls',
           ),
         ], config: const SportsApiConfig());
@@ -545,7 +552,7 @@ void main() {
         expect(controller.results['Iga Swiatek']?.unavailable, isNotNull);
         expect(controller.results['Valaki']?.unavailable, isNotNull);
         expect(controller.events(), hasLength(3));
-        expect(controller.events(sport: 'Tenisz'), isEmpty);
+        expect(controller.events(sport: Sport.tennis), isEmpty);
 
         final highlight = await highlights.read('Nikola Jokić');
         expect(highlight?.upcoming(clock)?.title, '@ Oklahoma City Thunder');

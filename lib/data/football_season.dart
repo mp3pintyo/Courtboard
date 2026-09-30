@@ -1,4 +1,4 @@
-import 'json_util.dart';
+import 'package:courtboard/data/json_util.dart';
 
 /// Egy játékos egy mérkőzésen (a FotMob `recentMatches` listájából): a
 /// profil formagörbéjéhez. Csak a ténylegesen pályára lépett meccsek kerülnek
@@ -41,21 +41,21 @@ class FootballMatchForm {
     return own > other
         ? 'win'
         : own < other
-            ? 'loss'
-            : 'draw';
+        ? 'loss'
+        : 'draw';
   }
 
   Map<String, dynamic> toJson() => {
-        'date': date.toUtc().toIso8601String(),
-        'opponent': opponent,
-        'competition': competition,
-        'teamScore': teamScore,
-        'opponentScore': opponentScore,
-        'rating': rating,
-        'goals': goals,
-        'assists': assists,
-        'minutes': minutes,
-      };
+    'date': date.toUtc().toIso8601String(),
+    'opponent': opponent,
+    'competition': competition,
+    'teamScore': teamScore,
+    'opponentScore': opponentScore,
+    'rating': rating,
+    'goals': goals,
+    'assists': assists,
+    'minutes': minutes,
+  };
 
   static FootballMatchForm? fromJson(Object? raw) {
     final json = jsonMap(raw);
@@ -105,19 +105,19 @@ class FootballSeasonStat {
   final List<FootballMatchForm> recentMatches;
 
   Map<String, dynamic> toJson() => {
-        'season': season,
-        'team': team,
-        'competition': competition,
-        'source': source,
-        'rating': rating,
-        'appearances': appearances,
-        'goals': goals,
-        'assists': assists,
-        'yellowCards': yellowCards,
-        'redCards': redCards,
-        if (recentMatches.isNotEmpty)
-          'recentMatches': [for (final match in recentMatches) match.toJson()],
-      };
+    'season': season,
+    'team': team,
+    'competition': competition,
+    'source': source,
+    'rating': rating,
+    'appearances': appearances,
+    'goals': goals,
+    'assists': assists,
+    'yellowCards': yellowCards,
+    'redCards': redCards,
+    if (recentMatches.isNotEmpty)
+      'recentMatches': [for (final match in recentMatches) match.toJson()],
+  };
 
   factory FootballSeasonStat.fromJson(Map<String, dynamic> json) =>
       FootballSeasonStat(
@@ -149,23 +149,25 @@ class FootballSeasonStat {
       redCards != null;
 
   FootballSeasonStat merge(FootballSeasonStat other) => FootballSeasonStat(
-        season: seasonStart >= other.seasonStart ? season : other.season,
-        team: team.isNotEmpty ? team : other.team,
-        competition: competition.isNotEmpty ? competition : other.competition,
-        source: source == other.source ? source : '$source + ${other.source}',
-        rating: rating ?? other.rating,
-        appearances: appearances ?? other.appearances,
-        goals: goals ?? other.goals,
-        assists: assists ?? other.assists,
-        yellowCards: yellowCards ?? other.yellowCards,
-        redCards: redCards ?? other.redCards,
-        recentMatches:
-            recentMatches.isNotEmpty ? recentMatches : other.recentMatches,
-      );
+    season: seasonStart >= other.seasonStart ? season : other.season,
+    team: team.isNotEmpty ? team : other.team,
+    competition: competition.isNotEmpty ? competition : other.competition,
+    source: source == other.source ? source : '$source + ${other.source}',
+    rating: rating ?? other.rating,
+    appearances: appearances ?? other.appearances,
+    goals: goals ?? other.goals,
+    assists: assists ?? other.assists,
+    yellowCards: yellowCards ?? other.yellowCards,
+    redCards: redCards ?? other.redCards,
+    recentMatches: recentMatches.isNotEmpty
+        ? recentMatches
+        : other.recentMatches,
+  );
 }
 
 bool isCurrentOrPreviousFootballSeason(String season, DateTime now) {
-  final start =
-      int.tryParse(RegExp(r'\d{4}').firstMatch(season)?.group(0) ?? '');
+  final start = int.tryParse(
+    RegExp(r'\d{4}').firstMatch(season)?.group(0) ?? '',
+  );
   return start != null && (start == now.year || start == now.year - 1);
 }

@@ -3,10 +3,10 @@ import 'dart:io';
 
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
-import '../app_paths.dart';
-import '../athlete_names.dart';
-import 'news_models.dart';
-import 'news_sources.dart';
+import 'package:courtboard/data/app_paths.dart';
+import 'package:courtboard/data/athlete_names.dart';
+import 'package:courtboard/data/news/news_models.dart';
+import 'package:courtboard/data/news/news_sources.dart';
 
 /// A hírarchívum megőrzési szabálya: egy cikk csak akkor törlődik, ha
 /// régebbi [maxAge]-nél **és** nincs a legújabb [minArticles] között. Így

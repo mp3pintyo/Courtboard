@@ -4,9 +4,9 @@ import 'package:flutter/foundation.dart';
 import 'package:tray_manager/tray_manager.dart';
 import 'package:window_manager/window_manager.dart';
 
-import '../data/window_geometry.dart';
-import 'startup_registration.dart';
-import 'win32_window_placement.dart';
+import 'package:courtboard/data/window_geometry.dart';
+import 'package:courtboard/desktop/startup_registration.dart';
+import 'package:courtboard/desktop/win32_window_placement.dart';
 
 /// A shell felől érkező műveletek, amelyekre az asztali integráció
 /// (tálcamenü, ablakbezárás) támaszkodik.

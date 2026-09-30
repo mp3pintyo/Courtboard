@@ -9,15 +9,15 @@ void main() {
           'dateEvent': '2026-07-21',
           'strEvent': 'World Matchplay Day 4',
           'strDetail': 'WIN',
-          'intPosition': '3'
+          'intPosition': '3',
         },
         {
           'dateEvent': '2026-07-26',
           'strEvent': 'World Matchplay Day 9',
           'strDetail': 'WIN',
-          'intPosition': '1'
-        }
-      ]
+          'intPosition': '1',
+        },
+      ],
     });
 
     expect(results.first.event, 'World Matchplay Day 9');
@@ -28,8 +28,8 @@ void main() {
   test('RapidAPI competition parser accepts the documented data envelope', () {
     final competitions = DartsRepository.parseCompetitions({
       'data': [
-        {'competitionId': 123, 'competitionName': 'PDC World Championship'}
-      ]
+        {'competitionId': 123, 'competitionName': 'PDC World Championship'},
+      ],
     });
 
     expect(competitions.single.name, 'PDC World Championship');
@@ -41,7 +41,7 @@ void main() {
       'results': [
         {'dateEvent': '', 'strEvent': 'Broken'},
         {'dateEvent': '2026-07-26', 'strEvent': 'World Matchplay Final'},
-      ]
+      ],
     });
 
     expect(results.single.event, 'World Matchplay Final');

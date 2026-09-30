@@ -1,10 +1,10 @@
-import 'football_data.dart';
-import 'football_names.dart';
-import 'http_service.dart';
-import 'json_file_cache.dart';
-import 'json_util.dart';
-import 'match_timeline.dart';
-import 'upcoming_events.dart';
+import 'package:courtboard/data/football_data.dart';
+import 'package:courtboard/data/football_names.dart';
+import 'package:courtboard/data/http_service.dart';
+import 'package:courtboard/data/json_file_cache.dart';
+import 'package:courtboard/data/json_util.dart';
+import 'package:courtboard/data/match_timeline.dart';
+import 'package:courtboard/data/upcoming_events.dart';
 
 /// Egy OpenLigaDB-bajnokság.
 enum OpenLigaLeague {

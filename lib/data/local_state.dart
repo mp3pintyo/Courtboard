@@ -1,43 +1,95 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'api_key_id.dart';
-import 'app_paths.dart';
-import 'file_util.dart';
-import 'json_util.dart';
-import 'notification_settings.dart';
-import 'window_geometry.dart';
+import 'package:courtboard/domain/athlete_id.dart';
+import 'package:courtboard/domain/athlete_source_hints.dart';
+import 'package:courtboard/domain/sport.dart';
+import 'package:courtboard/data/api_key_id.dart';
+import 'package:courtboard/data/app_paths.dart';
+import 'package:courtboard/data/file_util.dart';
+import 'package:courtboard/data/json_util.dart';
+import 'package:courtboard/data/notification_settings.dart';
+import 'package:courtboard/data/window_geometry.dart';
 
+/// Egy saját (a felhasználó által felvett) sportoló mentett alakja.
+///
+/// A [sport] a mentett szöveges érték (`NBA`, `Foci` …, lásd
+/// [Sport.jsonValue]); ismeretlen értéket is megőrzünk, hogy egy újabb
+/// verzió mentése ne vesszen el.
 class CustomAthlete {
   const CustomAthlete({
+    this.id = '',
     required this.name,
     required this.sport,
     required this.team,
     this.country = '',
     this.photoUrl = '',
+    this.sourceHints = AthleteSourceHints.none,
   });
 
+  /// Stabil azonosító (útvonalakhoz); üres esetén a névből képzett
+  /// ([athleteIdFor]). A 0.13.0 előtti mentésekben nincs: betöltéskor a
+  /// névből pótoljuk, és a következő mentéssel adatként rögzül.
+  final String id;
   final String name;
   final String sport;
   final String team;
   final String country;
   final String photoUrl;
 
+  /// A tényleges azonosító (üres [id] esetén a névből).
+  String get effectiveId => id.isEmpty ? athleteIdFor(name) : id;
+
+  /// Másolat más azonosítóval (ütközés feloldásához).
+  CustomAthlete withId(String value) => CustomAthlete(
+    id: value,
+    name: name,
+    sport: sport,
+    team: team,
+    country: country,
+    photoUrl: photoUrl,
+    sourceHints: sourceHints,
+  );
+
+  /// Adatforrás-tippek (0.13.0-tól); lásd [AthleteSourceHints].
+  final AthleteSourceHints sourceHints;
+
   Map<String, dynamic> toJson() => {
+    'id': effectiveId,
     'name': name,
     'sport': sport,
     'team': team,
     'country': country,
     'photoUrl': photoUrl,
+    'sourceHints': sourceHints.toJson(),
   };
 
-  factory CustomAthlete.fromJson(Map<String, dynamic> json) => CustomAthlete(
-    name: json['name'] as String? ?? '',
-    sport: json['sport'] as String? ?? '',
-    team: json['team'] as String? ?? '',
-    country: json['country'] as String? ?? '',
-    photoUrl: json['photoUrl'] as String? ?? '',
-  );
+  /// A 0.13.0 előtti bejegyzésekben nincs `sourceHints` mező: ezeknél
+  /// egyszer lefut a régi (név/csapat alapú) Liga F-szabály, lásd
+  /// [AthleteSourceHints.migrateLegacy]. A mentés után a tipp már adatként
+  /// él, és a migráció többé nem fut.
+  factory CustomAthlete.fromJson(Map<String, dynamic> json) {
+    final name = json['name'] as String? ?? '';
+    final sport = json['sport'] as String? ?? '';
+    final team = json['team'] as String? ?? '';
+    final id = json['id'];
+    return CustomAthlete(
+      // Migráció: a 0.13.0 előtti bejegyzések azonosítója a névből.
+      id: id is String && id.trim().isNotEmpty ? id.trim() : athleteIdFor(name),
+      name: name,
+      sport: sport,
+      team: team,
+      country: json['country'] as String? ?? '',
+      photoUrl: json['photoUrl'] as String? ?? '',
+      sourceHints: json.containsKey('sourceHints')
+          ? AthleteSourceHints.fromJson(json['sourceHints'])
+          : AthleteSourceHints.migrateLegacy(
+              sport: Sport.fromLabel(sport),
+              name: name,
+              team: team,
+            ),
+    );
+  }
 }
 
 class CourtboardLocalState {

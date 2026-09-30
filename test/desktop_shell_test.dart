@@ -8,7 +8,7 @@ import 'package:courtboard/data/notification_settings.dart';
 import 'package:courtboard/data/notifications.dart';
 import 'package:courtboard/data/window_geometry.dart';
 import 'package:courtboard/desktop/startup_registration.dart';
-import 'package:courtboard/main.dart';
+import 'package:courtboard/app/courtboard_app.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 

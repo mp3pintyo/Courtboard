@@ -1,8 +1,8 @@
-import 'http_service.dart';
-import 'http_util.dart';
-import 'json_file_cache.dart';
-import 'json_util.dart';
-import 'rate_limit.dart';
+import 'package:courtboard/data/http_service.dart';
+import 'package:courtboard/data/http_util.dart';
+import 'package:courtboard/data/json_file_cache.dart';
+import 'package:courtboard/data/json_util.dart';
+import 'package:courtboard/data/rate_limit.dart';
 
 /// Szemantikus verzió (`MAJOR.MINOR.PATCH[-előzetes][+build]`), a
 /// SemVer 2.0 elsőbbségi szabályaival. A build-metaadat nem számít.

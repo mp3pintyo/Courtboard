@@ -5,9 +5,9 @@ import 'dart:isolate';
 import 'package:html/parser.dart' as html_parser;
 import 'package:xml/xml.dart';
 
-import '../json_util.dart';
-import '../url_safety.dart';
-import 'news_models.dart';
+import 'package:courtboard/data/json_util.dart';
+import 'package:courtboard/data/url_safety.dart';
+import 'package:courtboard/data/news/news_models.dart';
 
 /// Egy letöltött hírfolyam feldolgozása a forrás formátuma szerint.
 ///

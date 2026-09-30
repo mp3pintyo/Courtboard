@@ -1,8 +1,8 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'http_util.dart';
-import 'rate_limit.dart';
+import 'package:courtboard/data/http_util.dart';
+import 'package:courtboard/data/rate_limit.dart';
 
 /// Felhasználónak szóló, rövid magyar hibaüzenet tetszőleges kivételből.
 ///

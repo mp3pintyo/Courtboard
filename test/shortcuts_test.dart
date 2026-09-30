@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:courtboard/main.dart';
+import 'package:courtboard/app/courtboard_app.dart';
 
 void _desktopView(WidgetTester tester) {
   tester.view.devicePixelRatio = 1.0;

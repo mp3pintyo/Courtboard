@@ -3,14 +3,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:courtboard/components.dart';
+import 'package:courtboard/shared/components.dart';
 import 'package:courtboard/data/athlete_highlights.dart';
 import 'package:courtboard/data/json_file_cache.dart';
 import 'package:courtboard/data/news.dart';
 import 'package:courtboard/data/upcoming_events.dart';
 import 'package:courtboard/data/youtube_playlist.dart';
-import 'package:courtboard/insights/follow_feed.dart';
-import 'package:courtboard/main.dart';
+import 'package:courtboard/features/follow_feed/follow_feed_data.dart';
+import 'package:courtboard/app/courtboard_app.dart';
 
 final _now = DateTime(2026, 9, 30, 14);
 

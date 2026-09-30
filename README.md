@@ -188,7 +188,7 @@ A **Naptár** a követett sportolók közelgő eseményeit a már bekötött for
 | Sportág | Forrás | Megjegyzés |
 |---|---|---|
 | NBA, WNBA, NFL | ESPN csapatmenetrend (`site.api.espn.com/…/teams/{csapat}/schedule`) | kulcs nélkül; a csapatot teljes név, rövidítés vagy becenév alapján oldja fel |
-| Foci | football-data.org (kulccsal), különben TheSportsDB következő meccsei; német csapatnál, ha ezek nem adnak, az OpenLigaDB | Aitana Bonmatí / „Femení” csapatnál az ESPN Liga F (`esp.w.1`) |
+| Foci | football-data.org (kulccsal), különben TheSportsDB következő meccsei; német csapatnál, ha ezek nem adnak, az OpenLigaDB | Liga F-tippel mentett sportolónál (Aitana Bonmatí, „Femení” csapat) az ESPN Liga F (`esp.w.1`) |
 | Tenisz | Live Tennis API közelgő meccsei és fixture-jei | kulcs kell; kulcs nélkül megjegyzés jelzi |
 | Darts | TheSportsDB (a játékos nevét tartalmazó események), RapidAPI Darts (kulccsal, ha a versenylista dátumot is ad) | az ingyenes források ritkán adnak játékosszintű menetrendet |
 
@@ -277,7 +277,7 @@ Az API-Sports Free kompatibilis, `season` alapú mérkőzéslekérést használ.
 
 A szezonkártyán a csapat, versenysorozat, értékelésátlag, játszott mérkőzések, gólok, gólpasszok, sárga és piros lapok látszanak. A névfeloldás az ékezeteket és a keresztnév–vezetéknév sorrendet is kezeli. A football-data.org adapter már nem beégetett csapatazonosítókból dolgozik: a Free csapatlistában dinamikusan oldja fel a klubot, majd az aktuális keretben név alapján keresi meg a játékost. A profilkártyán klub, poszt, nemzetiség, születési dátum, mezszám és football-data.org játékosazonosító jelenhet meg. A 12 Free `TIER_ONE` verseny keretei 7 napos lemezcache-be kerülnek, a lekérések pedig a 10 kérés/perces korláthoz igazodnak.
 
-A football-data.org Free csomag nem ad játékosonkénti meccsaggregációt, ezért a gól-, gólpassz-, lap- és értékelésadatokat továbbra is a FotMob vagy az API-Sports egészíti ki. Ha egy klub ligája nem része a football-data.org Free kínálatának – ilyen az MLS és az Inter Miami –, a csapat utolsó és következő mérkőzéseit a kulcs nélküli TheSportsDB fallback tölti be. Aitana Bonmatí esetén külön ESPN Liga F (`esp.w.1`) adapter szűri a Barcelona Femení meccseit; férfi Barcelona-eredményt nem kever a profilba. Német csapatnál (Bundesliga, 2. Bundesliga, Frauen-Bundesliga), ha a többi forrás nem ad eredményt vagy menetrendet, a kulcs nélküli **OpenLigaDB** pótolja – a gólszerzőkkel együtt, amelyek a meccssor „Idővonal” sávjában látszanak.
+A football-data.org Free csomag nem ad játékosonkénti meccsaggregációt, ezért a gól-, gólpassz-, lap- és értékelésadatokat továbbra is a FotMob vagy az API-Sports egészíti ki. Ha egy klub ligája nem része a football-data.org Free kínálatának – ilyen az MLS és az Inter Miami –, a csapat utolsó és következő mérkőzéseit a kulcs nélküli TheSportsDB fallback tölti be. Az ESPN-bajnokságkóddal mentett profiloknál (alapból Aitana Bonmatí a Liga F-ben, `esp.w.1`; új sportolónál a „Femení” / „Femenino” utótagú csapatnév) az általános ESPN-csapatforrás a bajnokság scoreboardjából a sportoló csapatának meccseit szűri – bármely ESPN-ben szereplő női vagy férfi bajnokságban; Aitanánál a Barcelona Femení meccseit, férfi Barcelona-eredmény nélkül. Német csapatnál (Bundesliga, 2. Bundesliga, Frauen-Bundesliga), ha a többi forrás nem ad eredményt vagy menetrendet, a kulcs nélküli **OpenLigaDB** pótolja – a gólszerzőkkel együtt, amelyek a meccssor „Idővonal” sávjában látszanak.
 
 ### Darts
 
@@ -383,7 +383,99 @@ flutter build windows --release
 
 Az adatforrások központi, kereshető leírása a `lib/data/provider_catalog.dart` fájlban van. Új integráció felvételekor ezt a katalógust és a README mátrixát együtt kell frissíteni.
 
-A Flutter belépési pontja szándékosan kicsi: a `lib/main.dart` az importokat és a `part` deklarációkat tartalmazza, a képernyők és profilmodulok pedig sportág és funkció szerint a `lib/ui/` fájljaiban találhatók. Így egy adatforrás vagy nézet fejlesztéséhez nem kell egy több ezer soros központi fájlt módosítani.
+## Kódszerkezet
+
+A 0.13.0 óta minden fájl önálló Dart-könyvtár (nincs `part of`); a `lib/` fájljai egymást mindig `package:courtboard/...` importtal érik el (az `always_use_package_imports` lint őrzi). A fájlok közötti nyilvános API-t a szimbólumnevek adják, a csak egy fájlban használt segédek privátok (`_`) maradnak.
+
+```text
+lib/
+  main.dart            belépési pont: állapot és kulcsok betöltése, AppServices,
+                       ProviderScope(overrides: courtboardOverrides(...)) + CourtboardRoot
+  app/                 az alkalmazás kerete
+    courtboard_app.dart    CourtboardRoot (MaterialApp.router, téma); CourtboardApp:
+                           ProviderScope egyedi paraméterekből (tesztekhez)
+    providers.dart         alkalmazásszintű providerek, courtboardOverrides()
+    router.dart            go_router: StatefulShellRoute, ágak, profil-útvonal
+    app_location.dart      útvonal ↔ navigációs állapot (AppLocation), útvonal-építők
+    route_pages.dart       az útvonalak oldalai (providerekből építik a funkciók widgetjeit)
+    courtboard_shell.dart  shell: oldalsáv / fiók, frissítés-sáv, billentyűparancsok,
+                           ShellActions / ShellScope (navigáció és közös párbeszédablakok)
+    app_controller.dart    AppController (ChangeNotifier): sportolók (stabil azonosítóval),
+                           sorrend, kitűzés, jegyzetek, értesítésjelölés, beállítások,
+                           API-kulcsok, videólista, mentés a LocalStateStore-ba
+    activity_controller.dart  kiemelések, hírfolyam, naptár (nyitólap, Követés)
+    desktop_coordinator.dart  tálca, ablak, Windows-indítás, értesítések, háttérfigyelő
+    app_services.dart      AppServices: platformszolgáltatások és tesztcsatlakozók → overrides
+    app_page.dart          AppPage enum (felirat, ikon, útvonal, Ctrl+1…9, „Vissza” felirat)
+    navigation.dart        oldalsáv, töréspontok, tartalomkeret
+    shortcuts.dart         billentyűparancsok (Intent-ek)
+    seed_data.dart         az alapból követett sportolók
+  domain/              UI-független modell
+    sport.dart             Sport enum (felirat, ikon, csapatsport, szín; JSON = régi magyar szöveg)
+    athlete.dart           Athlete (stabil `id`), rendezés
+    athlete_id.dart        azonosító a névből (`nikola-jokic`), ütközésfeloldás
+    athlete_source_hints.dart  adatforrás-tippek (ESPN-liga, csapat, felirat) és migráció
+    athlete_targets.dart   Athlete → naptár/élő eredmény célpont
+  features/            képernyők funkció szerint
+    dashboard/  athletes/  calendar/  news/  videos/  follow_feed/
+    compare/  data_sources/  settings/  live_scores/
+    profile/               profiloldal, közös profilelemek, formagörbék,
+      sport_profile_spec.dart  sportágankénti regiszter (élő kártyák, sablon,
+                               formagörbe fajtája, egymás elleni mérleg, összehasonlítás)
+      profile_form.dart        SportFormChart: a FormChartKind választja a görbét
+      profile_providers.dart   sportolónkénti adatok (FutureProvider / AsyncNotifier családok)
+      sports/              sportágankénti adatkártyák (NBA, WNBA, foci, tenisz, darts, NFL)
+  shared/              közös UI: components (DataSourceCard, AsyncDataSourceCard …),
+                       charts, format, images, common_ui, theme/
+  data/                adatforrások, gyorsítótárak, tárolók (UI nélkül)
+    providers.dart         az adatréteg providerei (HTTP, gyorsítótárak, repositoryk)
+  desktop/             Windows-integráció (ablak, tálca, értesítések, indítás)
+```
+
+Függőségi irány: `app` → `features` → `shared` / `domain` / `data`. A sportág mindenhol a `Sport` enum; a mentett állapot és a gyorsítótárak továbbra is a régi szöveges értéket (`NBA`, `Foci` …) tárolják, így a korábbi mentések változatlanul betölthetők. Új sportág felvételekor a `Sport` enumot és a `SportProfileSpec.registry`-t kell bővíteni.
+
+### Állapot és függőségek (Riverpod)
+
+Az app `ProviderScope`-ban fut (`flutter_riverpod`, kódgenerálás nélkül). A `main` az `AppServices`-ből és az indításkor betöltött állapotból (`AppLaunchState`) állítja össze a felülírásokat (`courtboardOverrides`); a tesztek ugyanezt a `CourtboardApp` paramétereivel vagy közvetlen `ProviderScope(overrides: [...])`-szal teszik. Az automatikus újrapróbálás ki van kapcsolva (`noAutomaticRetry`): a hibát a kártya mutatja „Újrapróbálás” gombbal.
+
+| Provider | Hol | Mit ad |
+|---|---|---|
+| `appServicesProvider`, `appLaunchProvider` | `app/providers.dart` | indításkor összeállított szolgáltatások, mentett állapot és kulcsok, kezdő útvonal |
+| `appControllerProvider` | `app/providers.dart` | `AppController` (`ChangeNotifierProvider`; szűkebb figyeléshez `select`) |
+| `activityControllerProvider` | `app/providers.dart` | kiemelések, hírfolyam, naptár |
+| `desktopCoordinatorProvider` | `app/providers.dart` | tálca, értesítések, háttérfigyelő (üzenetek és kattintások folyamként) |
+| `appVersionProvider`, `updateCheckerProvider`, `desktopIntegrationProvider`, `startupRegistrationProvider`, `watcherSourceProvider`, `watcherMemoryStoreProvider` | `app/providers.dart` | platformszolgáltatások |
+| `routerProvider` | `app/router.dart` | a `GoRouter` |
+| `httpServiceProvider`, `cacheStorageProvider`, `highlightStoreProvider`, `rankingHistoryStoreProvider` | `data/providers.dart` | közös HTTP-réteg és gyorsítótárak |
+| `apiConfigProvider`, `sportsApiClientProvider` | `data/providers.dart` | az aktuális kulcsok (az appban az `AppController`-é) |
+| `newsRepositoryProvider`, `notificationServiceProvider`, `upcomingEventsControllerProvider` | `data/providers.dart` | hírarchívum, értesítések, naptárvezérlő |
+| `espnAthleteRepositoryProvider`, `espnScheduleRepositoryProvider`, `espnSoccerTeamRepositoryProvider`, `liveScoresRepositoryProvider`, `matchTimelineRepositoryProvider`, `headToHeadRepositoryProvider`, `upcomingEventsRepositoryProvider`, `basketballReferenceRepositoryProvider`, `wnbaWehoopRepositoryProvider`, `openLigaDbRepositoryProvider` | `data/providers.dart` | kulcs nélküli repositoryk |
+| `apiSportsRepositoryProvider`, `multiProviderAthleteRepositoryProvider`, `dartsRepositoryProvider`, `footballSeasonRepositoryProvider`, `footballDataRepositoryProvider`, `footballDataPlayerRepositoryProvider`, `tennisRepositoryProvider`, `wnbaRapidApiRepositoryProvider` | `data/providers.dart` | kulcsos repositoryk (kulcsmentéskor újak) |
+| `profileImageResolverProvider` | `data/providers.dart` | profilkép keresése új sportolóhoz |
+| `compareSourceProvider` | `features/compare/compare_data.dart` | az Összehasonlítás szezonadat-forrása |
+| `nextEventsProvider` (FutureProvider család) | `features/profile/profile_providers.dart` | „Következő mérkőzés” sportolónként |
+| `nbaSeasonSummaryProvider`, `nflGameLogProvider`, `nflTeamFormProvider`, `espnSoccerTeamGamesProvider` (AsyncNotifier családok) | `features/profile/profile_providers.dart` | adatkártyák; `refresh()` kényszerít, `ref.invalidate` gyorsítótárból épít újra |
+
+A többi adatkártya a `DataSourceCard` jövőalapú betöltőjét használja, a repositoryt a providerből olvasva; a provideres kártyák ugyanazt a megjelenést kapják (`AsyncDataSourceCard`, `AsyncValue`-ból).
+
+### Útvonalak (go_router)
+
+A menüpontok egy `StatefulShellRoute.indexedStack` ágai: az oldalsáv a shellben marad, az ágak (görgetés, szűrők, keresés, összehasonlítás-kiválasztás) oldalváltáskor és profil megnyitásakor is megmaradnak. A lapok átmenet nélkül váltanak. A háttérben megtartott ágak nem kapják meg a Ctrl+R / Ctrl+F parancsokat, és az élő eredmények sem frissülnek bennük (`TickerMode`).
+
+| Útvonal | Oldal | Billentyű |
+|---|---|---|
+| `/` | Áttekintés | Ctrl+1 |
+| `/sportolok` | Sportolók | Ctrl+2 |
+| `/sportolok/:athleteId?from=<menüpont>` | profil; a `from` a kiinduló menüpont (kiemelés, „Vissza: …”, Esc / Alt+←) | – |
+| `/naptar` | Naptár | Ctrl+3 |
+| `/hirek` | Hírek | Ctrl+4 |
+| `/videok` | Videók | Ctrl+5 |
+| `/kovetes` | Követés | Ctrl+6 |
+| `/osszehasonlitas?a=<id>&b=<id>` | Összehasonlítás (a kiválasztás az útvonalban) | Ctrl+7 |
+| `/adatforrasok` | Adatforrások | Ctrl+8 |
+| `/beallitasok` | Beállítások | Ctrl+9 |
+
+Az `athleteId` a sportoló stabil azonosítója (a névből: `nikola-jokic`; a saját sportolóknál mentett adat, a régi mentések a névből kapják meg). Ismeretlen azonosítónál a router a Sportolók oldalra irányít. Értesítésre kattintva a router nyitja meg a sportoló profilját (`/sportolok/<id>`), hírösszesítőnél a `/hirek` oldalt. Az `AppPage` enum adja a menüpontok feliratát, ikonját, útvonalát és billentyűparancsát.
 
 ## Szolgáltatói dokumentáció
 

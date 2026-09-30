@@ -3,7 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:courtboard/components.dart';
+import 'package:courtboard/shared/components.dart';
 import 'package:courtboard/data/basketball_reference.dart';
 import 'package:courtboard/data/basketball_season.dart';
 import 'package:courtboard/data/darts.dart';
@@ -13,9 +13,11 @@ import 'package:courtboard/data/football_season.dart';
 import 'package:courtboard/data/fotmob_football.dart';
 import 'package:courtboard/data/ranking_history.dart';
 import 'package:courtboard/data/wehoop_wnba.dart';
-import 'package:courtboard/insights/form_data.dart';
-import 'package:courtboard/main.dart';
-import 'package:courtboard/theme/courtboard_theme.dart';
+import 'package:courtboard/features/profile/form_data.dart';
+import 'package:courtboard/domain/sport.dart';
+import 'package:courtboard/features/profile/profile_form.dart';
+import 'package:courtboard/features/profile/sport_profile_spec.dart';
+import 'package:courtboard/shared/theme/courtboard_theme.dart';
 
 NbaGameLog _nba(int day, int points, {String outcome = 'WIN'}) => NbaGameLog(
   date: DateTime(2026, 4, day),
@@ -421,6 +423,96 @@ void main() {
       expect(find.byKey(const Key('football-form')), findsOneWidget);
       expect(find.byKey(const Key('tennis-ranking-form')), findsOneWidget);
       expect(find.byKey(const Key('form-chart')), findsNWidgets(2));
+    });
+  });
+
+  group('SportFormChart (FormChartKind)', () {
+    final basketball = BasketballFormData([
+      for (var day = 1; day <= 3; day++) BoxScoreLine.fromNba(_nba(day, 20)),
+    ]);
+
+    test('every sport maps to its chart kind in the registry', () {
+      expect(
+        SportProfileSpec.formChartOf(Sport.nba),
+        FormChartKind.basketballGameLog,
+      );
+      expect(
+        SportProfileSpec.formChartOf(Sport.wnba),
+        FormChartKind.basketballGameLog,
+      );
+      expect(
+        SportProfileSpec.formChartOf(Sport.football),
+        FormChartKind.footballMatches,
+      );
+      expect(
+        SportProfileSpec.formChartOf(Sport.tennis),
+        FormChartKind.tennisRanking,
+      );
+      expect(
+        SportProfileSpec.formChartOf(Sport.darts),
+        FormChartKind.dartsResults,
+      );
+      expect(SportProfileSpec.formChartOf(Sport.nfl), FormChartKind.nflGameLog);
+    });
+
+    test('the kind decides whether the data can be drawn', () {
+      expect(
+        SportFormChart.canShow(FormChartKind.basketballGameLog, basketball),
+        isTrue,
+      );
+      // Nem a sportág görbéjéhez illő adat: nincs diagram.
+      expect(
+        SportFormChart.canShow(FormChartKind.tennisRanking, basketball),
+        isFalse,
+      );
+      expect(
+        SportFormChart.canShow(
+          FormChartKind.basketballGameLog,
+          BasketballFormData([BoxScoreLine.fromNba(_nba(1, 20))]),
+        ),
+        isFalse,
+      );
+      expect(
+        SportFormChart.canShow(
+          FormChartKind.dartsResults,
+          DartsFormData([
+            for (var day = 1; day <= 3; day++)
+              DartsResult(
+                date: DateTime(2026, 7, day),
+                event: 'Nap $day',
+                detail: 'WIN',
+              ),
+          ]),
+        ),
+        isTrue,
+      );
+    });
+
+    testWidgets('draws the chart of the kind, nothing for a mismatch', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _host(
+          SportFormChart(
+            kind: SportProfileSpec.formChartOf(Sport.nba),
+            data: basketball,
+            accent: Colors.orange,
+          ),
+        ),
+      );
+      expect(find.byKey(const Key('basketball-form')), findsOneWidget);
+
+      await tester.pumpWidget(
+        _host(
+          SportFormChart(
+            kind: FormChartKind.footballMatches,
+            data: basketball,
+            accent: Colors.orange,
+          ),
+        ),
+      );
+      expect(find.byKey(const Key('basketball-form')), findsNothing);
+      expect(find.byKey(const Key('form-chart')), findsNothing);
     });
   });
 }

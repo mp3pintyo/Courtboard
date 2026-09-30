@@ -17,11 +17,14 @@ Future<void> main() async {
         league: request.$2,
       );
       print(
-          '${request.$2.toUpperCase()} · ${request.$1}: ${games.length} meccs');
+        '${request.$2.toUpperCase()} · ${request.$1}: ${games.length} meccs',
+      );
       for (final game in games) {
-        print('- ${game.date.toIso8601String().split('T').first} · '
-            '${game.opponent} · ${game.score ?? game.resultLabel} · '
-            '${game.performance}');
+        print(
+          '- ${game.date.toIso8601String().split('T').first} · '
+          '${game.opponent} · ${game.score ?? game.resultLabel} · '
+          '${game.performance}',
+        );
       }
       if (games.isEmpty) {
         throw StateError('${request.$1}: nincs feldolgozott mérkőzés.');

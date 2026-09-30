@@ -5,12 +5,12 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:courtboard/common_ui.dart';
-import 'package:courtboard/components.dart';
+import 'package:courtboard/shared/common_ui.dart';
+import 'package:courtboard/shared/components.dart';
 import 'package:courtboard/data/local_state.dart';
-import 'package:courtboard/format.dart';
-import 'package:courtboard/main.dart';
-import 'package:courtboard/theme/courtboard_theme.dart';
+import 'package:courtboard/shared/format.dart';
+import 'package:courtboard/app/courtboard_app.dart';
+import 'package:courtboard/shared/theme/courtboard_theme.dart';
 
 String _name(CourtboardColors c) =>
     '${c.brightness.name}/${c == CourtboardColors.lightGreen || c == CourtboardColors.darkGreen ? 'green' : 'burgundy'}';

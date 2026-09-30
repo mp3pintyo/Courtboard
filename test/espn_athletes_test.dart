@@ -1,11 +1,12 @@
+import 'package:courtboard/domain/sport.dart';
 import 'package:courtboard/data/basketball_reference.dart';
 import 'package:courtboard/data/espn_athletes.dart';
 import 'package:courtboard/data/espn_schedule.dart';
 import 'package:courtboard/data/http_util.dart';
 import 'package:courtboard/data/json_file_cache.dart';
 import 'package:courtboard/data/wehoop_wnba.dart';
-import 'package:courtboard/insights/compare.dart';
-import 'package:courtboard/insights/form_data.dart';
+import 'package:courtboard/features/compare/compare_data.dart';
+import 'package:courtboard/features/profile/form_data.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'support/fake_http.dart';
@@ -289,7 +290,7 @@ void main() {
     test('meccsösszegzés és összehasonlítási pillanatkép', () {
       expect(nflGameSummary(log.games.first), contains('passz yd'));
       final snapshot = snapshotFromNflGameLog('Jalen Hurts', log)!;
-      expect(snapshot.sport, 'NFL');
+      expect(snapshot.sport, Sport.nfl);
       expect(snapshot['passingYards'], closeTo(206.7, .1));
       expect(snapshot['receivingYards'], isNull);
       expect(snapshot['touchdowns'], closeTo(2.0, .01));

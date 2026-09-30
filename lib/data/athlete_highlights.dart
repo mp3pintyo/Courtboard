@@ -2,8 +2,8 @@ import 'dart:convert';
 
 import 'package:flutter/foundation.dart' show visibleForTesting;
 
-import 'file_util.dart';
-import 'json_file_cache.dart';
+import 'package:courtboard/data/file_util.dart';
+import 'package:courtboard/data/json_file_cache.dart';
 
 /// Egy sportolóhoz kötött mérkőzés vagy esemény rövid összefoglalója
 /// (a nyitóoldal kártyáihoz és a „Mai fókusz” blokkhoz).
@@ -202,7 +202,8 @@ List<HighlightEvent> mergeRecentEvents(
   final result = <HighlightEvent>[];
   for (final event in events) {
     final day = event.date.toLocal();
-    final key = '${day.year}-${day.month}-${day.day}|'
+    final key =
+        '${day.year}-${day.month}-${day.day}|'
         '${event.title.trim().toLowerCase()}';
     if (seen.add(key)) result.add(event);
   }

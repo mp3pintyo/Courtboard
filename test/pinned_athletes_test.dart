@@ -10,7 +10,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:courtboard/data/json_file_cache.dart';
 import 'package:courtboard/data/local_state.dart';
 import 'package:courtboard/data/ranking_history.dart';
-import 'package:courtboard/main.dart';
+import 'package:courtboard/app/courtboard_app.dart';
+import 'package:courtboard/domain/athlete.dart';
+import 'package:courtboard/features/dashboard/dashboard_page.dart';
 
 void _desktopView(WidgetTester tester) {
   tester.view.devicePixelRatio = 1.0;
@@ -23,7 +25,7 @@ void _desktopView(WidgetTester tester) {
 
 Athlete _athlete(String name) => Athlete(
   name: name,
-  sport: 'NBA',
+  sport: Sport.nba,
   team: '',
   country: '',
   photoUrl: '',

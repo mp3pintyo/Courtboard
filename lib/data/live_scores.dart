@@ -1,13 +1,14 @@
 import 'package:flutter/foundation.dart' show visibleForTesting;
 
-import 'athlete_names.dart';
-import 'espn_schedule.dart';
-import 'football_names.dart';
-import 'friendly_error.dart';
-import 'http_service.dart';
-import 'json_file_cache.dart';
-import 'json_util.dart';
-import 'upcoming_events.dart';
+import 'package:courtboard/data/athlete_names.dart';
+import 'package:courtboard/data/espn_schedule.dart';
+import 'package:courtboard/data/football_names.dart';
+import 'package:courtboard/data/friendly_error.dart';
+import 'package:courtboard/data/http_service.dart';
+import 'package:courtboard/data/json_file_cache.dart';
+import 'package:courtboard/data/json_util.dart';
+import 'package:courtboard/data/upcoming_events.dart';
+import 'package:courtboard/domain/sport.dart';
 
 /// Egy mérkőzés állapota a scoreboardon.
 enum LiveGameState { scheduled, live, finished }
@@ -208,25 +209,25 @@ class LiveBoard {
 
 /// A figyelt scoreboardok.
 enum LiveFeed {
-  nba('NBA', 'basketball/nba'),
-  wnba('WNBA', 'basketball/wnba'),
-  nfl('NFL', 'football/nfl'),
-  soccer('Foci', 'soccer/all'),
-  ligaF('Foci', 'soccer/esp.w.1');
+  nba(Sport.nba, 'basketball/nba'),
+  wnba(Sport.wnba, 'basketball/wnba'),
+  nfl(Sport.nfl, 'football/nfl'),
+  soccer(Sport.football, 'soccer/all'),
+  ligaF(Sport.football, 'soccer/esp.w.1');
 
   const LiveFeed(this.sport, this.espnPath);
-  final String sport;
+  final Sport sport;
   final String espnPath;
 
   /// A sportoló sportágához tartozó scoreboard.
   static LiveFeed? forTarget(UpcomingEventsTarget target) =>
       switch (target.sport) {
-        'NBA' => LiveFeed.nba,
-        'WNBA' => LiveFeed.wnba,
-        'NFL' => LiveFeed.nfl,
-        'Foci' when target.isLigaF => LiveFeed.ligaF,
-        'Foci' => LiveFeed.soccer,
-        _ => null,
+        Sport.nba => LiveFeed.nba,
+        Sport.wnba => LiveFeed.wnba,
+        Sport.nfl => LiveFeed.nfl,
+        Sport.football when target.isLigaF => LiveFeed.ligaF,
+        Sport.football => LiveFeed.soccer,
+        Sport.tennis || Sport.darts => null,
       };
 
   EspnLeague? get espnLeague => switch (this) {
@@ -503,14 +504,13 @@ class LiveScoresRepository {
               (team.shortName.isNotEmpty &&
                   footballTeamNamesMatch(target.team, team.shortName));
         case LiveFeed.ligaF:
-          final key = _womenTeamKey(
-            target.team.isEmpty ? 'Barcelona' : target.team,
-          );
+          final key = _womenTeamKey(target.team);
           final name = _womenTeamKey(team.name);
+          // A tippekben megadott ESPN-csapatnév (például „Barcelona”).
+          final espnTeam = target.espnSoccerTeam;
           return name.isNotEmpty &&
-              (name.contains(key) ||
-                  key.contains(name) ||
-                  (target.isLigaF && name.contains('barcelona')));
+              ((key.isNotEmpty && (name.contains(key) || key.contains(name))) ||
+                  (espnTeam != null && espnTeam.matches(team.name)));
         case LiveFeed.nba:
         case LiveFeed.wnba:
         case LiveFeed.nfl:
@@ -581,7 +581,7 @@ class LiveScoresRepository {
       games.add(
         LiveGame(
           id: id,
-          sport: 'NBA',
+          sport: Sport.nba.jsonValue,
           source: nbaCdnProvider,
           state: state,
           home: team(raw['homeTeam']),
@@ -681,7 +681,7 @@ class LiveScoresRepository {
       games.add(
         LiveGame(
           id: id,
-          sport: feed.sport,
+          sport: feed.sport.jsonValue,
           source: espnProvider,
           state: state,
           home: team('home'),

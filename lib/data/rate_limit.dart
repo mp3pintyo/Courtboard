@@ -2,8 +2,8 @@ import 'dart:async';
 import 'dart:collection';
 import 'dart:convert';
 
-import 'http_util.dart';
-import 'json_file_cache.dart';
+import 'package:courtboard/data/http_util.dart';
+import 'package:courtboard/data/json_file_cache.dart';
 
 /// Egy szolgáltató dokumentált ingyenes kerete. A percenkénti limitet
 /// várakoztatással ([RateLimiter]), a napi/havi keretet tartós számlálóval

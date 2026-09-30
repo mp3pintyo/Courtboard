@@ -5,22 +5,24 @@ import 'package:courtboard/data/url_safety.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  test('atomic write replaces an existing file and leaves no temp files',
-      () async {
-    final directory = await Directory.systemTemp.createTemp('courtboard-fu-');
-    addTearDown(() => directory.delete(recursive: true));
-    final file = File('${directory.path}/nested/state.json');
+  test(
+    'atomic write replaces an existing file and leaves no temp files',
+    () async {
+      final directory = await Directory.systemTemp.createTemp('courtboard-fu-');
+      addTearDown(() => directory.delete(recursive: true));
+      final file = File('${directory.path}/nested/state.json');
 
-    await writeFileAtomic(file, 'első');
-    await writeFileAtomic(file, 'második');
+      await writeFileAtomic(file, 'első');
+      await writeFileAtomic(file, 'második');
 
-    expect(await file.readAsString(), 'második');
-    final names = file.parent
-        .listSync()
-        .map((entity) => entity.uri.pathSegments.last)
-        .toList();
-    expect(names, ['state.json']);
-  });
+      expect(await file.readAsString(), 'második');
+      final names = file.parent
+          .listSync()
+          .map((entity) => entity.uri.pathSegments.last)
+          .toList();
+      expect(names, ['state.json']);
+    },
+  );
 
   test('cache slug is readable for Latin names and hashed otherwise', () {
     expect(cacheSlug('Nikola Jokić'), 'nikola_jokic');

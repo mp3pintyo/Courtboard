@@ -13,13 +13,15 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:courtboard/components.dart';
+import 'package:courtboard/domain/athlete_source_hints.dart';
+import 'package:courtboard/domain/sport.dart';
+import 'package:courtboard/shared/components.dart';
 import 'package:courtboard/data/athlete_highlights.dart';
 import 'package:courtboard/data/athlete_watcher.dart';
 import 'package:courtboard/data/basketball_reference.dart';
 import 'package:courtboard/data/basketball_season.dart';
 import 'package:courtboard/data/darts.dart';
-import 'package:courtboard/data/espn_liga_f.dart';
+import 'package:courtboard/data/espn_soccer_team.dart';
 import 'package:courtboard/data/file_util.dart';
 import 'package:courtboard/data/http_service.dart';
 import 'package:courtboard/data/football_season.dart';
@@ -37,10 +39,17 @@ import 'package:courtboard/data/upcoming_events.dart';
 import 'package:courtboard/data/wehoop_wnba.dart';
 import 'package:courtboard/data/youtube_playlist.dart';
 import 'package:courtboard/desktop/startup_registration.dart';
-import 'package:courtboard/insights/compare.dart';
-import 'package:courtboard/insights/form_data.dart';
-import 'package:courtboard/main.dart';
-import 'package:courtboard/theme/courtboard_theme.dart';
+import 'package:courtboard/features/compare/compare_data.dart';
+import 'package:courtboard/features/profile/form_data.dart';
+import 'package:courtboard/app/courtboard_app.dart';
+import 'package:courtboard/features/profile/profile_form.dart';
+import 'package:courtboard/features/profile/sports/profile_api_basketball.dart';
+import 'package:courtboard/features/profile/sports/profile_darts.dart';
+import 'package:courtboard/features/profile/sports/profile_football.dart';
+import 'package:courtboard/features/profile/sports/profile_nba_facts.dart';
+import 'package:courtboard/features/profile/sports/profile_tennis.dart';
+import 'package:courtboard/features/profile/sports/profile_wnba.dart';
+import 'package:courtboard/shared/theme/courtboard_theme.dart';
 
 import '../support/fake_desktop.dart';
 import '../support/fake_http.dart';
@@ -431,7 +440,7 @@ Future<void> _seedCalendar() async {
     final isHome = home == target.team || home == target.name;
     return UpcomingEvent(
       athleteName: target.name,
-      sport: target.sport,
+      sport: target.sport.jsonValue,
       title: '$home – $away',
       opponent: isHome ? away : home,
       homeAway: isHome ? 'home' : 'away',
@@ -446,32 +455,33 @@ Future<void> _seedCalendar() async {
 
   const jokic = UpcomingEventsTarget(
     name: 'Nikola Jokić',
-    sport: 'NBA',
+    sport: Sport.nba,
     team: 'Denver Nuggets',
   );
   const clark = UpcomingEventsTarget(
     name: 'Caitlin Clark',
-    sport: 'WNBA',
+    sport: Sport.wnba,
     team: 'Indiana Fever',
   );
   const dorka = UpcomingEventsTarget(
     name: 'Juhász Dorka',
-    sport: 'WNBA',
+    sport: Sport.wnba,
     team: 'Minnesota Lynx',
   );
   const barkley = UpcomingEventsTarget(
     name: 'Saquon Barkley',
-    sport: 'NFL',
+    sport: Sport.nfl,
     team: 'Philadelphia Eagles',
   );
   const aitana = UpcomingEventsTarget(
     name: 'Aitana Bonmatí',
-    sport: 'Foci',
+    sport: Sport.football,
     team: 'FC Barcelona',
+    sourceHints: AthleteSourceHints.ligaF,
   );
   const humphries = UpcomingEventsTarget(
     name: 'Luke Humphries',
-    sport: 'Darts',
+    sport: Sport.darts,
   );
 
   final later = now.add(const Duration(hours: 2));
@@ -698,7 +708,7 @@ class _FixtureCompareSource implements CompareDataSource {
   @override
   Future<AthleteSeasonSnapshot?> load({
     required String name,
-    required String sport,
+    required Sport sport,
     required String team,
     required SportsApiConfig config,
     bool force = false,
@@ -745,13 +755,17 @@ class _FixtureCompareSource implements CompareDataSource {
 Future<void> _seedFeedHighlights() async {
   final store = AthleteHighlightStore.shared;
   final now = DateTime.now();
-  HighlightEvent played(int hoursAgo, String title, String outcome, String score) =>
-      HighlightEvent(
-        date: now.subtract(Duration(hours: hoursAgo)),
-        title: title,
-        outcome: outcome,
-        score: score,
-      );
+  HighlightEvent played(
+    int hoursAgo,
+    String title,
+    String outcome,
+    String score,
+  ) => HighlightEvent(
+    date: now.subtract(Duration(hours: hoursAgo)),
+    title: title,
+    outcome: outcome,
+    score: score,
+  );
   await store.record('Nikola Jokić', [
     played(20, 'San Antonio Spurs', 'win', '118–104'),
     played(70, 'Phoenix Suns', 'loss', '109–112'),
@@ -927,11 +941,12 @@ Map<String, Object> _liveRoutes() {
       'espn_scoreboard_empty.json',
     ),
     '/apis/site/v2/sports/soccer/all/summary': live,
-    '/apis/common/v3/search': (Uri uri) => switch (uri.queryParameters['query']) {
-      'Jalen Hurts' => fixture('espn_search_hurts.json'),
-      'Nikola Jokić' => fixture('espn_search_jokic.json'),
-      _ => <String, dynamic>{'items': <Object>[]},
-    },
+    '/apis/common/v3/search': (Uri uri) =>
+        switch (uri.queryParameters['query']) {
+          'Jalen Hurts' => fixture('espn_search_hurts.json'),
+          'Nikola Jokić' => fixture('espn_search_jokic.json'),
+          _ => <String, dynamic>{'items': <Object>[]},
+        },
     '/apis/common/v3/sports/basketball/nba/athletes/3112335/gamelog': fixture(
       'espn_nba_gamelog_jokic.json',
     ),
@@ -977,7 +992,7 @@ Future<void> _shootLive(
   await UpcomingEventsRepository().seed(
     const UpcomingEventsTarget(
       name: 'Nikola Jokić',
-      sport: 'NBA',
+      sport: Sport.nba,
       team: 'Denver Nuggets',
     ),
     [
@@ -1320,16 +1335,17 @@ Widget _gallery() {
           ]),
         ),
         const SizedBox(height: 16),
-        LigaFGameList(
+        EspnSoccerGameList(
+          team: _aitanaTeam,
           games: [
-            LigaFGame(
+            EspnSoccerGame(
               date: DateTime(2026, 4, 22),
               opponent: 'Espanyol',
               teamScore: 4,
               opponentScore: 1,
               home: false,
             ),
-            LigaFGame(
+            EspnSoccerGame(
               date: DateTime(2026, 4, 15),
               opponent: 'Real Madrid',
               teamScore: 1,
@@ -1533,3 +1549,9 @@ void main() {
     );
   }
 }
+
+/// Aitana Bonmatí csapata a Liga F-ben (a galériához).
+final _aitanaTeam = EspnSoccerTeam.fromHints(
+  AthleteSourceHints.ligaFBarcelona,
+  'FC Barcelona',
+)!;

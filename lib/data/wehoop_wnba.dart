@@ -2,11 +2,11 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:isolate';
 
-import 'athlete_names.dart';
-import 'http_service.dart';
-import 'http_util.dart';
-import 'json_file_cache.dart';
-import 'json_util.dart';
+import 'package:courtboard/data/athlete_names.dart';
+import 'package:courtboard/data/http_service.dart';
+import 'package:courtboard/data/http_util.dart';
+import 'package:courtboard/data/json_file_cache.dart';
+import 'package:courtboard/data/json_util.dart';
 
 /// Tesztelhető letöltő: a CSV szövegét adja vissza, vagy
 /// [CourtboardHttpException]-t dob (404 = a szezonfájl még nem létezik).
@@ -28,10 +28,10 @@ class WnbaWehoopRepository {
     this._http,
     this._fetchCsv,
   }) : _cache = JsonFileCache(
-          'wehoop_wnba',
-          directory: cacheDirectory,
-          storage: cacheStorage,
-        );
+         'wehoop_wnba',
+         directory: cacheDirectory,
+         storage: cacheStorage,
+       );
 
   /// Közös példány, hogy a hívók ne töltsék le és dolgozzák fel újra a CSV-t.
   static final WnbaWehoopRepository shared = WnbaWehoopRepository();
@@ -101,8 +101,9 @@ class WnbaWehoopRepository {
     final isCurrent = season >= clock.year;
     final cached = _seasons[season];
     if (cached != null) {
-      final lifetime =
-          cached.missing ? _missingSeasonLifetime : currentSeasonLifetime;
+      final lifetime = cached.missing
+          ? _missingSeasonLifetime
+          : currentSeasonLifetime;
       if ((!isCurrent && !cached.missing) ||
           DateTime.now().difference(cached.loadedAt) < lifetime) {
         return cached;
@@ -110,12 +111,14 @@ class WnbaWehoopRepository {
     }
     final pending = _loading[season];
     if (pending != null) return pending;
-    final future = _loadSeason(season, isCurrent).then((index) {
-      _seasons[season] = index;
-      return index;
-    }).whenComplete(() {
-      _loading.removeWhere((key, _) => key == season);
-    });
+    final future = _loadSeason(season, isCurrent)
+        .then((index) {
+          _seasons[season] = index;
+          return index;
+        })
+        .whenComplete(() {
+          _loading.removeWhere((key, _) => key == season);
+        });
     _loading[season] = future;
     return future;
   }
@@ -127,10 +130,12 @@ class WnbaWehoopRepository {
       final age = DateTime.now().difference(cached.modified);
       if (!isCurrent || (!age.isNegative && age < currentSeasonLifetime)) {
         // A memóriabeli élettartam a lemezes példány korától számít.
-        return _index(cached.contents,
-            loadedAt: cached.modified,
-            fetchedAt: cached.modified,
-            fromCache: true);
+        return _index(
+          cached.contents,
+          loadedAt: cached.modified,
+          fetchedAt: cached.modified,
+          fromCache: true,
+        );
       }
     }
 
@@ -141,11 +146,14 @@ class WnbaWehoopRepository {
       // Hálózati vagy szerverhiba: a régebbi lemezes példány is jobb a semminél.
       // Egy óra múlva újrapróbáljuk a letöltést.
       if (cached != null) {
-        return _index(cached.contents,
-            loadedAt: DateTime.now()
-                .subtract(currentSeasonLifetime - _missingSeasonLifetime),
-            fetchedAt: cached.modified,
-            fromCache: true);
+        return _index(
+          cached.contents,
+          loadedAt: DateTime.now().subtract(
+            currentSeasonLifetime - _missingSeasonLifetime,
+          ),
+          fetchedAt: cached.modified,
+          fromCache: true,
+        );
       }
       if (error is CourtboardHttpException && error.isNotFound) {
         return _WnbaSeasonIndex.missing();
@@ -171,8 +179,11 @@ class WnbaWehoopRepository {
   Future<String> _download(Uri uri) {
     final fetch = _fetchCsv;
     if (fetch != null) return fetch(uri);
-    return (_http ?? HttpService.shared)
-        .getText(uri, provider: 'wehoop WNBA', timeout: _downloadTimeout);
+    return (_http ?? HttpService.shared).getText(
+      uri,
+      provider: 'wehoop WNBA',
+      timeout: _downloadTimeout,
+    );
   }
 
   /// Egy játékos meccsei a CSV-ből, legújabb elöl.
@@ -189,7 +200,7 @@ class WnbaWehoopRepository {
     if (lines.length < 2) return const {};
     final headers = _parseCsvLine(lines.first);
     final index = <String, int>{
-      for (var i = 0; i < headers.length; i++) headers[i]: i
+      for (var i = 0; i < headers.length; i++) headers[i]: i,
     };
     String field(List<String> values, String name) {
       final position = index[name];
@@ -208,33 +219,37 @@ class WnbaWehoopRepository {
       if (date == null) {
         continue;
       }
-      (byPlayer[playerKey] ??= <WnbaGameLog>[]).add(WnbaGameLog(
-        gameId: field(values, 'game_id'),
-        athleteId: field(values, 'athlete_id'),
-        date: date,
-        team: field(values, 'team_display_name').isNotEmpty
-            ? field(values, 'team_display_name')
-            : field(values, 'team_name'),
-        opponent: field(values, 'opponent_team_display_name').isNotEmpty
-            ? field(values, 'opponent_team_display_name')
-            : field(values, 'opponent_team_name'),
-        teamScore: jsonInt(field(values, 'team_score')),
-        opponentScore: jsonInt(field(values, 'opponent_team_score')),
-        result: WnbaResult.fromProvider(field(values, 'team_winner').isNotEmpty
-            ? field(values, 'team_winner')
-            : field(values, 'team_result')),
-        points: jsonInt(field(values, 'points')),
-        rebounds: jsonInt(field(values, 'rebounds')),
-        assists: jsonInt(field(values, 'assists')),
-        steals: jsonInt(field(values, 'steals')),
-        blocks: jsonInt(field(values, 'blocks')),
-        turnovers: jsonInt(field(values, 'turnovers')),
-        fieldGoalsMade: jsonInt(field(values, 'field_goals_made')),
-        fieldGoalsAttempted: jsonInt(field(values, 'field_goals_attempted')),
-        minutes: jsonDouble(field(values, 'minutes')),
-        headshotUrl: field(values, 'athlete_headshot_href'),
-        seasonType: field(values, 'season_type'),
-      ));
+      (byPlayer[playerKey] ??= <WnbaGameLog>[]).add(
+        WnbaGameLog(
+          gameId: field(values, 'game_id'),
+          athleteId: field(values, 'athlete_id'),
+          date: date,
+          team: field(values, 'team_display_name').isNotEmpty
+              ? field(values, 'team_display_name')
+              : field(values, 'team_name'),
+          opponent: field(values, 'opponent_team_display_name').isNotEmpty
+              ? field(values, 'opponent_team_display_name')
+              : field(values, 'opponent_team_name'),
+          teamScore: jsonInt(field(values, 'team_score')),
+          opponentScore: jsonInt(field(values, 'opponent_team_score')),
+          result: WnbaResult.fromProvider(
+            field(values, 'team_winner').isNotEmpty
+                ? field(values, 'team_winner')
+                : field(values, 'team_result'),
+          ),
+          points: jsonInt(field(values, 'points')),
+          rebounds: jsonInt(field(values, 'rebounds')),
+          assists: jsonInt(field(values, 'assists')),
+          steals: jsonInt(field(values, 'steals')),
+          blocks: jsonInt(field(values, 'blocks')),
+          turnovers: jsonInt(field(values, 'turnovers')),
+          fieldGoalsMade: jsonInt(field(values, 'field_goals_made')),
+          fieldGoalsAttempted: jsonInt(field(values, 'field_goals_attempted')),
+          minutes: jsonDouble(field(values, 'minutes')),
+          headshotUrl: field(values, 'athlete_headshot_href'),
+          seasonType: field(values, 'season_type'),
+        ),
+      );
     }
     for (final games in byPlayer.values) {
       games.sort((a, b) => b.date.compareTo(a.date));
@@ -275,14 +290,17 @@ class WnbaWehoopRepository {
 
 class _WnbaSeasonIndex {
   const _WnbaSeasonIndex(
-      this.games, this.loadedAt, this.fetchedAt, this.fromCache)
-      : missing = false;
+    this.games,
+    this.loadedAt,
+    this.fetchedAt,
+    this.fromCache,
+  ) : missing = false;
   _WnbaSeasonIndex.missing()
-      : games = const {},
-        loadedAt = DateTime.now(),
-        fetchedAt = DateTime.now(),
-        fromCache = false,
-        missing = true;
+    : games = const {},
+      loadedAt = DateTime.now(),
+      fetchedAt = DateTime.now(),
+      fromCache = false,
+      missing = true;
 
   final Map<String, List<WnbaGameLog>> games;
 
@@ -298,20 +316,18 @@ class _WnbaSeasonIndex {
   final bool missing;
 
   CachedValue<List<WnbaGameLog>> gamesOf(String playerKey) => CachedValue(
-        games[playerKey] ?? const <WnbaGameLog>[],
-        fetchedAt: fetchedAt,
-        fromCache: fromCache,
-      );
+    games[playerKey] ?? const <WnbaGameLog>[],
+    fetchedAt: fetchedAt,
+    fromCache: fromCache,
+  );
 }
 
 /// Ékezet-, írásjel- és névsorrend-független kulcs ESPN/wehoop nevekhez.
 /// A teljes tokenhalmaznak egyeznie kell, így résznév nem találhat más játékost.
 String _playerNameKey(String value) {
-  final tokens = normalizeAthleteName(value)
-      .split(' ')
-      .where((token) => token.isNotEmpty)
-      .toList()
-    ..sort();
+  final tokens = normalizeAthleteName(
+    value,
+  ).split(' ').where((token) => token.isNotEmpty).toList()..sort();
   return tokens.join('|');
 }
 
@@ -354,10 +370,14 @@ class WnbaSeasonSummary {
     final selected = regularSeason.isEmpty ? games : regularSeason;
     double average(num Function(WnbaGameLog game) selector) =>
         selected.map(selector).reduce((a, b) => a + b) / selected.length;
-    final made =
-        selected.fold<int>(0, (total, game) => total + game.fieldGoalsMade);
+    final made = selected.fold<int>(
+      0,
+      (total, game) => total + game.fieldGoalsMade,
+    );
     final attempted = selected.fold<int>(
-        0, (total, game) => total + game.fieldGoalsAttempted);
+      0,
+      (total, game) => total + game.fieldGoalsAttempted,
+    );
     return WnbaSeasonSummary(
       games: selected.length,
       pointsPerGame: average((game) => game.points),

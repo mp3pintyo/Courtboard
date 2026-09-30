@@ -1,8 +1,8 @@
-import 'friendly_error.dart';
-import 'http_service.dart';
-import 'json_file_cache.dart';
-import 'json_util.dart';
-import 'sports_api.dart';
+import 'package:courtboard/data/friendly_error.dart';
+import 'package:courtboard/data/http_service.dart';
+import 'package:courtboard/data/json_file_cache.dart';
+import 'package:courtboard/data/json_util.dart';
+import 'package:courtboard/data/sports_api.dart';
 
 class DartsResult {
   const DartsResult({
@@ -23,16 +23,16 @@ class DartsResult {
   /// teljes listát.
   static DartsResult? tryFromJson(Map<String, dynamic> json) =>
       DateTime.tryParse('${json['dateEvent'] ?? ''}') == null
-          ? null
-          : DartsResult.fromJson(json);
+      ? null
+      : DartsResult.fromJson(json);
 
   factory DartsResult.fromJson(Map<String, dynamic> json) => DartsResult(
-        date: DateTime.parse('${json['dateEvent']}'),
-        event: '${json['strEvent'] ?? 'Ismeretlen esemény'}',
-        detail: '${json['strDetail'] ?? json['strResult'] ?? '—'}',
-        position: int.tryParse('${json['intPosition'] ?? ''}'),
-        country: jsonString(json['strCountry']),
-      );
+    date: DateTime.parse('${json['dateEvent']}'),
+    event: '${json['strEvent'] ?? 'Ismeretlen esemény'}',
+    detail: '${json['strDetail'] ?? json['strResult'] ?? '—'}',
+    position: int.tryParse('${json['intPosition'] ?? ''}'),
+    country: jsonString(json['strCountry']),
+  );
 }
 
 class DartsCompetition {
@@ -85,7 +85,10 @@ class DartsRepository {
 
   Future<DartsProfileData> fetch(String athleteName) async {
     final client = SportsApiClient(
-        config: config, http: _http, cacheStorage: _cacheStorage);
+      config: config,
+      http: _http,
+      cacheStorage: _cacheStorage,
+    );
     final fetchedAt = DateTime.now();
     Map<String, dynamic>? player;
     var results = <DartsResult>[];
@@ -101,8 +104,9 @@ class DartsRepository {
         if (player == null) return;
         final id = jsonString(player!['idPlayer']);
         if (id == null) return;
-        final payload =
-            await client.theSportsDb('/playerresults.php', {'id': id});
+        final payload = await client.theSportsDb('/playerresults.php', {
+          'id': id,
+        });
         results = parseResults(payload);
       } catch (error) {
         theSportsDbError = friendlyError(error);
@@ -142,27 +146,30 @@ class DartsRepository {
   /// A RapidAPI versenylista a havi 1000 kérés védelmében
   /// [rapidCacheLifetime] ideig lemezről jön; hibánál a lejárt példány is.
   Future<CachedValue<Map<String, dynamic>>> _rapidCompetitions(
-          SportsApiClient client) =>
-      client.cache('rapidapi_darts').getOrFetch<Map<String, dynamic>>(
-            'competitions_3503',
-            ttl: rapidCacheLifetime,
-            fetch: () => client.rapidApiDarts('/competitions/3503'),
-            encode: (value) => value,
-            decode: jsonMap,
-          );
+    SportsApiClient client,
+  ) => client
+      .cache('rapidapi_darts')
+      .getOrFetch<Map<String, dynamic>>(
+        'competitions_3503',
+        ttl: rapidCacheLifetime,
+        fetch: () => client.rapidApiDarts('/competitions/3503'),
+        encode: (value) => value,
+        decode: jsonMap,
+      );
 
   static List<DartsResult> parseResults(Map<String, dynamic> payload) {
-    final parsed = jsonMapList(payload['results'])
-        .map(DartsResult.tryFromJson)
-        .whereType<DartsResult>()
-        .toList();
+    final parsed = jsonMapList(
+      payload['results'],
+    ).map(DartsResult.tryFromJson).whereType<DartsResult>().toList();
     parsed.sort((a, b) => b.date.compareTo(a.date));
     return parsed.take(5).toList();
   }
 
   static List<DartsCompetition> parseCompetitions(
-      Map<String, dynamic> payload) {
-    Object? raw = payload['data'] ??
+    Map<String, dynamic> payload,
+  ) {
+    Object? raw =
+        payload['data'] ??
         payload['competitions'] ??
         payload['response'] ??
         payload['result'];
@@ -171,15 +178,20 @@ class DartsRepository {
     }
     return jsonMapList(raw)
         .map((item) {
-          final name = jsonString(item['competitionName'] ??
-                  item['name'] ??
-                  item['competition'] ??
-                  item['title']) ??
+          final name =
+              jsonString(
+                item['competitionName'] ??
+                    item['name'] ??
+                    item['competition'] ??
+                    item['title'],
+              ) ??
               'Ismeretlen verseny';
           return DartsCompetition(
-              name: name,
-              id: jsonString(
-                  item['competitionId'] ?? item['id'] ?? item['eventTypeId']));
+            name: name,
+            id: jsonString(
+              item['competitionId'] ?? item['id'] ?? item['eventTypeId'],
+            ),
+          );
         })
         .take(8)
         .toList();

@@ -3,14 +3,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:courtboard/components.dart';
+import 'package:courtboard/shared/components.dart';
 import 'package:courtboard/data/espn_athletes.dart';
 import 'package:courtboard/data/espn_schedule.dart';
 import 'package:courtboard/data/head_to_head.dart';
 import 'package:courtboard/data/live_scores.dart';
 import 'package:courtboard/data/match_timeline.dart';
-import 'package:courtboard/main.dart';
-import 'package:courtboard/theme/courtboard_theme.dart';
+import 'package:courtboard/features/live_scores/live_scores_ui.dart';
+import 'package:courtboard/features/profile/match_details.dart';
+import 'package:courtboard/features/profile/sports/profile_nfl.dart';
+import 'package:courtboard/shared/theme/courtboard_theme.dart';
 
 import 'support/fake_http.dart';
 

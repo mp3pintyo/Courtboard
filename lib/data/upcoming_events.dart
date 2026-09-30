@@ -3,21 +3,25 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:intl/intl.dart';
 
-import '../format.dart' show ensureHungarianDateFormatting, courtboardLocale;
-import 'athlete_highlights.dart';
-import 'athlete_names.dart';
-import 'darts.dart';
-import 'espn_schedule.dart';
-import 'file_util.dart';
-import 'football_data.dart';
-import 'football_names.dart';
-import 'friendly_error.dart';
-import 'http_service.dart';
-import 'json_file_cache.dart';
-import 'json_util.dart';
-import 'live_tennis.dart';
-import 'openligadb.dart';
-import 'sports_api.dart';
+import 'package:courtboard/domain/athlete_source_hints.dart';
+import 'package:courtboard/domain/sport.dart';
+import 'package:courtboard/shared/format.dart'
+    show ensureHungarianDateFormatting, courtboardLocale;
+import 'package:courtboard/data/athlete_highlights.dart';
+import 'package:courtboard/data/athlete_names.dart';
+import 'package:courtboard/data/darts.dart';
+import 'package:courtboard/data/espn_schedule.dart';
+import 'package:courtboard/data/espn_soccer_team.dart';
+import 'package:courtboard/data/file_util.dart';
+import 'package:courtboard/data/football_data.dart';
+import 'package:courtboard/data/football_names.dart';
+import 'package:courtboard/data/friendly_error.dart';
+import 'package:courtboard/data/http_service.dart';
+import 'package:courtboard/data/json_file_cache.dart';
+import 'package:courtboard/data/json_util.dart';
+import 'package:courtboard/data/live_tennis.dart';
+import 'package:courtboard/data/openligadb.dart';
+import 'package:courtboard/data/sports_api.dart';
 
 /// Egy követett sportoló közelgő eseménye (mérkőzés vagy verseny).
 class UpcomingEvent {
@@ -115,31 +119,46 @@ class UpcomingEventsTarget {
     required this.name,
     required this.sport,
     this.team = '',
+    this.sourceHints = AthleteSourceHints.none,
   });
 
   final String name;
-  final String sport;
+  final Sport sport;
   final String team;
 
-  /// Csak a Liga F-profilok (Aitana Bonmatí, „Femení” csapat) kapnak női
-  /// Barcelona-menetrendet; más focistánál a klubcsapat számít.
-  bool get isLigaF =>
-      sport == 'Foci' &&
-      (name.toLowerCase().contains('aitana bonmat') ||
-          team.toLowerCase().contains('femen'));
+  /// A sportolóval mentett adatforrás-tippek (például Liga F).
+  final AthleteSourceHints sourceHints;
+
+  /// A Liga F-tippel (ESPN `esp.w.1`) rendelkező focista.
+  bool get isLigaF => sport == Sport.football && sourceHints.isLigaF;
+
+  /// ESPN-bajnokságkóddal rendelkező focista: menetrendje, élő meccsei és
+  /// eredményei az adott ESPN-bajnokságból jönnek (a csapatot a [team],
+  /// illetve a tippek adják); más focistánál a klubcsapat-források élnek.
+  bool get hasEspnSoccerLeague =>
+      sport == Sport.football && sourceHints.hasEspnLeague;
+
+  /// A csapat az ESPN-bajnokságban (lásd [hasEspnSoccerLeague]); `null`,
+  /// ha nincs ilyen tipp vagy csapat.
+  EspnSoccerTeam? get espnSoccerTeam => sport == Sport.football
+      ? EspnSoccerTeam.fromHints(sourceHints, team)
+      : null;
 
   /// Stabil gyorsítótár-kulcs; csapat- vagy sportágváltáskor új bejegyzés.
-  String get cacheKey => cacheSlug('$sport $team $name');
+  /// (A sportág a 0.13.0 előtti szöveges alakjában szerepel, így a régi
+  /// gyorsítótár-bejegyzések érvényesek maradnak.)
+  String get cacheKey => cacheSlug('${sport.jsonValue} $team $name');
 
   @override
   bool operator ==(Object other) =>
       other is UpcomingEventsTarget &&
       other.name == name &&
       other.sport == sport &&
-      other.team == team;
+      other.team == team &&
+      other.sourceHints == sourceHints;
 
   @override
-  int get hashCode => Object.hash(name, sport, team);
+  int get hashCode => Object.hash(name, sport, team, sourceHints);
 }
 
 /// Egy sportoló eseménylistája és a betöltés állapota.
@@ -183,11 +202,45 @@ class UpcomingEventsUnavailable implements Exception {
   String toString() => message;
 }
 
+/// A közelgő események forrása egy sportolóhoz (lásd
+/// [UpcomingEventsRepository]).
+enum UpcomingSource {
+  /// NBA / WNBA / NFL: az ESPN nyilvános csapatmenetrendje.
+  espnTeamSchedule('ESPN csapatmenetrend'),
+
+  /// ESPN-bajnokságkóddal rendelkező focista (például Liga F): az ESPN
+  /// bajnoki scoreboardja a csapat meccseivel.
+  espnSoccerLeague('ESPN · bajnoki scoreboard'),
+
+  /// Focista: football-data.org, TheSportsDB, végül OpenLigaDB.
+  footballClub('football-data.org / TheSportsDB / OpenLigaDB'),
+
+  /// Teniszező: Live Tennis API.
+  tennis('Live Tennis API'),
+
+  /// Dartsjátékos: RapidAPI Darts versenynaptár.
+  darts('RapidAPI Darts');
+
+  const UpcomingSource(this.label);
+
+  /// Felhasználónak szóló rövid név.
+  final String label;
+
+  static UpcomingSource forTarget(UpcomingEventsTarget target) =>
+      switch (target.sport) {
+        Sport.nba || Sport.wnba || Sport.nfl => espnTeamSchedule,
+        Sport.football when target.hasEspnSoccerLeague => espnSoccerLeague,
+        Sport.football => footballClub,
+        Sport.tennis => tennis,
+        Sport.darts => darts,
+      };
+}
+
 /// Alapértelmezett eseményhossz sportáganként (az .ics exporthoz és annak
 /// eldöntéséhez, hogy egy elkezdett esemény még „folyamatban” van-e).
-Duration defaultEventDuration(String sport) => switch (sport) {
-  'NFL' => const Duration(hours: 3, minutes: 30),
-  'Darts' => const Duration(hours: 3),
+Duration defaultEventDuration(String sport) => switch (Sport.fromLabel(sport)) {
+  Sport.nfl => const Duration(hours: 3, minutes: 30),
+  Sport.darts => const Duration(hours: 3),
   _ => const Duration(hours: 2),
 };
 
@@ -303,16 +356,15 @@ class UpcomingEventsRepository {
       http: _http,
       cacheStorage: _cacheStorage,
     );
-    final espnLeague = EspnLeague.fromSport(target.sport);
-    if (espnLeague != null) return _espnTeam(target, espnLeague);
-    return switch (target.sport) {
-      'Foci' when target.isLigaF => _ligaF(target, client),
-      'Foci' => _football(target, client),
-      'Tenisz' => _tennis(target, config),
-      'Darts' => _darts(target, client),
-      _ => throw const UpcomingEventsUnavailable(
-        'Ehhez a sportághoz még nincs eseményforrás.',
+    return switch (UpcomingSource.forTarget(target)) {
+      UpcomingSource.espnTeamSchedule => _espnTeam(
+        target,
+        EspnLeague.forSport(target.sport)!,
       ),
+      UpcomingSource.espnSoccerLeague => _espnSoccerLeague(target, client),
+      UpcomingSource.footballClub => _football(target, client),
+      UpcomingSource.tennis => _tennis(target, config),
+      UpcomingSource.darts => _darts(target, client),
     };
   }
 
@@ -346,7 +398,7 @@ class UpcomingEventsRepository {
       for (final game in games)
         UpcomingEvent(
           athleteName: target.name,
-          sport: target.sport,
+          sport: target.sport.jsonValue,
           title: '${game.home} – ${game.away}',
           opponent: game.opponent,
           competition: game.competition,
@@ -360,33 +412,39 @@ class UpcomingEventsRepository {
     ], const []);
   }
 
-  Future<_Payload> _ligaF(
+  /// Egy ESPN-bajnokság (például Liga F) teljes szezonjának scoreboardja,
+  /// a csapat meccseire szűrve.
+  Future<_Payload> _espnSoccerLeague(
     UpcomingEventsTarget target,
     SportsApiClient client,
   ) async {
+    final team = target.espnSoccerTeam;
+    if (team == null) {
+      throw const UpcomingEventsUnavailable(
+        'Add meg a sportoló csapatát a menetrendhez.',
+      );
+    }
     final today = _clock();
     final years = {today.year, today.add(horizon).year};
     final events = <Map<String, dynamic>>[];
     for (final year in years) {
-      final season = await client.espnSoccerScoreboardYear('esp.w.1', year);
+      final season = await client.espnSoccerScoreboardYear(team.league, year);
       events.addAll(jsonMapList(season['events']));
     }
     final payload = {'events': events};
     final games = EspnScheduleRepository.parseEvents(
       payload,
-      competitionLabel: (_) => 'Liga F',
+      competitionLabel: (_) => team.competitionLabel,
       isOwnTeam: (competitor) {
-        final team = jsonMap(competitor['team']);
-        return _womenTeamKey(
-          '${team['displayName'] ?? team['name'] ?? ''}',
-        ).contains('barcelona');
+        final raw = jsonMap(competitor['team']);
+        return team.matches('${raw['displayName'] ?? raw['name'] ?? ''}');
       },
     );
     return _Payload([
       for (final game in games)
         UpcomingEvent(
           athleteName: target.name,
-          sport: target.sport,
+          sport: target.sport.jsonValue,
           title: '${game.home} – ${game.away}',
           opponent: game.opponent,
           competition: game.competition,
@@ -461,7 +519,7 @@ class UpcomingEventsRepository {
     final events = parseTheSportsDbEvents(
       next,
       athleteName: target.name,
-      sport: target.sport,
+      sport: target.sport.jsonValue,
       teamId: teamId,
     );
     if (events.isEmpty) {
@@ -528,7 +586,7 @@ class UpcomingEventsRepository {
           parseTheSportsDbEvents(
             next,
             athleteName: target.name,
-            sport: target.sport,
+            sport: target.sport.jsonValue,
             teamId: teamId,
             requireAthleteName: true,
           ),
@@ -609,7 +667,7 @@ class UpcomingEventsRepository {
       events.add(
         UpcomingEvent(
           athleteName: athleteName,
-          sport: 'Foci',
+          sport: Sport.football.jsonValue,
           title: '$homeName – $awayName',
           opponent: isHome ? awayName : homeName,
           competition: [
@@ -726,7 +784,7 @@ class UpcomingEventsRepository {
       events.add(
         UpcomingEvent(
           athleteName: athleteName,
-          sport: 'Tenisz',
+          sport: Sport.tennis.jsonValue,
           title: '$player1 – $player2',
           opponent: opponent,
           competition: [tournament, ?round].join(' · '),
@@ -795,7 +853,7 @@ class UpcomingEventsRepository {
       events.add(
         UpcomingEvent(
           athleteName: athleteName,
-          sport: 'Darts',
+          sport: Sport.darts.jsonValue,
           title: names[i].name,
           competition: 'Versenynaptár · a részvétel nem megerősített',
           start: start.toLocal(),
@@ -807,10 +865,6 @@ class UpcomingEventsRepository {
     return events;
   }
 }
-
-String _womenTeamKey(String value) => normalizeAthleteName(
-  value,
-).replaceAll('femeni', '').replaceAll(RegExp(r'[^a-z0-9]'), '');
 
 class _Payload {
   const _Payload(this.events, this.notes);
@@ -839,19 +893,19 @@ class _Payload {
 // ---------------------------------------------------------------------------
 
 /// Az összes sportoló eseménye egy listában: időrendben (azonos kezdésnél
-/// sportolónév szerint), a [sport] és [athlete] szűrővel („Mind” = nincs
-/// szűrés), a már véget ért események nélkül.
+/// sportolónév szerint), a [sport] (`null` = minden sportág) és [athlete]
+/// szűrővel („Mind” = nincs szűrés), a már véget ért események nélkül.
 List<UpcomingEvent> mergeUpcomingEvents(
   Iterable<AthleteEventsResult> results, {
   required DateTime now,
-  String sport = 'Mind',
+  Sport? sport,
   String athlete = 'Mind',
 }) {
   final seen = <String>{};
   final events = [
     for (final result in results)
       for (final event in result.events)
-        if ((sport == 'Mind' || event.sport == sport) &&
+        if ((sport == null || event.sport == sport.jsonValue) &&
             (athlete == 'Mind' || event.athleteName == athlete) &&
             event.start.add(defaultEventDuration(event.sport)).isAfter(now) &&
             seen.add(
@@ -973,15 +1027,13 @@ class UpcomingEventsController extends ChangeNotifier {
   bool get isLoading => _loading.isNotEmpty;
 
   /// Az összes közelgő esemény a szűrőkkel.
-  List<UpcomingEvent> events({
-    String sport = 'Mind',
-    String athlete = 'Mind',
-  }) => mergeUpcomingEvents(
-    _results.values,
-    now: _clock(),
-    sport: sport,
-    athlete: athlete,
-  );
+  List<UpcomingEvent> events({Sport? sport, String athlete = 'Mind'}) =>
+      mergeUpcomingEvents(
+        _results.values,
+        now: _clock(),
+        sport: sport,
+        athlete: athlete,
+      );
 
   /// A [targets] eseményeinek betöltése legfeljebb [concurrency] párhuzamos
   /// sportolóval. Már betöltött (és nem változott) sportolót csak [force]

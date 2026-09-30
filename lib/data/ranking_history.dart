@@ -2,9 +2,9 @@ import 'dart:convert';
 
 import 'package:flutter/foundation.dart' show visibleForTesting;
 
-import 'file_util.dart';
-import 'json_file_cache.dart';
-import 'json_util.dart';
+import 'package:courtboard/data/file_util.dart';
+import 'package:courtboard/data/json_file_cache.dart';
+import 'package:courtboard/data/json_util.dart';
 
 /// Egy teniszező ranglista-helyezése és -pontszáma egy adott napon, ahogy a
 /// Live Tennis API a profil betöltésekor adta.

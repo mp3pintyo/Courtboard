@@ -1,4 +1,4 @@
-import '../athlete_names.dart';
+import 'package:courtboard/data/athlete_names.dart';
 
 enum NewsSourceFormat { rss, foxPageFeed }
 

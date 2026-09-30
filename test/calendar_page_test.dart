@@ -1,9 +1,10 @@
+import 'package:courtboard/domain/sport.dart';
 import 'package:courtboard/data/athlete_highlights.dart';
 import 'package:courtboard/data/json_file_cache.dart';
 import 'package:courtboard/data/local_state.dart';
 import 'package:courtboard/data/upcoming_events.dart';
 import 'package:courtboard/data/update_checker.dart';
-import 'package:courtboard/main.dart';
+import 'package:courtboard/app/courtboard_app.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -20,12 +21,12 @@ void _desktopView(WidgetTester tester) {
 
 const _jokic = UpcomingEventsTarget(
   name: 'Nikola Jokić',
-  sport: 'NBA',
+  sport: Sport.nba,
   team: 'Denver Nuggets',
 );
 const _barkley = UpcomingEventsTarget(
   name: 'Saquon Barkley',
-  sport: 'NFL',
+  sport: Sport.nfl,
   team: 'Philadelphia Eagles',
 );
 
@@ -36,7 +37,7 @@ UpcomingEvent _event(
   String homeAway = 'home',
 }) => UpcomingEvent(
   athleteName: target.name,
-  sport: target.sport,
+  sport: target.sport.jsonValue,
   title: '${target.team} – $opponent',
   opponent: opponent,
   competition: '${target.sport} · Alapszakasz',

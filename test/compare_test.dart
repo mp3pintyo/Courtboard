@@ -5,14 +5,15 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:courtboard/components.dart';
+import 'package:courtboard/domain/sport.dart';
+import 'package:courtboard/shared/components.dart';
 import 'package:courtboard/data/basketball_season.dart';
 import 'package:courtboard/data/football_season.dart';
 import 'package:courtboard/data/live_tennis.dart';
 import 'package:courtboard/data/local_state.dart';
 import 'package:courtboard/data/sports_api.dart';
-import 'package:courtboard/insights/compare.dart';
-import 'package:courtboard/main.dart';
+import 'package:courtboard/features/compare/compare_data.dart';
+import 'package:courtboard/app/courtboard_app.dart';
 
 const _jokic = BasketballSeasonStat(
   league: 'NBA',
@@ -52,7 +53,7 @@ class _FakeSource implements CompareDataSource {
   @override
   Future<AthleteSeasonSnapshot?> load({
     required String name,
-    required String sport,
+    required Sport sport,
     required String team,
     required SportsApiConfig config,
     bool force = false,
@@ -145,16 +146,22 @@ void main() {
     });
 
     test('every sport documents sensible reference ranges', () {
-      for (final sport in const ['NBA', 'WNBA', 'Foci', 'Tenisz', 'NFL']) {
+      for (final sport in const [
+        Sport.nba,
+        Sport.wnba,
+        Sport.football,
+        Sport.tennis,
+        Sport.nfl,
+      ]) {
         final metrics = CompareMetrics.forSport(sport);
-        expect(metrics, isNotEmpty, reason: sport);
+        expect(metrics, isNotEmpty, reason: sport.shortLabel);
         for (final metric in metrics) {
           expect(metric.max, greaterThan(metric.min), reason: metric.id);
         }
       }
-      expect(sportSupportsComparison('Darts'), isFalse);
+      expect(sportSupportsComparison(Sport.darts), isFalse);
       // 0.12.0: az NFL az ESPN-meccsnaplóból összehasonlítható.
-      expect(sportSupportsComparison('NFL'), isTrue);
+      expect(sportSupportsComparison(Sport.nfl), isTrue);
     });
   });
 
@@ -164,7 +171,7 @@ void main() {
       final b = snapshotFromBasketball('Luka Dončić', _luka);
       expect(a['points'], 26.8);
       expect(a['fieldGoal'], 56.9);
-      expect(a.sport, 'NBA');
+      expect(a.sport, Sport.nba);
       final axes = radarMetrics(CompareMetrics.nba, a, b);
       expect(axes.map((m) => m.id), isNot(contains('games')));
       expect(axes, hasLength(7));

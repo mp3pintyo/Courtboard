@@ -2,7 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart' show visibleForTesting;
 
-import 'file_util.dart';
+import 'package:courtboard/data/file_util.dart';
 
 /// A Courtboard által írt fájlok és könyvtárak egyetlen helyen.
 ///

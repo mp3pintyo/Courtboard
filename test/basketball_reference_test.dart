@@ -35,8 +35,8 @@ void main() {
           'game_score': 22.4,
           'plus_minus': 6,
           'score': '104-72',
-        }
-      ]
+        },
+      ],
     });
 
     expect(games.first.opponent, 'San Antonio Spurs');
@@ -47,15 +47,18 @@ void main() {
   });
 
   test('NBA season end year rolls over in September', () {
-    expect(BasketballReferenceRepository.seasonEndYear(DateTime(2026, 8, 1)),
-        2026);
-    expect(BasketballReferenceRepository.seasonEndYear(DateTime(2026, 10, 1)),
-        2027);
+    expect(
+      BasketballReferenceRepository.seasonEndYear(DateTime(2026, 8, 1)),
+      2026,
+    );
+    expect(
+      BasketballReferenceRepository.seasonEndYear(DateTime(2026, 10, 1)),
+      2027,
+    );
   });
 
   test('NBA season summary reads every requested per-game field', () {
-    final summary = BasketballReferenceRepository.parseNbaSeasonSummaryHtml(
-      '''
+    final summary = BasketballReferenceRepository.parseNbaSeasonSummaryHtml('''
       <table><tbody>
         <tr id="per_game_stats.2025">
           <th data-stat="year_id">2024-25</th>
@@ -88,9 +91,7 @@ void main() {
           <td data-stat="pts_per_g">25.8</td>
         </tr>
       </tbody></table>
-      ''',
-      preferredSeasonEndYear: 2026,
-    );
+      ''', preferredSeasonEndYear: 2026);
 
     expect(summary, isNotNull);
     expect(summary!.season, '2025/2026');
@@ -170,19 +171,22 @@ void main() {
     expect(games.single.score, '104-72');
   });
 
-  test('repository resolves a player, downloads HTML and then uses cache',
-      () async {
-    final cache = await Directory.systemTemp.createTemp('courtboard-br-test-');
-    addTearDown(() => cache.delete(recursive: true));
-    final requested = <Uri>[];
-    final repository = BasketballReferenceRepository(
-      cacheDirectory: cache,
-      fetchHtml: (uri) async {
-        requested.add(uri);
-        if (uri.path == '/search/search.fcgi') {
-          return '<a href="/players/j/jokicni01.html">Nikola Jokić (2016-2026)</a>';
-        }
-        return '''
+  test(
+    'repository resolves a player, downloads HTML and then uses cache',
+    () async {
+      final cache = await Directory.systemTemp.createTemp(
+        'courtboard-br-test-',
+      );
+      addTearDown(() => cache.delete(recursive: true));
+      final requested = <Uri>[];
+      final repository = BasketballReferenceRepository(
+        cacheDirectory: cache,
+        fetchHtml: (uri) async {
+          requested.add(uri);
+          if (uri.path == '/search/search.fcgi') {
+            return '<a href="/players/j/jokicni01.html">Nikola Jokić (2016-2026)</a>';
+          }
+          return '''
           <table id="player_game_log_reg"><tbody><tr>
             <th data-stat="date">2026-04-12</th>
             <td data-stat="opp_name_abbr">SAS</td>
@@ -192,30 +196,27 @@ void main() {
             <td data-stat="stl">0</td><td data-stat="blk">1</td>
           </tr></tbody></table>
         ''';
-      },
-    );
-    final now = DateTime.now();
-    final season = BasketballReferenceRepository.seasonEndYear(now);
+        },
+      );
+      final now = DateTime.now();
+      final season = BasketballReferenceRepository.seasonEndYear(now);
 
-    final first = await repository.recentGames(
-      'Nikola Jokić',
-      now: now,
-    );
-    final second = await repository.recentGames(
-      'Nikola Jokić',
-      now: now,
-    );
+      final first = await repository.recentGames('Nikola Jokić', now: now);
+      final second = await repository.recentGames('Nikola Jokić', now: now);
 
-    expect(first.single.opponent, 'San Antonio Spurs');
-    expect(second.single.points, 23);
-    expect(requested, hasLength(2));
-    expect(requested.first.queryParameters['search'], 'Nikola Jokić');
-    expect(requested.last.path, '/players/j/jokicni01/gamelog/$season');
-  });
+      expect(first.single.opponent, 'San Antonio Spurs');
+      expect(second.single.points, 23);
+      expect(requested, hasLength(2));
+      expect(requested.first.queryParameters['search'], 'Nikola Jokić');
+      expect(requested.last.path, '/players/j/jokicni01/gamelog/$season');
+    },
+  );
 
   test('September still belongs to the finished NBA season', () {
-    expect(BasketballReferenceRepository.seasonEndYear(DateTime(2026, 9, 30)),
-        2026);
+    expect(
+      BasketballReferenceRepository.seasonEndYear(DateTime(2026, 9, 30)),
+      2026,
+    );
   });
 
   test('parser skips rows with an unparsable date', () {
@@ -223,7 +224,7 @@ void main() {
       'games': [
         {'date': 'not-a-date', 'opponent': 'Bad Row'},
         {'date': '2026-04-12', 'opponent': 'San Antonio Spurs'},
-      ]
+      ],
     });
     expect(games.single.opponent, 'San Antonio Spurs');
   });
@@ -253,8 +254,10 @@ void main() {
       },
     );
 
-    final games = await repository.recentGames('Nikola Jokić',
-        now: DateTime(2026, 10, 5));
+    final games = await repository.recentGames(
+      'Nikola Jokić',
+      now: DateTime(2026, 10, 5),
+    );
 
     expect(games.single.points, 23);
     expect(requested, [

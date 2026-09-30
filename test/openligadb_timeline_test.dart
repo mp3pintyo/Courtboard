@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:courtboard/domain/sport.dart';
 import 'package:courtboard/data/football_data.dart';
 import 'package:courtboard/data/json_file_cache.dart';
 import 'package:courtboard/data/match_timeline.dart';
@@ -156,7 +157,7 @@ void main() {
       final result = await repository.fetchFor(
         const UpcomingEventsTarget(
           name: 'Harry Kane',
-          sport: 'Foci',
+          sport: Sport.football,
           team: 'FC Bayern München',
         ),
         config: const SportsApiConfig(),

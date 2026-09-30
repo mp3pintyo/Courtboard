@@ -13,8 +13,7 @@ const httpRequestTimeout = Duration(seconds: 20);
 /// Új [HttpClient] a közös kapcsolódási időkorláttal.
 HttpClient createHttpClient({
   Duration connectionTimeout = httpConnectionTimeout,
-}) =>
-    HttpClient()..connectionTimeout = connectionTimeout;
+}) => HttpClient()..connectionTimeout = connectionTimeout;
 
 /// Típusos HTTP-hiba. Az üzenet soha nem tartalmazza a kérés query-paramétereit
 /// vagy fejléceit, így API-kulcs nem kerülhet a felületre vagy naplóba.
@@ -77,11 +76,11 @@ class CourtboardHttpException implements IOException {
 
 /// A cím query- és fragment-rész nélkül: csak séma, host és útvonal marad.
 Uri sanitizeUri(Uri uri) => Uri(
-      scheme: uri.scheme,
-      host: uri.host,
-      port: uri.hasPort ? uri.port : null,
-      path: uri.path,
-    );
+  scheme: uri.scheme,
+  host: uri.host,
+  port: uri.hasPort ? uri.port : null,
+  path: uri.path,
+);
 
 /// `Retry-After` fejléc értelmezése: másodpercszám vagy HTTP-dátum.
 Duration? parseRetryAfter(String? value, {DateTime? now}) {
@@ -110,17 +109,15 @@ Future<String> httpGetText(
   Duration timeout = httpRequestTimeout,
   bool allowMalformed = false,
   bool followRedirects = true,
-}) async =>
-    (await httpGetResponse(
-      client,
-      uri,
-      provider: provider,
-      headers: headers,
-      timeout: timeout,
-      allowMalformed: allowMalformed,
-      followRedirects: followRedirects,
-    ))
-        .body;
+}) async => (await httpGetResponse(
+  client,
+  uri,
+  provider: provider,
+  headers: headers,
+  timeout: timeout,
+  allowMalformed: allowMalformed,
+  followRedirects: followRedirects,
+)).body;
 
 /// Egy sikeres (2xx vagy engedélyezett 304) GET válasz szövege és a
 /// feltételes kérésekhez szükséges validátor-fejlécek.
@@ -161,8 +158,7 @@ Future<HttpTextResponse> httpGetResponse(
     final response = await request.close();
     final code = response.statusCode;
     final etag = response.headers.value(HttpHeaders.etagHeader);
-    final lastModified =
-        response.headers.value(HttpHeaders.lastModifiedHeader);
+    final lastModified = response.headers.value(HttpHeaders.lastModifiedHeader);
     if (allowNotModified && code == HttpStatus.notModified) {
       await response.drain<void>().catchError((_) {});
       return HttpTextResponse(
@@ -181,7 +177,8 @@ Future<HttpTextResponse> httpGetResponse(
         uri: uri,
         retryAfter: code == 429 || code == 503
             ? parseRetryAfter(
-                response.headers.value(HttpHeaders.retryAfterHeader))
+                response.headers.value(HttpHeaders.retryAfterHeader),
+              )
             : null,
       );
     }
@@ -236,7 +233,8 @@ Future<Uint8List> httpGetBytes(
         uri: uri,
         retryAfter: code == 429 || code == 503
             ? parseRetryAfter(
-                response.headers.value(HttpHeaders.retryAfterHeader))
+                response.headers.value(HttpHeaders.retryAfterHeader),
+              )
             : null,
       );
     }
@@ -277,8 +275,13 @@ Future<Map<String, dynamic>> httpGetJson(
   Map<String, String> headers = const {},
   Duration timeout = httpRequestTimeout,
 }) async {
-  final body = await httpGetText(client, uri,
-      provider: provider, headers: headers, timeout: timeout);
+  final body = await httpGetText(
+    client,
+    uri,
+    provider: provider,
+    headers: headers,
+    timeout: timeout,
+  );
   return decodeJsonObject(body);
 }
 
@@ -291,14 +294,14 @@ Map<String, dynamic> decodeJsonObject(String body) {
 }
 
 String _networkDetail(IOException error) => switch (error) {
-      SocketException(:final osError) =>
-        osError?.message.trim().isNotEmpty == true
-            ? osError!.message.trim()
-            : 'a kapcsolat nem jött létre',
-      HandshakeException() => 'TLS-kézfogási hiba',
-      HttpException() => 'megszakadt HTTP-kapcsolat',
-      _ => error.runtimeType.toString(),
-    };
+  SocketException(:final osError) =>
+    osError?.message.trim().isNotEmpty == true
+        ? osError!.message.trim()
+        : 'a kapcsolat nem jött létre',
+  HandshakeException() => 'TLS-kézfogási hiba',
+  HttpException() => 'megszakadt HTTP-kapcsolat',
+  _ => error.runtimeType.toString(),
+};
 
 String _formatDuration(Duration value) {
   if (value.inSeconds < 120) return '${value.inSeconds} mp';

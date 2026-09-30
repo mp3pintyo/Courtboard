@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:courtboard/domain/sport.dart';
 import 'package:courtboard/data/athlete_watcher.dart';
 import 'package:courtboard/data/news.dart';
 import 'package:courtboard/data/notification_settings.dart';
@@ -12,12 +13,12 @@ import 'support/fake_desktop.dart';
 
 const _jokic = UpcomingEventsTarget(
   name: 'Nikola Jokić',
-  sport: 'NBA',
+  sport: Sport.nba,
   team: 'Denver Nuggets',
 );
 const _clark = UpcomingEventsTarget(
   name: 'Caitlin Clark',
-  sport: 'WNBA',
+  sport: Sport.wnba,
   team: 'Indiana Fever',
 );
 

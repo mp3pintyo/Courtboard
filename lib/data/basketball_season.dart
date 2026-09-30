@@ -1,4 +1,4 @@
-import 'json_util.dart';
+import 'package:courtboard/data/json_util.dart';
 
 class BasketballSeasonStat {
   const BasketballSeasonStat({
@@ -40,19 +40,19 @@ class BasketballSeasonStat {
       fieldGoalPercentage != null;
 
   Map<String, dynamic> toJson() => {
-        'league': league,
-        'season': season,
-        'team': team,
-        'source': source,
-        'games': games,
-        'minutes_per_game': minutesPerGame,
-        'points_per_game': pointsPerGame,
-        'rebounds_per_game': reboundsPerGame,
-        'assists_per_game': assistsPerGame,
-        'steals_per_game': stealsPerGame,
-        'turnovers_per_game': turnoversPerGame,
-        'field_goal_percentage': fieldGoalPercentage,
-      };
+    'league': league,
+    'season': season,
+    'team': team,
+    'source': source,
+    'games': games,
+    'minutes_per_game': minutesPerGame,
+    'points_per_game': pointsPerGame,
+    'rebounds_per_game': reboundsPerGame,
+    'assists_per_game': assistsPerGame,
+    'steals_per_game': stealsPerGame,
+    'turnovers_per_game': turnoversPerGame,
+    'field_goal_percentage': fieldGoalPercentage,
+  };
 
   factory BasketballSeasonStat.fromJson(Map<String, dynamic> json) =>
       BasketballSeasonStat(

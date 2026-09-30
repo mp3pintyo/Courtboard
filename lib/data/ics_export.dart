@@ -12,8 +12,8 @@ library;
 import 'dart:convert';
 import 'dart:io';
 
-import 'file_util.dart';
-import 'upcoming_events.dart';
+import 'package:courtboard/data/file_util.dart';
+import 'package:courtboard/data/upcoming_events.dart';
 
 const icsProductId = '-//Courtboard//HU';
 

@@ -3,7 +3,7 @@ import 'dart:ffi';
 import 'package:ffi/ffi.dart';
 import 'package:win32/win32.dart';
 
-import '../data/window_geometry.dart';
+import 'package:courtboard/data/window_geometry.dart';
 
 /// Az ablak helyzetének olvasása és visszaállítása közvetlen Win32-hívással
 /// (`GetWindowPlacement` / `SetWindowPlacement`).

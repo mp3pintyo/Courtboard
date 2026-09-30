@@ -13,12 +13,16 @@ void main() {
 
   test('undated RSS items are flagged as using the fetch time', () {
     final fetchedAt = DateTime(2026, 8, 2, 21);
-    final article = RssParser.parse('''
+    final article = RssParser.parse(
+      '''
       <rss><channel><item>
         <title>No date</title>
         <link>https://example.com/no-date</link>
       </item></channel></rss>
-    ''', fox, fetchedAt: fetchedAt).single;
+    ''',
+      fox,
+      fetchedAt: fetchedAt,
+    ).single;
 
     expect(article.publishedAt, fetchedAt);
     expect(article.publishedAtParsed, isFalse);

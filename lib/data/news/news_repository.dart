@@ -1,12 +1,12 @@
 import 'dart:io';
 
-import '../athlete_names.dart';
-import '../friendly_error.dart';
-import '../http_service.dart';
-import 'news_models.dart';
-import 'news_parsers.dart';
-import 'news_sources.dart';
-import 'news_store.dart';
+import 'package:courtboard/data/athlete_names.dart';
+import 'package:courtboard/data/friendly_error.dart';
+import 'package:courtboard/data/http_service.dart';
+import 'package:courtboard/data/news/news_models.dart';
+import 'package:courtboard/data/news/news_parsers.dart';
+import 'package:courtboard/data/news/news_sources.dart';
+import 'package:courtboard/data/news/news_store.dart';
 
 abstract class NewsProvider {
   Future<RssFetchResult> fetch(

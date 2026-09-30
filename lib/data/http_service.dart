@@ -3,8 +3,8 @@ import 'dart:math';
 
 import 'package:flutter/foundation.dart' show visibleForTesting;
 
-import 'http_util.dart';
-import 'rate_limit.dart';
+import 'package:courtboard/data/http_util.dart';
+import 'package:courtboard/data/rate_limit.dart';
 
 /// Újrapróbálási szabályok.
 ///

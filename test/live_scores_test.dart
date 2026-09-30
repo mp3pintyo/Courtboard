@@ -1,3 +1,4 @@
+import 'package:courtboard/domain/sport.dart';
 import 'package:courtboard/data/athlete_watcher.dart';
 import 'package:courtboard/data/http_util.dart';
 import 'package:courtboard/data/json_file_cache.dart';
@@ -130,10 +131,14 @@ void main() {
       final result = await _repository(http).forTargets(const [
         UpcomingEventsTarget(
           name: 'Nikola Jokić',
-          sport: 'NBA',
+          sport: Sport.nba,
           team: 'Denver Nuggets',
         ),
-        UpcomingEventsTarget(name: 'Luka Dončić', sport: 'NBA', team: 'Lakers'),
+        UpcomingEventsTarget(
+          name: 'Luka Dončić',
+          sport: Sport.nba,
+          team: 'Lakers',
+        ),
       ]);
       expect(result.sources[LiveFeed.nba], 'NBA CDN');
       expect(result.hasLive, isTrue);
@@ -161,7 +166,7 @@ void main() {
         final result = await _repository(http).forTargets(const [
           UpcomingEventsTarget(
             name: 'Tyler Herro',
-            sport: 'NBA',
+            sport: Sport.nba,
             team: 'Miami Heat',
           ),
         ]);
@@ -175,7 +180,7 @@ void main() {
             ).forTargets(const [
               UpcomingEventsTarget(
                 name: 'Tyler Herro',
-                sport: 'NBA',
+                sport: Sport.nba,
                 team: 'Miami Heat',
               ),
             ]);
@@ -198,7 +203,7 @@ void main() {
       final repository = _repository(http);
       const target = UpcomingEventsTarget(
         name: 'Caitlin Clark',
-        sport: 'WNBA',
+        sport: Sport.wnba,
         team: 'Indiana Fever',
       );
       await repository.forTargets(const [target]);
@@ -217,7 +222,7 @@ void main() {
       final result = await _repository(http).forTargets(const [
         UpcomingEventsTarget(
           name: 'Saquon Barkley',
-          sport: 'NFL',
+          sport: Sport.nfl,
           team: 'Philadelphia Eagles',
         ),
       ]);
@@ -232,10 +237,14 @@ void main() {
       final result = await _repository(http).forTargets(const [
         UpcomingEventsTarget(
           name: 'Ane Azkona',
-          sport: 'Foci',
+          sport: Sport.football,
           team: 'Athletic Club',
         ),
-        UpcomingEventsTarget(name: 'Valaki', sport: 'Foci', team: 'Liverpool'),
+        UpcomingEventsTarget(
+          name: 'Valaki',
+          sport: Sport.football,
+          team: 'Liverpool',
+        ),
       ]);
       expect(result.games.map((game) => game.athleteName), ['Ane Azkona']);
       expect(result.games.single.game.espnEventId, '401882508');
@@ -244,8 +253,8 @@ void main() {
     test('csapat nélküli vagy nem támogatott sportoló kimarad', () async {
       final http = FakeHttpService(const {});
       final result = await _repository(http).forTargets(const [
-        UpcomingEventsTarget(name: 'Iga Świątek', sport: 'Tenisz'),
-        UpcomingEventsTarget(name: 'Nikola Jokić', sport: 'NBA'),
+        UpcomingEventsTarget(name: 'Iga Świątek', sport: Sport.tennis),
+        UpcomingEventsTarget(name: 'Nikola Jokić', sport: Sport.nba),
       ]);
       expect(result.games, isEmpty);
       expect(http.requests, isEmpty);
@@ -255,7 +264,7 @@ void main() {
   group('figyelő: élő eredmények', () {
     const clark = UpcomingEventsTarget(
       name: 'Caitlin Clark',
-      sport: 'WNBA',
+      sport: Sport.wnba,
       team: 'Indiana Fever',
     );
     final wnba = LiveScoresRepository.parseEspnScoreboard(
@@ -342,7 +351,7 @@ void main() {
         );
         const jokic = UpcomingEventsTarget(
           name: 'Nikola Jokić',
-          sport: 'NBA',
+          sport: Sport.nba,
           team: 'Denver Nuggets',
         );
         final source = FakeWatcherSource();

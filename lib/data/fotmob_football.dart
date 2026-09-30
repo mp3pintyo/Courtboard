@@ -1,19 +1,19 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'athlete_names.dart';
-import 'football_season.dart';
-import 'http_service.dart';
-import 'json_file_cache.dart';
-import 'json_util.dart';
+import 'package:courtboard/data/athlete_names.dart';
+import 'package:courtboard/data/football_season.dart';
+import 'package:courtboard/data/http_service.dart';
+import 'package:courtboard/data/json_file_cache.dart';
+import 'package:courtboard/data/json_util.dart';
 
 class FotMobFootballRepository {
   FotMobFootballRepository({
     HttpService? http,
     CacheStorage? cacheStorage,
     DateTime Function()? clock,
-  })  : _http = http ?? HttpService.shared,
-        _cache = JsonFileCache('fotmob', storage: cacheStorage, clock: clock);
+  }) : _http = http ?? HttpService.shared,
+       _cache = JsonFileCache('fotmob', storage: cacheStorage, clock: clock);
 
   final HttpService _http;
   final JsonFileCache _cache;
@@ -22,9 +22,10 @@ class FotMobFootballRepository {
   /// eredmény is), így a nem kulcsos, de nem hivatalos API-t kímélve.
   static const cacheDuration = Duration(hours: 6);
 
-  Future<FootballSeasonStat?> fetchSeasonSummary(String athleteName,
-          {DateTime? now}) async =>
-      (await fetchSeasonSummaryCached(athleteName, now: now)).value;
+  Future<FootballSeasonStat?> fetchSeasonSummary(
+    String athleteName, {
+    DateTime? now,
+  }) async => (await fetchSeasonSummaryCached(athleteName, now: now)).value;
 
   /// Szezonösszesítő a letöltés idejével; a `null` (nincs friss szezon vagy
   /// nincs találat) is gyorsítótárba kerül.
@@ -41,8 +42,11 @@ class FotMobFootballRepository {
         final clock = now ?? DateTime.now();
         final playerId = await _findPlayerId(athleteName);
         if (playerId == null) return null;
-        final player = await _get(Uri.https(
-            'www.fotmob.com', '/api/data/playerData', {'id': '$playerId'}));
+        final player = await _get(
+          Uri.https('www.fotmob.com', '/api/data/playerData', {
+            'id': '$playerId',
+          }),
+        );
         return parseSeasonSummary(player, now: clock);
       },
       encode: (value) => value?.toJson(),
@@ -53,18 +57,25 @@ class FotMobFootballRepository {
 
   Future<int?> _findPlayerId(String athleteName) async {
     final normalized = normalizeAthleteName(athleteName);
-    final parts =
-        normalized.split(' ').where((part) => part.isNotEmpty).toList();
+    final parts = normalized
+        .split(' ')
+        .where((part) => part.isNotEmpty)
+        .toList();
     final queries = <String>{
       athleteName,
       if (parts.length > 1) parts.reversed.join(' '),
       if (parts.isNotEmpty)
         parts.reduce(
-            (longest, part) => part.length > longest.length ? part : longest),
+          (longest, part) => part.length > longest.length ? part : longest,
+        ),
     };
     for (final query in queries) {
-      final search = await _get(Uri.https('apigw.fotmob.com',
-          '/searchapi/suggest', {'term': query, 'lang': 'en'}));
+      final search = await _get(
+        Uri.https('apigw.fotmob.com', '/searchapi/suggest', {
+          'term': query,
+          'lang': 'en',
+        }),
+      );
       final playerId = parsePlayerId(search, athleteName);
       if (playerId != null) return playerId;
     }
@@ -72,10 +83,14 @@ class FotMobFootballRepository {
   }
 
   Future<Map<String, dynamic>> _get(Uri uri) async {
-    final body = await _http.getText(uri, provider: 'FotMob', headers: {
-      HttpHeaders.userAgentHeader: 'Courtboard/1.0',
-      HttpHeaders.acceptHeader: 'application/json',
-    });
+    final body = await _http.getText(
+      uri,
+      provider: 'FotMob',
+      headers: {
+        HttpHeaders.userAgentHeader: 'Courtboard/1.0',
+        HttpHeaders.acceptHeader: 'application/json',
+      },
+    );
     final decoded = jsonDecode(body);
     return decoded is Map
         ? Map<String, dynamic>.from(decoded)
@@ -90,15 +105,20 @@ class FotMobFootballRepository {
       final options = group['options'];
       if (options is List) candidates.addAll(jsonMapList(options));
     }
-    final exact = findAthleteByName(candidates, athleteName,
-        (candidate) => '${candidate['text'] ?? ''}'.split('|').first);
+    final exact = findAthleteByName(
+      candidates,
+      athleteName,
+      (candidate) => '${candidate['text'] ?? ''}'.split('|').first,
+    );
     if (exact == null) return null;
     final payloadMap = exact['payload'];
     return jsonIntOrNull(payloadMap is Map ? payloadMap['id'] : null);
   }
 
-  static FootballSeasonStat? parseSeasonSummary(Map<String, dynamic> payload,
-      {required DateTime now}) {
+  static FootballSeasonStat? parseSeasonSummary(
+    Map<String, dynamic> payload, {
+    required DateTime now,
+  }) {
     final mainLeague = payload['mainLeague'];
     final primaryTeam = payload['primaryTeam'];
     if (mainLeague is! Map || primaryTeam is! Map) return null;
@@ -108,8 +128,8 @@ class FotMobFootballRepository {
     final stats = mainLeague['stats'];
     if (stats is List) {
       for (final stat in jsonMapList(stats)) {
-        final key =
-            '${stat['localizedTitleId'] ?? stat['title'] ?? ''}'.toLowerCase();
+        final key = '${stat['localizedTitleId'] ?? stat['title'] ?? ''}'
+            .toLowerCase();
         values[key] = stat['value'];
       }
     }
@@ -119,8 +139,9 @@ class FotMobFootballRepository {
       competition: '${mainLeague['leagueName'] ?? ''}'.trim(),
       source: 'FotMob',
       rating: jsonDoubleOrNull(values['rating']),
-      appearances:
-          jsonIntOrNull(values['matches_uppercase'] ?? values['matches']),
+      appearances: jsonIntOrNull(
+        values['matches_uppercase'] ?? values['matches'],
+      ),
       goals: jsonIntOrNull(values['goals']),
       assists: jsonIntOrNull(values['assists']),
       yellowCards: jsonIntOrNull(values['yellow_cards']),
@@ -158,22 +179,26 @@ class FotMobFootballRepository {
       final homeScore = jsonIntOrNull(entry['homeScore']);
       final awayScore = jsonIntOrNull(entry['awayScore']);
       final ratingProps = entry['ratingProps'];
-      final rating = jsonDoubleOrNull(ratingProps is Map
-          ? ratingProps['num'] ?? ratingProps['rating']
-          : entry['rating']);
+      final rating = jsonDoubleOrNull(
+        ratingProps is Map
+            ? ratingProps['num'] ?? ratingProps['rating']
+            : entry['rating'],
+      );
       final key = '${entry['id'] ?? ''}|${date.toIso8601String()}|$opponent';
       if (!seen.add(key)) continue;
-      matches.add(FootballMatchForm(
-        date: date.toLocal(),
-        opponent: opponent,
-        competition: jsonString(entry['leagueName']) ?? '',
-        teamScore: home ? homeScore : awayScore,
-        opponentScore: home ? awayScore : homeScore,
-        rating: rating != null && rating > 0 ? rating : null,
-        goals: jsonIntOrNull(entry['goals']) ?? 0,
-        assists: jsonIntOrNull(entry['assists']) ?? 0,
-        minutes: jsonIntOrNull(entry['minutesPlayed']),
-      ));
+      matches.add(
+        FootballMatchForm(
+          date: date.toLocal(),
+          opponent: opponent,
+          competition: jsonString(entry['leagueName']) ?? '',
+          teamScore: home ? homeScore : awayScore,
+          opponentScore: home ? awayScore : homeScore,
+          rating: rating != null && rating > 0 ? rating : null,
+          goals: jsonIntOrNull(entry['goals']) ?? 0,
+          assists: jsonIntOrNull(entry['assists']) ?? 0,
+          minutes: jsonIntOrNull(entry['minutesPlayed']),
+        ),
+      );
     }
     matches.sort((a, b) => b.date.compareTo(a.date));
     return matches.take(limit).toList(growable: false);

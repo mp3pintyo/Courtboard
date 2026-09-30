@@ -1,9 +1,9 @@
-import 'file_util.dart';
-import 'http_service.dart';
-import 'json_file_cache.dart';
-import 'json_util.dart';
-import 'sports_api.dart';
-import 'wehoop_wnba.dart';
+import 'package:courtboard/data/file_util.dart';
+import 'package:courtboard/data/http_service.dart';
+import 'package:courtboard/data/json_file_cache.dart';
+import 'package:courtboard/data/json_util.dart';
+import 'package:courtboard/data/sports_api.dart';
+import 'package:courtboard/data/wehoop_wnba.dart';
 
 class WnbaAdvancedFact {
   const WnbaAdvancedFact(this.label, this.value);
@@ -32,16 +32,18 @@ class WnbaRapidProfile {
   final DateTime? fetchedAt;
   final bool fromCache;
 
-  WnbaRapidProfile withFreshness(DateTime fetchedAt, {required bool fromCache}) =>
-      WnbaRapidProfile(
-        playerId: playerId,
-        team: team,
-        season: season,
-        facts: facts,
-        awards: awards,
-        fetchedAt: fetchedAt,
-        fromCache: fromCache,
-      );
+  WnbaRapidProfile withFreshness(
+    DateTime fetchedAt, {
+    required bool fromCache,
+  }) => WnbaRapidProfile(
+    playerId: playerId,
+    team: team,
+    season: season,
+    facts: facts,
+    awards: awards,
+    fetchedAt: fetchedAt,
+    fromCache: fromCache,
+  );
 }
 
 class WnbaRapidApiRepository {
@@ -69,36 +71,49 @@ class WnbaRapidApiRepository {
     if (playerId.isEmpty) return null;
 
     final client = SportsApiClient(
-        config: config, http: _http, cacheStorage: _cacheStorage);
+      config: config,
+      http: _http,
+      cacheStorage: _cacheStorage,
+    );
     // A Free csomag havi 100 hívása miatt hosszú lemezes gyorsítótár, hibánál
     // a lejárt példány is visszajön.
-    final payload = await client.cache('rapidapi_wnba').getOrFetch<
-        Map<String, dynamic>>(
-      'player_${cacheSlug(playerId)}',
-      ttl: cacheLifetime,
-      fetch: () async {
-        // A Basic gateway a két párhuzamos hívás egyikét 429-cel elutasíthatja.
-        final bio =
-            await client.rapidApiWnba('/player/bio', {'playerId': playerId});
-        final advanced = await client.rapidApiWnba(
-            '/player-advanced-stats', {'playerId': playerId, 'type': 'wnba'});
-        return {'bio': bio, 'advanced': advanced};
-      },
-      encode: (value) => value,
-      decode: jsonMap,
-    );
-    return parseProfile(playerId, payload.value)
-        .withFreshness(payload.fetchedAt, fromCache: payload.fromCache);
+    final payload = await client
+        .cache('rapidapi_wnba')
+        .getOrFetch<Map<String, dynamic>>(
+          'player_${cacheSlug(playerId)}',
+          ttl: cacheLifetime,
+          fetch: () async {
+            // A Basic gateway a két párhuzamos hívás egyikét 429-cel elutasíthatja.
+            final bio = await client.rapidApiWnba('/player/bio', {
+              'playerId': playerId,
+            });
+            final advanced = await client.rapidApiWnba(
+              '/player-advanced-stats',
+              {'playerId': playerId, 'type': 'wnba'},
+            );
+            return {'bio': bio, 'advanced': advanced};
+          },
+          encode: (value) => value,
+          decode: jsonMap,
+        );
+    return parseProfile(
+      playerId,
+      payload.value,
+    ).withFreshness(payload.fetchedAt, fromCache: payload.fromCache);
   }
 
   static WnbaRapidProfile parseProfile(
-      String playerId, Map<String, dynamic> payload) {
+    String playerId,
+    Map<String, dynamic> payload,
+  ) {
     final bio = jsonMap(jsonMap(payload['bio'])['data']);
     final teams = jsonMapList(bio['teamHistory']);
     final currentTeam = teams.isEmpty
         ? null
-        : teams.firstWhere((team) => team['isActive'] == true,
-            orElse: () => teams.first);
+        : teams.firstWhere(
+            (team) => team['isActive'] == true,
+            orElse: () => teams.first,
+          );
     final awards = <String>[];
     for (final award in jsonMapList(bio['awards'])) {
       if ('${award['league']}' != 'wnba') continue;
@@ -109,9 +124,9 @@ class WnbaRapidApiRepository {
     }
 
     final playerStats = jsonMap(jsonMap(payload['advanced'])['player_stats']);
-    final averages = jsonMapList(playerStats['categories'])
-        .where((category) => category['name'] == 'averages')
-        .firstOrNull;
+    final averages = jsonMapList(
+      playerStats['categories'],
+    ).where((category) => category['name'] == 'averages').firstOrNull;
     final labels = averages?['labels'];
     Map<String, dynamic>? latest;
     var latestYear = 0;
@@ -134,13 +149,15 @@ class WnbaRapidApiRepository {
       'TOV',
       'BLK',
       'FG%',
-      '3P%'
+      '3P%',
     };
     final facts = <WnbaAdvancedFact>[];
     if (labels is List && values is List) {
-      for (var index = 0;
-          index < labels.length && index < values.length;
-          index++) {
+      for (
+        var index = 0;
+        index < labels.length && index < values.length;
+        index++
+      ) {
         final label = '${labels[index]}';
         if (wanted.contains(label)) {
           facts.add(WnbaAdvancedFact(label, '${values[index]}'));

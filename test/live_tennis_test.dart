@@ -6,8 +6,8 @@ void main() {
   test('player matching tolerates accents and reversed name order', () {
     final player = TennisRepository.findPlayer({
       'data': [
-        {'id': 1104, 'name': 'Swiatek Iga', 'ranking': 2, 'tour': 'wta'}
-      ]
+        {'id': 1104, 'name': 'Swiatek Iga', 'ranking': 2, 'tour': 'wta'},
+      ],
     }, 'Iga Świątek');
 
     expect(player?.id, 1104);
@@ -19,7 +19,7 @@ void main() {
       'sets': [1, 0],
       'games': [
         [6, 3],
-        [4, 4]
+        [4, 4],
       ],
       'points': ['40', '30'],
       'server': 1,
@@ -32,14 +32,17 @@ void main() {
   test('repository uses only Free endpoints and filters by player', () async {
     final calls = <String>[];
     Future<Map<String, dynamic>> fake(
-        String path, Map<String, String> query) async {
+      String path,
+      Map<String, String> query,
+    ) async {
       calls.add(
-          '$path?${query.entries.map((e) => '${e.key}=${e.value}').join('&')}');
+        '$path?${query.entries.map((e) => '${e.key}=${e.value}').join('&')}',
+      );
       if (path == '/players') {
         return {
           'data': [
-            {'id': 7, 'name': 'Iga Swiatek', 'tour': 'wta'}
-          ]
+            {'id': 7, 'name': 'Iga Swiatek', 'tour': 'wta'},
+          ],
         };
       }
       if (path == '/players/7') {
@@ -52,7 +55,7 @@ void main() {
           'ranking_points': 8000,
           'hand': 'R',
           'backhand': 2,
-          'stats': {'season': <String, Object?>{}}
+          'stats': {'season': <String, Object?>{}},
         };
       }
       if (path == '/matches' && query['status'] == 'live') {
@@ -64,16 +67,16 @@ void main() {
               'status': 'live',
               'players': {
                 'p1': {'id': 7, 'name': 'Iga Swiatek'},
-                'p2': {'id': 8, 'name': 'Coco Gauff'}
+                'p2': {'id': 8, 'name': 'Coco Gauff'},
               },
               'score': {
                 'sets': [1, 0],
                 'games': [
                   [6, 2],
-                  [4, 1]
+                  [4, 1],
                 ],
-                'points': ['15', '0']
-              }
+                'points': ['15', '0'],
+              },
             },
             {
               'id': 92,
@@ -81,10 +84,10 @@ void main() {
               'status': 'live',
               'players': {
                 'p1': {'id': 20, 'name': 'Other One'},
-                'p2': {'id': 21, 'name': 'Other Two'}
-              }
-            }
-          ]
+                'p2': {'id': 21, 'name': 'Other Two'},
+              },
+            },
+          ],
         };
       }
       if (path == '/matches') return {'data': <Object?>[]};
@@ -97,23 +100,25 @@ void main() {
               'tournament': 'Cincinnati',
               'player1_name': 'Gauff Coco',
               'player2_name': 'Swiatek Iga',
-              'surface': 'hard'
-            }
-          ]
+              'surface': 'hard',
+            },
+          ],
         };
       }
       if (path == '/usage') {
         return {
           'tier': 'free',
           'limits': {'per_day': 1000},
-          'today': {'calls': 12}
+          'today': {'calls': 12},
         };
       }
       throw StateError('Unexpected endpoint: $path');
     }
 
-    final data = await TennisRepository(const SportsApiConfig(), call: fake)
-        .fetch('Iga Świątek', forceRefresh: true);
+    final data = await TennisRepository(
+      const SportsApiConfig(),
+      call: fake,
+    ).fetch('Iga Świątek', forceRefresh: true);
 
     expect(data.player.ranking, 2);
     expect(data.liveMatches.single.opponentOf(data.player), 'Coco Gauff');
@@ -122,15 +127,17 @@ void main() {
     expect(data.usage?.dailyLimit, 1000);
     expect(calls.any((call) => call.contains('status=completed')), isFalse);
     expect(calls.any((call) => call.contains('/history')), isFalse);
-    expect(calls.where((call) => call.startsWith('/matches?')),
-        everyElement(contains('tour=wta')));
+    expect(
+      calls.where((call) => call.startsWith('/matches?')),
+      everyElement(contains('tour=wta')),
+    );
   });
 
   test('player search returns null when no name matches', () {
     final player = TennisRepository.findPlayer({
       'data': [
-        {'id': 5, 'name': 'Coco Gauff', 'tour': 'wta'}
-      ]
+        {'id': 5, 'name': 'Coco Gauff', 'tour': 'wta'},
+      ],
     }, 'Iga Świątek');
 
     expect(player, isNull);
