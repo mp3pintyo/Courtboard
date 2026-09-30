@@ -1,0 +1,22 @@
+{
+ "results": [
+  {
+   "idEvent": "2407097",
+   "strEvent": "Inter Miami vs San Diego FC",
+   "strLeague": "American Major League Soccer",
+   "idLeague": "4346",
+   "strSeason": "2026",
+   "dateEvent": "2026-09-20",
+   "strTime": "23:00:00",
+   "strTimestamp": "2026-09-20T23:00:00",
+   "idHomeTeam": "137699",
+   "idAwayTeam": "150261",
+   "strHomeTeam": "Inter Miami",
+   "strAwayTeam": "San Diego FC",
+   "intHomeScore": "2",
+   "intAwayScore": "2",
+   "strStatus": "FT",
+   "strSport": "Soccer"
+  }
+ ]
+}

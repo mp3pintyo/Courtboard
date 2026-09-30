@@ -1,0 +1,86 @@
+{
+ "sports": [
+  {
+   "id": "600",
+   "name": "Soccer",
+   "slug": "soccer",
+   "leagues": [
+    {
+     "id": "770",
+     "name": "MLS",
+     "abbreviation": "MLS",
+     "shortName": "MLS",
+     "slug": "usa.1",
+     "teams": [
+      {
+       "team": {
+        "id": "18418",
+        "uid": "s:600~t:18418",
+        "slug": "usa.atlanta_united_fc",
+        "location": "Atlanta United FC",
+        "name": "Atlanta United FC",
+        "abbreviation": "ATL",
+        "displayName": "Atlanta United FC",
+        "shortDisplayName": "Atlanta",
+        "isActive": true
+       }
+      },
+      {
+       "team": {
+        "id": "183",
+        "uid": "s:600~t:183",
+        "slug": "usa.columbus",
+        "location": "Columbus Crew",
+        "name": "Columbus Crew",
+        "nickname": "Crew",
+        "abbreviation": "CLB",
+        "displayName": "Columbus Crew",
+        "shortDisplayName": "Columbus",
+        "isActive": true
+       }
+      },
+      {
+       "team": {
+        "id": "20232",
+        "uid": "s:600~t:20232",
+        "slug": "usa.inter_miami",
+        "location": "Inter Miami CF",
+        "name": "Inter Miami CF",
+        "abbreviation": "MIA",
+        "displayName": "Inter Miami CF",
+        "shortDisplayName": "Miami",
+        "isActive": true
+       }
+      },
+      {
+       "team": {
+        "id": "18966",
+        "uid": "s:600~t:18966",
+        "slug": "usa.lafc",
+        "location": "LAFC",
+        "name": "LAFC",
+        "abbreviation": "LAFC",
+        "displayName": "LAFC",
+        "shortDisplayName": "LAFC",
+        "isActive": true
+       }
+      },
+      {
+       "team": {
+        "id": "22529",
+        "uid": "s:600~t:22529",
+        "slug": "san_diego_fc",
+        "location": "San Diego FC",
+        "name": "San Diego FC",
+        "abbreviation": "SD",
+        "displayName": "San Diego FC",
+        "shortDisplayName": "San Diego",
+        "isActive": true
+       }
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

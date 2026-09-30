@@ -98,6 +98,7 @@ final watcherSourceProvider = Provider<WatcherDataSource>(
         upcoming: ref.watch(upcomingEventsRepositoryProvider),
         espn: ref.watch(espnScheduleRepositoryProvider),
         live: ref.watch(liveScoresRepositoryProvider),
+        espnSoccer: ref.watch(espnSoccerTeamRepositoryProvider),
         highlights: ref.watch(highlightStoreProvider),
       ),
   name: 'watcherSourceProvider',

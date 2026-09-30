@@ -88,6 +88,40 @@ class EspnScheduledGame {
 
   /// Igaz, ha a mérkőzés éppen zajlik.
   final bool live;
+
+  Map<String, Object?> toJson() => {
+    'id': id,
+    'start': start.toUtc().toIso8601String(),
+    'home': home,
+    'away': away,
+    'opponent': opponent,
+    'competition': competition,
+    'homeAway': homeAway,
+    'venue': venue,
+    'url': url,
+    'timeKnown': timeKnown,
+    'live': live,
+  };
+
+  static EspnScheduledGame? fromJson(Object? json) {
+    final map = jsonMap(json);
+    final id = jsonString(map['id']);
+    final start = DateTime.tryParse(jsonString(map['start']) ?? '');
+    if (id == null || start == null) return null;
+    return EspnScheduledGame(
+      id: id,
+      start: start.toLocal(),
+      home: jsonString(map['home']) ?? '',
+      away: jsonString(map['away']) ?? '',
+      opponent: jsonString(map['opponent']) ?? '',
+      competition: jsonString(map['competition']) ?? '',
+      homeAway: jsonString(map['homeAway']),
+      venue: jsonString(map['venue']),
+      url: jsonString(map['url']),
+      timeKnown: map['timeKnown'] != false,
+      live: map['live'] == true,
+    );
+  }
 }
 
 /// Egy befejezett mérkőzés eredménye a követett csapat szemszögéből

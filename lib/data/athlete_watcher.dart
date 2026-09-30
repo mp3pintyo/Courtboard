@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:courtboard/data/athlete_highlights.dart';
 import 'package:courtboard/data/espn_schedule.dart';
+import 'package:courtboard/data/espn_soccer_team.dart';
 import 'package:courtboard/data/ics_export.dart' show icsUid;
 import 'package:courtboard/data/json_file_cache.dart';
 import 'package:courtboard/data/live_scores.dart';
@@ -76,7 +77,9 @@ abstract interface class WatcherDataSource {
 ///   új eredmény a nyitóoldal kiemelésébe ([AthleteHighlightStore]) is
 ///   bekerül. Emellett az élő scoreboard ([LiveScoresRepository], 45 mp-es
 ///   gyorsítótár) mai befejezett meccsei is bekerülnek, így a végeredmény
-///   a menetrend frissülése előtt jelez; focinál csak ez az eredményforrás.
+///   a menetrend frissülése előtt jelez. Tipp nélküli focicsapatnál (0.15.1)
+///   az ESPN-klubmenetrend ([EspnSoccerTeamRepository.clubResults], 1 órás
+///   gyorsítótár) is, amely a nyitóoldal kiemelését is frissíti.
 /// * Hírek: a közös [NewsRepository] (forrásonként legfeljebb 20 percenként
 ///   kér), a sportolóhoz tartozást a [newsMatchesAthlete] dönti el.
 class RepositoryWatcherSource implements WatcherDataSource {
@@ -86,10 +89,12 @@ class RepositoryWatcherSource implements WatcherDataSource {
     UpcomingEventsRepository? upcoming,
     EspnScheduleRepository? espn,
     LiveScoresRepository? live,
+    EspnSoccerTeamRepository? espnSoccer,
     this._highlights,
   }) : _upcoming = upcoming ?? UpcomingEventsRepository(),
        _espn = espn ?? EspnScheduleRepository(),
-       _live = live ?? LiveScoresRepository();
+       _live = live ?? LiveScoresRepository(),
+       _espnSoccer = espnSoccer ?? EspnSoccerTeamRepository();
 
   /// Az aktuális API-kulcsok (a Beállításokban közben változhatnak).
   final SportsApiConfig Function() config;
@@ -97,6 +102,7 @@ class RepositoryWatcherSource implements WatcherDataSource {
   final UpcomingEventsRepository _upcoming;
   final EspnScheduleRepository _espn;
   final LiveScoresRepository _live;
+  final EspnSoccerTeamRepository _espnSoccer;
   final AthleteHighlightStore? _highlights;
 
   @override
@@ -123,7 +129,8 @@ class RepositoryWatcherSource implements WatcherDataSource {
       liveFinals = const [];
     }
     if (league == null) {
-      return athlete.sport == Sport.football ? liveFinals : null;
+      if (athlete.sport != Sport.football) return null;
+      return [...liveFinals, ...await _footballClubResults(athlete, teamName)];
     }
     final team = await _espn.findTeam(league, teamName);
     if (team == null) return liveFinals.isEmpty ? null : liveFinals;
@@ -151,6 +158,59 @@ class RepositoryWatcherSource implements WatcherDataSource {
           score: game.score,
           homeAway: game.homeAway,
           aliases: [resultDayKey(athlete.sport.jsonValue, game.start)],
+        ),
+    ];
+  }
+
+  /// Tipp nélküli focicsapat legutóbbi eredményei az ESPN-klubmenetrendből
+  /// (legfeljebb 10); a legutóbbi a nyitóoldal kiemelésébe is bekerül. Az
+  /// ESPN-bajnokságkóddal mentett sportolónál, ismeretlen csapatnál vagy
+  /// hibánál üres (az élő scoreboard eredményei ettől még megmaradnak).
+  Future<List<WatchedResult>> _footballClubResults(
+    UpcomingEventsTarget athlete,
+    String teamName,
+  ) async {
+    if (athlete.hasEspnSoccerLeague) return const [];
+    final List<EspnSoccerGame> games;
+    try {
+      final club = await _espnSoccer.resolveClub(
+        teamName,
+        competition: athlete.sourceHints.competition,
+        womensTeam: athlete.sourceHints.womensTeam ? true : null,
+      );
+      if (club == null) return const [];
+      games = (await _espnSoccer.clubResults(club)).take(10).toList();
+    } catch (_) {
+      return const [];
+    }
+    String outcomeOf(EspnSoccerGame game) => switch (game.result) {
+      'GYŐZELEM' => 'win',
+      'VERESÉG' => 'loss',
+      _ => 'draw',
+    };
+    if (games.isNotEmpty) {
+      final last = games.first;
+      // Ugyanaz a cím, mint a profil csapatmérkőzés-kártyájáé, így a
+      // „Követés” hírfolyamban nem duplázódik.
+      await (_highlights ?? AthleteHighlightStore.shared).record(athlete.name, [
+        HighlightEvent(
+          date: last.date.toLocal(),
+          title: 'vs. ${last.opponent}',
+          outcome: outcomeOf(last),
+          score: last.score,
+        ),
+      ]);
+    }
+    return [
+      for (final game in games)
+        WatchedResult(
+          key: 'soccer:${game.eventId ?? game.date.toUtc().toIso8601String()}',
+          date: game.date.toLocal(),
+          opponent: game.opponent,
+          outcome: outcomeOf(game),
+          score: game.score,
+          homeAway: game.home ? 'home' : 'away',
+          aliases: [resultDayKey(athlete.sport.jsonValue, game.date)],
         ),
     ];
   }

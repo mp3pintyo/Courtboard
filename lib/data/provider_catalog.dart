@@ -116,11 +116,11 @@ const providerCatalog = <ProviderCatalogEntry>[
     name: 'TheSportsDB',
     sports: ['NBA', 'WNBA', 'Foci', 'Darts', 'Minden sport'],
     role:
-        'Névfeloldás, profilkép, alapadatok, focicsapat-mérkőzések és darts eredmények.',
+        'Névfeloldás, profilkép, alapadatok, darts eredmények; focicsapat-mérkőzéseknél csak tartalék.',
     visibleOutput: [
       'Új sportoló profilképe',
       'NBA-profil kiegészítő adatai',
-      'Támogatott focicsapatok utolsó és következő mérkőzései',
+      'Focicsapat utolsó és következő meccse, ha sem a football-data.org, sem az ESPN nem ad (figyelmeztetéssel)',
       'Darts-játékosprofil és az utolsó 5 eredmény',
     ],
     capabilities: [
@@ -130,11 +130,13 @@ const providerCatalog = <ProviderCatalogEntry>[
     ],
     authentication:
         'Nem kell saját kulcs; az app a publikus 123 kulcsot használja.',
-    limit: 'Free: legfeljebb 30 kérés/perc; egyes lekérdezések korlátozottak.',
+    limit:
+        'Free: legfeljebb 30 kérés/perc; egyes lekérdezések korlátozottak – a csapat eventslast.php-je csak a legutóbbi hazai, az eventsnext.php csak a következő eseményt adja, ezért a klubmeccsekhez csak tartalék.',
     cache:
         'A névkeresések 24 órás lemezcache-be kerülnek; dartsnál a RapidAPI-réteg 6 órás cache-e is védi a kvótát.',
     setup: 'Nincs teendő.',
-    fallback: 'Kép nélkül monogram; dartsnál a meglévő helyi adatok maradnak.',
+    fallback:
+        'Kép nélkül monogram; dartsnál a meglévő helyi adatok maradnak. Focinál a Csapatmérkőzések kártya jelzi, ha a hiányos TheSportsDB-feed látszik.',
     docsUrl: 'https://www.thesportsdb.com/documentation',
   ),
   ProviderCatalogEntry(
@@ -158,7 +160,7 @@ const providerCatalog = <ProviderCatalogEntry>[
         'A csapatlista és a Free csapatkeretek 7 napos, a sikertelen játékoskeresés 24 órás lemezcache-be kerül.',
     setup: 'Adatforrások → football-data.org kulcs, vagy FOOTBALL_DATA_KEY.',
     fallback:
-        'A FotMob adja a szezonstatisztikát; nem támogatott ligánál a TheSportsDB ad klubmérkőzést.',
+        'A FotMob adja a szezonstatisztikát; nem támogatott csapatnál az ESPN, végső tartalékként a TheSportsDB ad klubmérkőzést.',
     docsUrl: 'https://www.football-data.org/client/register',
     key: ProviderKey.footballData,
   ),
@@ -255,6 +257,34 @@ const providerCatalog = <ProviderCatalogEntry>[
         'Nincs találat esetén nem jelenít meg kitalált vagy férfi mérkőzést.',
     docsUrl:
         'https://site.api.espn.com/apis/site/v2/sports/soccer/esp.w.1/scoreboard?dates=2026',
+  ),
+  ProviderCatalogEntry(
+    name: 'ESPN · Klubcsapatok',
+    sports: ['Foci', 'Női foci'],
+    role:
+        'Focicsapatok teljes szezonja (bajnokság, kupák, felkészülési meccsek) és menetrendje, ha a football-data.org nem fedi le a csapatot (például MLS / Inter Miami).',
+    visibleOutput: [
+      'Csapatmérkőzések kártya: az 5 legutóbbi eredmény (hazai/idegen, sorozat, hosszabbítás, tizenegyesek) és a következő 5 meccs, „ESPN · <liga>” forráscímkével',
+      'Naptár: a klub következő meccsei a TheSportsDB előtt',
+      'Nyitólap „legutóbbi eredmény” és a háttérfigyelő „Új eredmény” értesítése focicsapatoknál',
+      'Lenyitható „Idővonal” a lejátszott meccseknél',
+    ],
+    capabilities: [
+      'Csapatfeloldás a bajnoki csapatlistákból (usa.1, eng.1, esp.1, ger.1, ita.1, fra.1, por.1, ned.1, mex.1, bra.1, arg.1, ksa.1, tur.1, sco.1, bel.1; női: usa.nwsl, eng.w.1, esp.w.1), az első találatnál megáll',
+      'Szigorú névegyezés: teljes név, rövid név, rövidítés vagy hely + név; részleges név nem egyezik',
+      'soccer/all/teams/{id}/schedule (lejátszott meccsek, dátum szerint rendezve) és ?fixture=true (közelgő meccsek)',
+      'Befejezett státuszok (FT, AET, büntetők); elhalasztott és törölt meccset nem mutat',
+    ],
+    authentication: 'Nem kell API-kulcs; nyilvános, nem dokumentált végpont.',
+    limit:
+        'Nincs publikált kvóta; az ESPN közös, 30 kérés/perc korlátjából fogy (best effort).',
+    cache:
+        'Csapatlista ligánként 7 nap, feloldott csapat 7 nap (sikertelen keresés 24 óra), eredmények 1 óra, menetrend 6 óra; hibánál a régebbi lista marad.',
+    setup: 'Nincs teendő; a csapatot a sportoló adatlapján kell megadni.',
+    fallback:
+        'Ha az ESPN nem ismeri a csapatot vagy hibázik, a TheSportsDB (figyelmeztetéssel), német csapatnál az OpenLigaDB jön.',
+    docsUrl:
+        'https://site.api.espn.com/apis/site/v2/sports/soccer/usa.1/teams/20232/schedule',
   ),
   ProviderCatalogEntry(
     name: 'ESPN · Menetrendek',
@@ -367,7 +397,7 @@ const providerCatalog = <ProviderCatalogEntry>[
     sports: ['Foci', 'Női foci'],
     role: 'Gólok, lapok és cserék perccel az ESPN meccsösszefoglalójából.',
     visibleOutput: [
-      'Lenyitható „Idővonal” a Liga F-meccseknél, az élő focimeccsnél és ahol ESPN-mérkőzésazonosító ismert',
+      'Lenyitható „Idővonal” a Liga F-meccseknél, az ESPN-klubmeccseknél, az élő focimeccsnél és ahol ESPN-mérkőzésazonosító ismert',
       'Gól (büntető, öngól), sárga és piros lap, csere — Material ikonokkal, hazai / vendég oldal szerint',
     ],
     capabilities: [
@@ -391,7 +421,7 @@ const providerCatalog = <ProviderCatalogEntry>[
         'Német bajnokságok (Bundesliga, 2. Bundesliga, Frauen-Bundesliga) eredményei és menetrendje.',
     visibleOutput: [
       'Csapatmérkőzések kártya: az utolsó 5 eredmény és a következő 5 meccs, ha a többi forrás nem ad',
-      'Naptár: a német csapatok közelgő meccsei, ha a football-data.org / TheSportsDB nem ad',
+      'Naptár: a német csapatok közelgő meccsei, ha a football-data.org / ESPN / TheSportsDB nem ad',
       'Gólszerzők perccel a lejátszott meccsek „Idővonal” sávjában',
       'Egymás elleni meccsek az idei szezonból',
     ],

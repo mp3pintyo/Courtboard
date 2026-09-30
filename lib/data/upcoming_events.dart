@@ -212,8 +212,9 @@ enum UpcomingSource {
   /// bajnoki scoreboardja a csapat meccseivel.
   espnSoccerLeague('ESPN · bajnoki scoreboard'),
 
-  /// Focista: football-data.org, TheSportsDB, végül OpenLigaDB.
-  footballClub('football-data.org / TheSportsDB / OpenLigaDB'),
+  /// Focista: football-data.org, ESPN-csapatmenetrend, TheSportsDB, végül
+  /// OpenLigaDB.
+  footballClub('football-data.org / ESPN / TheSportsDB / OpenLigaDB'),
 
   /// Teniszező: Live Tennis API.
   tennis('Live Tennis API'),
@@ -247,8 +248,9 @@ Duration defaultEventDuration(String sport) => switch (Sport.fromLabel(sport)) {
 /// A követett sportolók közelgő eseményei a már meglévő forrásokból:
 ///
 /// * NBA / WNBA / NFL – ESPN nyilvános csapatmenetrend (kulcs nélkül);
-/// * foci – football-data.org (kulccsal), különben TheSportsDB; Liga F-nél
-///   az ESPN női bajnoksági scoreboardja; német csapatnál, ha a többi
+/// * foci – football-data.org (kulccsal), különben az ESPN
+///   csapatmenetrendje (a klub az ESPN-bajnokságok csapatlistáiból), végül
+///   TheSportsDB; Liga F-nél az ESPN női bajnoksági scoreboardja; német csapatnál, ha a többi
 ///   forrás nem ad menetrendet, az OpenLigaDB;
 /// * tenisz – Live Tennis API (kulccsal);
 /// * darts – TheSportsDB következő eseményei és (kulccsal) a RapidAPI
@@ -355,6 +357,7 @@ class UpcomingEventsRepository {
       config: config,
       http: _http,
       cacheStorage: _cacheStorage,
+      clock: _clock,
     );
     return switch (UpcomingSource.forTarget(target)) {
       UpcomingSource.espnTeamSchedule => _espnTeam(
@@ -491,6 +494,39 @@ class UpcomingEventsRepository {
       } catch (error) {
         notes.add('football-data.org: ${friendlyError(error)}');
       }
+    }
+    // ESPN (kulcs nélkül): a csapat teljes menetrendje minden sorozatból; a
+    // TheSportsDB ingyenes feedje csak a következő egy meccset adja.
+    try {
+      final espn = EspnSoccerTeamRepository(client);
+      final club = await espn.resolveClub(
+        teamName,
+        competition: target.sourceHints.competition,
+        womensTeam: target.sourceHints.womensTeam ? true : null,
+      );
+      if (club != null) {
+        final games = await espn.clubFixtures(club);
+        if (games.isNotEmpty) {
+          return _Payload([
+            for (final game in games)
+              UpcomingEvent(
+                athleteName: target.name,
+                sport: target.sport.jsonValue,
+                title: '${game.home} – ${game.away}',
+                opponent: game.opponent,
+                competition: game.competition,
+                start: game.start,
+                venue: game.venue,
+                homeAway: game.homeAway,
+                source: 'ESPN',
+                url: game.url,
+                timeKnown: game.timeKnown,
+              ),
+          ], notes);
+        }
+      }
+    } catch (error) {
+      notes.add('ESPN: ${friendlyError(error)}');
     }
     final Map<String, dynamic> teams;
     try {

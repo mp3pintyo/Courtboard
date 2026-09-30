@@ -1,0 +1,102 @@
+{
+ "events": [
+  {
+   "id": "401863557",
+   "date": "2026-08-05T02:00Z",
+   "name": "Real Salt Lake at Tigres UANL",
+   "shortName": "RSL @ UANL",
+   "seasonType": {
+    "id": "1",
+    "type": 14119,
+    "name": "League Phase",
+    "abbreviation": "League Phase"
+   },
+   "timeValid": true,
+   "league": {
+    "id": "19425",
+    "name": "Leagues Cup",
+    "abbreviation": "Leagues Cup",
+    "slug": "concacaf.leagues.cup"
+   },
+   "competitions": [
+    {
+     "id": "401863557",
+     "date": "2026-08-05T02:00Z",
+     "venue": {
+      "fullName": "America First Field",
+      "address": {
+       "city": "Sandy, Utah",
+       "country": "USA"
+      }
+     },
+     "status": {
+      "type": {
+       "id": "47",
+       "name": "STATUS_FINAL_PEN",
+       "state": "post",
+       "completed": true,
+       "description": "Final Score - After Penalties",
+       "detail": "FT-Pens",
+       "shortDetail": "FT-Pens"
+      }
+     },
+     "competitors": [
+      {
+       "id": "232",
+       "homeAway": "home",
+       "winner": true,
+       "team": {
+        "id": "232",
+        "location": "Tigres UANL",
+        "nickname": "Tigres",
+        "abbreviation": "UANL",
+        "displayName": "Tigres UANL",
+        "shortDisplayName": "Tigres"
+       },
+       "score": {
+        "value": 1.0,
+        "displayValue": "1",
+        "winner": true,
+        "shootoutScore": 6.0
+       }
+      },
+      {
+       "id": "4771",
+       "homeAway": "away",
+       "winner": false,
+       "team": {
+        "id": "4771",
+        "location": "Real Salt Lake",
+        "nickname": "Real Salt Lake",
+        "abbreviation": "RSL",
+        "displayName": "Real Salt Lake",
+        "shortDisplayName": "Salt Lake"
+       },
+       "score": {
+        "value": 1.0,
+        "displayValue": "1",
+        "winner": false,
+        "shootoutScore": 5.0
+       }
+      }
+     ]
+    }
+   ],
+   "links": [
+    {
+     "language": "en-US",
+     "rel": [
+      "summary",
+      "desktop",
+      "event"
+     ],
+     "href": "https://www.espn.com/soccer/match/_/gameId/401863557/real-salt-lake-tigres-uanl",
+     "text": "Summary",
+     "shortText": "Summary",
+     "isExternal": false,
+     "isPremium": false
+    }
+   ]
+  }
+ ]
+}

@@ -1,0 +1,677 @@
+{
+ "requestedSeason": {
+  "year": 2026,
+  "type": 13846,
+  "name": "Regular Season",
+  "displayName": "2026 MLS"
+ },
+ "team": {
+  "id": "20232",
+  "location": "Inter Miami CF",
+  "abbreviation": "MIA",
+  "displayName": "Inter Miami CF"
+ },
+ "events": [
+  {
+   "id": "761829",
+   "date": "2026-09-20T23:00Z",
+   "name": "San Diego FC at Inter Miami CF",
+   "shortName": "SD @ MIA",
+   "seasonType": {
+    "id": "1",
+    "type": 13846,
+    "name": "Regular Season",
+    "abbreviation": "2026 MLS"
+   },
+   "timeValid": true,
+   "league": {
+    "id": "770",
+    "name": "MLS",
+    "abbreviation": "MLS",
+    "slug": "usa.1"
+   },
+   "competitions": [
+    {
+     "id": "761829",
+     "date": "2026-09-20T23:00Z",
+     "venue": {
+      "fullName": "Nu Stadium",
+      "address": {
+       "city": "Miami, Florida",
+       "country": "USA"
+      }
+     },
+     "status": {
+      "type": {
+       "id": "28",
+       "name": "STATUS_FULL_TIME",
+       "state": "post",
+       "completed": true,
+       "description": "Full Time",
+       "detail": "FT",
+       "shortDetail": "FT"
+      }
+     },
+     "competitors": [
+      {
+       "id": "20232",
+       "homeAway": "home",
+       "winner": false,
+       "team": {
+        "id": "20232",
+        "location": "Inter Miami CF",
+        "abbreviation": "MIA",
+        "displayName": "Inter Miami CF",
+        "shortDisplayName": "Miami"
+       },
+       "score": {
+        "value": 2.0,
+        "displayValue": "2",
+        "winner": false
+       }
+      },
+      {
+       "id": "22529",
+       "homeAway": "away",
+       "winner": false,
+       "team": {
+        "id": "22529",
+        "location": "San Diego FC",
+        "abbreviation": "SD",
+        "displayName": "San Diego FC",
+        "shortDisplayName": "San Diego"
+       },
+       "score": {
+        "value": 2.0,
+        "displayValue": "2",
+        "winner": false
+       }
+      }
+     ]
+    }
+   ],
+   "links": [
+    {
+     "language": "en-US",
+     "rel": [
+      "summary",
+      "desktop",
+      "event"
+     ],
+     "href": "https://www.espn.com/soccer/match/_/gameId/761829/san-diego-fc-inter-miami-cf",
+     "text": "Summary",
+     "shortText": "Summary",
+     "isExternal": false,
+     "isPremium": false
+    }
+   ]
+  },
+  {
+   "id": "761800",
+   "date": "2026-09-12T23:30Z",
+   "name": "Nashville SC at Inter Miami CF",
+   "shortName": "NSH @ MIA",
+   "seasonType": {
+    "id": "1",
+    "type": 13846,
+    "name": "Regular Season",
+    "abbreviation": "2026 MLS"
+   },
+   "timeValid": true,
+   "league": {
+    "id": "770",
+    "name": "MLS",
+    "abbreviation": "MLS",
+    "slug": "usa.1"
+   },
+   "competitions": [
+    {
+     "id": "761800",
+     "date": "2026-09-12T23:30Z",
+     "venue": {
+      "fullName": "Nu Stadium",
+      "address": {
+       "city": "Miami, Florida",
+       "country": "USA"
+      }
+     },
+     "status": {
+      "type": {
+       "id": "28",
+       "name": "STATUS_FULL_TIME",
+       "state": "post",
+       "completed": true,
+       "description": "Full Time",
+       "detail": "FT",
+       "shortDetail": "FT"
+      }
+     },
+     "competitors": [
+      {
+       "id": "20232",
+       "homeAway": "home",
+       "winner": false,
+       "team": {
+        "id": "20232",
+        "location": "Inter Miami CF",
+        "abbreviation": "MIA",
+        "displayName": "Inter Miami CF",
+        "shortDisplayName": "Miami"
+       },
+       "score": {
+        "value": 2.0,
+        "displayValue": "2",
+        "winner": false
+       }
+      },
+      {
+       "id": "18986",
+       "homeAway": "away",
+       "winner": false,
+       "team": {
+        "id": "18986",
+        "location": "Nashville SC",
+        "abbreviation": "NSH",
+        "displayName": "Nashville SC",
+        "shortDisplayName": "Nashville"
+       },
+       "score": {
+        "value": 2.0,
+        "displayValue": "2",
+        "winner": false
+       }
+      }
+     ]
+    }
+   ],
+   "links": [
+    {
+     "language": "en-US",
+     "rel": [
+      "summary",
+      "desktop",
+      "event"
+     ],
+     "href": "https://www.espn.com/soccer/match/_/gameId/761800/nashville-sc-inter-miami-cf",
+     "text": "Summary",
+     "shortText": "Summary",
+     "isExternal": false,
+     "isPremium": false
+    }
+   ]
+  },
+  {
+   "id": "761844",
+   "date": "2026-09-27T23:00Z",
+   "name": "Inter Miami CF at Columbus Crew",
+   "shortName": "MIA @ CLB",
+   "seasonType": {
+    "id": "1",
+    "type": 13846,
+    "name": "Regular Season",
+    "abbreviation": "2026 MLS"
+   },
+   "timeValid": true,
+   "league": {
+    "id": "770",
+    "name": "MLS",
+    "abbreviation": "MLS",
+    "slug": "usa.1"
+   },
+   "competitions": [
+    {
+     "id": "761844",
+     "date": "2026-09-27T23:00Z",
+     "venue": {
+      "fullName": "ScottsMiracle-Gro Field",
+      "address": {
+       "city": "Columbus, Ohio",
+       "country": "USA"
+      }
+     },
+     "status": {
+      "type": {
+       "id": "28",
+       "name": "STATUS_FULL_TIME",
+       "state": "post",
+       "completed": true,
+       "description": "Full Time",
+       "detail": "FT",
+       "shortDetail": "FT"
+      }
+     },
+     "competitors": [
+      {
+       "id": "183",
+       "homeAway": "home",
+       "winner": true,
+       "team": {
+        "id": "183",
+        "location": "Columbus Crew",
+        "nickname": "Crew",
+        "abbreviation": "CLB",
+        "displayName": "Columbus Crew",
+        "shortDisplayName": "Columbus"
+       },
+       "score": {
+        "value": 2.0,
+        "displayValue": "2",
+        "winner": true
+       }
+      },
+      {
+       "id": "20232",
+       "homeAway": "away",
+       "winner": false,
+       "team": {
+        "id": "20232",
+        "location": "Inter Miami CF",
+        "abbreviation": "MIA",
+        "displayName": "Inter Miami CF",
+        "shortDisplayName": "Miami"
+       },
+       "score": {
+        "value": 1.0,
+        "displayValue": "1",
+        "winner": false
+       }
+      }
+     ]
+    }
+   ],
+   "links": [
+    {
+     "language": "en-US",
+     "rel": [
+      "summary",
+      "desktop",
+      "event"
+     ],
+     "href": "https://www.espn.com/soccer/match/_/gameId/761844/inter-miami-cf-columbus-crew",
+     "text": "Summary",
+     "shortText": "Summary",
+     "isExternal": false,
+     "isPremium": false
+    }
+   ]
+  },
+  {
+   "id": "401901377",
+   "date": "2026-09-17T00:00Z",
+   "name": "Cruz Azul at Inter Miami CF",
+   "shortName": "CAZ @ MIA",
+   "seasonType": {
+    "id": "1",
+    "type": 14450,
+    "name": "2026 Campeones Cup",
+    "abbreviation": "2026 Campeones Cup"
+   },
+   "timeValid": true,
+   "league": {
+    "id": "18771",
+    "name": "Campeones Cup",
+    "abbreviation": "Campeones Cup",
+    "slug": "campeones.cup"
+   },
+   "competitions": [
+    {
+     "id": "401901377",
+     "date": "2026-09-17T00:00Z",
+     "venue": {
+      "fullName": "Nu Stadium",
+      "address": {
+       "city": "Miami, Florida",
+       "country": "USA"
+      }
+     },
+     "status": {
+      "type": {
+       "id": "28",
+       "name": "STATUS_FULL_TIME",
+       "state": "post",
+       "completed": true,
+       "description": "Full Time",
+       "detail": "FT",
+       "shortDetail": "FT"
+      }
+     },
+     "competitors": [
+      {
+       "id": "20232",
+       "homeAway": "home",
+       "winner": true,
+       "team": {
+        "id": "20232",
+        "location": "Inter Miami CF",
+        "abbreviation": "MIA",
+        "displayName": "Inter Miami CF",
+        "shortDisplayName": "Miami"
+       },
+       "score": {
+        "value": 2.0,
+        "displayValue": "2",
+        "winner": true
+       }
+      },
+      {
+       "id": "218",
+       "homeAway": "away",
+       "winner": false,
+       "team": {
+        "id": "218",
+        "location": "Cruz Azul",
+        "abbreviation": "CAZ",
+        "displayName": "Cruz Azul",
+        "shortDisplayName": "Cruz Azul"
+       },
+       "score": {
+        "value": 0.0,
+        "displayValue": "0",
+        "winner": false
+       }
+      }
+     ]
+    }
+   ],
+   "links": [
+    {
+     "language": "en-US",
+     "rel": [
+      "summary",
+      "desktop",
+      "event"
+     ],
+     "href": "https://www.espn.com/soccer/match/_/gameId/401901377/cruz-azul-inter-miami-cf",
+     "text": "Summary",
+     "shortText": "Summary",
+     "isExternal": false,
+     "isPremium": false
+    }
+   ]
+  },
+  {
+   "id": "761792",
+   "date": "2026-09-10T00:30Z",
+   "name": "Inter Miami CF at Chicago Fire FC",
+   "shortName": "MIA @ CHI",
+   "seasonType": {
+    "id": "1",
+    "type": 13846,
+    "name": "Regular Season",
+    "abbreviation": "2026 MLS"
+   },
+   "timeValid": true,
+   "league": {
+    "id": "770",
+    "name": "MLS",
+    "abbreviation": "MLS",
+    "slug": "usa.1"
+   },
+   "competitions": [
+    {
+     "id": "761792",
+     "date": "2026-09-10T00:30Z",
+     "venue": {
+      "fullName": "Soldier Field",
+      "address": {
+       "city": "Chicago, Illinois",
+       "country": "USA"
+      }
+     },
+     "status": {
+      "type": {
+       "id": "28",
+       "name": "STATUS_FULL_TIME",
+       "state": "post",
+       "completed": true,
+       "description": "Full Time",
+       "detail": "FT",
+       "shortDetail": "FT"
+      }
+     },
+     "competitors": [
+      {
+       "id": "182",
+       "homeAway": "home",
+       "winner": false,
+       "team": {
+        "id": "182",
+        "location": "Chicago Fire FC",
+        "nickname": "Fire",
+        "abbreviation": "CHI",
+        "displayName": "Chicago Fire FC",
+        "shortDisplayName": "Chicago"
+       },
+       "score": {
+        "value": 1.0,
+        "displayValue": "1",
+        "winner": false
+       }
+      },
+      {
+       "id": "20232",
+       "homeAway": "away",
+       "winner": false,
+       "team": {
+        "id": "20232",
+        "location": "Inter Miami CF",
+        "abbreviation": "MIA",
+        "displayName": "Inter Miami CF",
+        "shortDisplayName": "Miami"
+       },
+       "score": {
+        "value": 1.0,
+        "displayValue": "1",
+        "winner": false
+       }
+      }
+     ]
+    }
+   ],
+   "links": [
+    {
+     "language": "en-US",
+     "rel": [
+      "summary",
+      "desktop",
+      "event"
+     ],
+     "href": "https://www.espn.com/soccer/match/_/gameId/761792/inter-miami-cf-chicago-fire-fc",
+     "text": "Summary",
+     "shortText": "Summary",
+     "isExternal": false,
+     "isPremium": false
+    }
+   ]
+  },
+  {
+   "id": "761757",
+   "date": "2026-08-29T23:30Z",
+   "name": "CF Montréal at Inter Miami CF",
+   "shortName": "MTL @ MIA",
+   "seasonType": {
+    "id": "1",
+    "type": 13846,
+    "name": "Regular Season",
+    "abbreviation": "2026 MLS"
+   },
+   "timeValid": true,
+   "league": {
+    "id": "770",
+    "name": "MLS",
+    "abbreviation": "MLS",
+    "slug": "usa.1"
+   },
+   "competitions": [
+    {
+     "id": "761757",
+     "date": "2026-08-29T23:30Z",
+     "venue": {
+      "fullName": "Nu Stadium",
+      "address": {
+       "city": "Miami, Florida",
+       "country": "USA"
+      }
+     },
+     "status": {
+      "type": {
+       "id": "28",
+       "name": "STATUS_FULL_TIME",
+       "state": "post",
+       "completed": true,
+       "description": "Full Time",
+       "detail": "FT",
+       "shortDetail": "FT"
+      }
+     },
+     "competitors": [
+      {
+       "id": "20232",
+       "homeAway": "home",
+       "winner": true,
+       "team": {
+        "id": "20232",
+        "location": "Inter Miami CF",
+        "abbreviation": "MIA",
+        "displayName": "Inter Miami CF",
+        "shortDisplayName": "Miami"
+       },
+       "score": {
+        "value": 7.0,
+        "displayValue": "7",
+        "winner": true
+       }
+      },
+      {
+       "id": "9720",
+       "homeAway": "away",
+       "winner": false,
+       "team": {
+        "id": "9720",
+        "location": "CF Montréal",
+        "nickname": "Impact",
+        "abbreviation": "MTL",
+        "displayName": "CF Montréal",
+        "shortDisplayName": "CF Montréal"
+       },
+       "score": {
+        "value": 1.0,
+        "displayValue": "1",
+        "winner": false
+       }
+      }
+     ]
+    }
+   ],
+   "links": [
+    {
+     "language": "en-US",
+     "rel": [
+      "summary",
+      "desktop",
+      "event"
+     ],
+     "href": "https://www.espn.com/soccer/match/_/gameId/761757/cf-montreal-inter-miami-cf",
+     "text": "Summary",
+     "shortText": "Summary",
+     "isExternal": false,
+     "isPremium": false
+    }
+   ]
+  },
+  {
+   "id": "761777",
+   "date": "2026-09-06T01:05Z",
+   "name": "Atlanta United FC at Inter Miami CF",
+   "shortName": "ATL @ MIA",
+   "seasonType": {
+    "id": "1",
+    "type": 13846,
+    "name": "Regular Season",
+    "abbreviation": "2026 MLS"
+   },
+   "timeValid": true,
+   "league": {
+    "id": "770",
+    "name": "MLS",
+    "abbreviation": "MLS",
+    "slug": "usa.1"
+   },
+   "competitions": [
+    {
+     "id": "761777",
+     "date": "2026-09-06T01:05Z",
+     "venue": {
+      "fullName": "Nu Stadium",
+      "address": {
+       "city": "Miami, Florida",
+       "country": "USA"
+      }
+     },
+     "status": {
+      "type": {
+       "id": "28",
+       "name": "STATUS_FULL_TIME",
+       "state": "post",
+       "completed": true,
+       "description": "Full Time",
+       "detail": "FT",
+       "shortDetail": "FT"
+      }
+     },
+     "competitors": [
+      {
+       "id": "20232",
+       "homeAway": "home",
+       "winner": false,
+       "team": {
+        "id": "20232",
+        "location": "Inter Miami CF",
+        "abbreviation": "MIA",
+        "displayName": "Inter Miami CF",
+        "shortDisplayName": "Miami"
+       },
+       "score": {
+        "value": 2.0,
+        "displayValue": "2",
+        "winner": false
+       }
+      },
+      {
+       "id": "18418",
+       "homeAway": "away",
+       "winner": false,
+       "team": {
+        "id": "18418",
+        "location": "Atlanta United FC",
+        "abbreviation": "ATL",
+        "displayName": "Atlanta United FC",
+        "shortDisplayName": "Atlanta"
+       },
+       "score": {
+        "value": 2.0,
+        "displayValue": "2",
+        "winner": false
+       }
+      }
+     ]
+    }
+   ],
+   "links": [
+    {
+     "language": "en-US",
+     "rel": [
+      "summary",
+      "desktop",
+      "event"
+     ],
+     "href": "https://www.espn.com/soccer/match/_/gameId/761777/atlanta-united-fc-inter-miami-cf",
+     "text": "Summary",
+     "shortText": "Summary",
+     "isExternal": false,
+     "isPremium": false
+    }
+   ]
+  }
+ ]
+}

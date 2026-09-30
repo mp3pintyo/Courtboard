@@ -139,48 +139,58 @@ class FootballDataCard extends ConsumerWidget {
         : null,
   );
 
+  /// A fejléc forráscímkéje: a ténylegesen használt adatforrás (például
+  /// „ESPN · MLS”), betöltés közben az általános felirat.
+  static String providerLabel(FootballTeamGames? data) {
+    final source = data?.source ?? '';
+    return source.isEmpty ? 'Élő adatforrás' : source;
+  }
+
   @override
-  Widget build(BuildContext context, WidgetRef ref) =>
-      AsyncDataSourceCard<FootballTeamGames>(
-        title: 'Csapatmérkőzések',
-        provider: 'Élő adatforrás',
-        subtitle: '$teamName · valódi eredmények',
-        icon: Icons.sports_soccer,
-        accent: accent,
-        value: ref.watch(_gamesProvider),
-        onRefresh: () => ref.invalidate(_gamesProvider),
-        refreshTooltip: 'Mérkőzések frissítése',
-        loadingLabel: 'Mérkőzések lekérése…',
-        emptyMessage: 'Nem található friss vagy közelgő csapatmérkőzés.',
-        emptyIcon: Icons.event_busy_outlined,
-        isEmpty: (data) => data.recent.isEmpty && data.upcoming.isEmpty,
-        emptyFooter: (context, data) => Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            for (final warning in data.warnings) CourtboardNote(warning),
+  Widget build(BuildContext context, WidgetRef ref) {
+    final value = ref.watch(_gamesProvider);
+    final data = value.hasValue && !value.hasError ? value.value : null;
+    return AsyncDataSourceCard<FootballTeamGames>(
+      title: 'Csapatmérkőzések',
+      provider: providerLabel(data),
+      subtitle: '$teamName · valódi eredmények',
+      icon: Icons.sports_soccer,
+      accent: accent,
+      value: value,
+      onRefresh: () => ref.invalidate(_gamesProvider),
+      refreshTooltip: 'Mérkőzések frissítése',
+      loadingLabel: 'Mérkőzések lekérése…',
+      emptyMessage: 'Nem található friss vagy közelgő csapatmérkőzés.',
+      emptyIcon: Icons.event_busy_outlined,
+      isEmpty: (data) => data.recent.isEmpty && data.upcoming.isEmpty,
+      emptyFooter: (context, data) => Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          for (final warning in data.warnings) CourtboardNote(warning),
+        ],
+      ),
+      builder: (context, data) => Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (ResultStrip.canShow(footballTeamResultMarks(data.recent))) ...[
+            const SubsectionLabel('CSAPATFORMA'),
+            ResultStrip(results: footballTeamResultMarks(data.recent)),
+            const SizedBox(height: 18),
           ],
-        ),
-        builder: (context, data) => Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (ResultStrip.canShow(footballTeamResultMarks(data.recent))) ...[
-              const SubsectionLabel('CSAPATFORMA'),
-              ResultStrip(results: footballTeamResultMarks(data.recent)),
-              const SizedBox(height: 18),
-            ],
-            if (data.recent.isNotEmpty) ...[
-              const SubsectionLabel('LEJÁTSZOTT MÉRKŐZÉSEK'),
-              ...data.recent.map(_gameRow),
-            ],
-            if (data.upcoming.isNotEmpty) ...[
-              const SizedBox(height: 12),
-              const SubsectionLabel('KÖVETKEZŐ MÉRKŐZÉSEK'),
-              ...data.upcoming.map(_gameRow),
-            ],
-            for (final warning in data.warnings) CourtboardNote(warning),
+          if (data.recent.isNotEmpty) ...[
+            const SubsectionLabel('LEJÁTSZOTT MÉRKŐZÉSEK'),
+            ...data.recent.map(_gameRow),
           ],
-        ),
-      );
+          if (data.upcoming.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            const SubsectionLabel('KÖVETKEZŐ MÉRKŐZÉSEK'),
+            ...data.upcoming.map(_gameRow),
+          ],
+          for (final warning in data.warnings) CourtboardNote(warning),
+        ],
+      ),
+    );
+  }
 }
 
 class FootballDataPlayerCard extends ConsumerWidget {

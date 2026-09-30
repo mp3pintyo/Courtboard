@@ -98,12 +98,17 @@ class SportsApiClient {
     SportsApiConfig? config,
     HttpService? http,
     this._cacheStorage,
+    this._clock,
   }) : config = config ?? SportsApiConfig.fromEnvironment(),
        _http = http ?? HttpService.shared;
 
   final SportsApiConfig config;
   final HttpService _http;
   final CacheStorage? _cacheStorage;
+
+  /// A gyorsítótár frissességét eldöntő óra (tesztekhez); alapból a
+  /// rendszeróra.
+  final DateTime Function()? _clock;
   static const theSportsDbFreeKey = '123';
 
   /// Kvótavédő gyorsítótár-élettartamok.
@@ -113,7 +118,7 @@ class SportsApiClient {
 
   /// Szolgáltatónkénti JSON-gyorsítótár ugyanazon a háttértáron.
   JsonFileCache cache(String namespace) =>
-      JsonFileCache(namespace, storage: _cacheStorage);
+      JsonFileCache(namespace, storage: _cacheStorage, clock: _clock);
 
   /// Közös GET: 10 mp kapcsolódási és 20 mp teljes időkorláttal, a
   /// szolgáltató kéréskorlátjával és újrapróbálással. A hibák
@@ -314,6 +319,21 @@ class SportsApiClient {
     int limit = 200,
   }) => _get(
     espnScoreboardUri(league, from: from, to: to, limit: limit),
+    provider: 'ESPN',
+  );
+
+  /// ESPN nyilvános foci-„site” API (`/apis/site/v2/sports/soccer/…`),
+  /// például `usa.1/teams` vagy `all/teams/20232/schedule`. Kulcs nem kell;
+  /// a közös „ESPN” korlát (percenként 30 kérés) fogja vissza.
+  Future<Map<String, dynamic>> espnSoccerSite(
+    String path, [
+    Map<String, String>? query,
+  ]) => _get(
+    Uri.https(
+      'site.api.espn.com',
+      '/apis/site/v2/sports/soccer/$path',
+      query == null || query.isEmpty ? null : query,
+    ),
     provider: 'ESPN',
   );
 

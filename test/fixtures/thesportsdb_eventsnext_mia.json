@@ -1,0 +1,22 @@
+{
+ "events": [
+  {
+   "idEvent": "2407115",
+   "strEvent": "Inter Miami vs DC United",
+   "strLeague": "American Major League Soccer",
+   "idLeague": "4346",
+   "strSeason": "2026",
+   "dateEvent": "2026-10-10",
+   "strTime": "23:30:00",
+   "strTimestamp": "2026-10-10T23:30:00",
+   "idHomeTeam": "137699",
+   "idAwayTeam": "134145",
+   "strHomeTeam": "Inter Miami",
+   "strAwayTeam": "DC United",
+   "intHomeScore": null,
+   "intAwayScore": null,
+   "strStatus": "NS",
+   "strSport": "Soccer"
+  }
+ ]
+}

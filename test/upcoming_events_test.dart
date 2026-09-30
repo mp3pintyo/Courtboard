@@ -228,7 +228,12 @@ void main() {
       expect(event.venue, 'Spotify Camp Nou');
       expect(event.start, DateTime.utc(2026, 10, 24, 16, 30).toLocal());
       expect(event.url, 'https://www.thesportsdb.com/event/2506239');
-      expect(http.requests.first.queryParameters['t'], 'Barcelona');
+      // Előbb az ESPN-bajnokságok csapatlistáit nézi (itt egyik sem
+      // ismeri), aztán a TheSportsDB-keresés jön.
+      final search = http.requests.singleWhere(
+        (uri) => uri.path.endsWith('/searchteams.php'),
+      );
+      expect(search.queryParameters['t'], 'Barcelona');
     });
 
     test(

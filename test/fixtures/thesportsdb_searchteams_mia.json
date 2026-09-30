@@ -1,0 +1,14 @@
+{
+ "teams": [
+  {
+   "idTeam": "137699",
+   "strTeam": "Inter Miami",
+   "strTeamAlternate": "Inter Miami CF, Club Internacional de Fútbol Miami",
+   "strTeamShort": "MIA",
+   "strSport": "Soccer",
+   "strLeague": "American Major League Soccer",
+   "idLeague": "4346",
+   "strCountry": "United States"
+  }
+ ]
+}

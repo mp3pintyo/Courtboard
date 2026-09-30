@@ -1,3 +1,5 @@
+import 'package:courtboard/data/espn_schedule.dart';
+import 'package:courtboard/data/espn_soccer_team.dart';
 import 'package:courtboard/data/football_names.dart';
 import 'package:courtboard/data/friendly_error.dart';
 import 'package:courtboard/data/json_util.dart';
@@ -47,6 +49,7 @@ class FootballTeamGames {
     this.recent = const [],
     this.upcoming = const [],
     this.warnings = const [],
+    this.source = '',
   });
 
   /// Lejátszott mérkőzések, legújabb elöl.
@@ -58,14 +61,32 @@ class FootballTeamGames {
   /// Felhasználónak szóló, kulcsmentes figyelmeztetések (például
   /// „football-data.org: a kulcs hibás vagy nincs jogosultság (HTTP 403)”).
   final List<String> warnings;
+
+  /// A ténylegesen használt adatforrás (például „ESPN · MLS”,
+  /// „football-data.org”, „TheSportsDB”); üres, ha egyik sem adott adatot.
+  final String source;
 }
 
 class FootballDataRepository {
-  FootballDataRepository(this._client, {this._openLiga});
+  FootballDataRepository(
+    this._client, {
+    this._openLiga,
+    EspnSoccerTeamRepository? espn,
+  }) : _espn = espn ?? EspnSoccerTeamRepository(_client);
   final SportsApiClient _client;
 
   /// A német csapatok tartalékforrása (alapból a közös HTTP-réteggel).
   final OpenLigaDbRepository? _openLiga;
+
+  /// A kulcs nélküli ESPN-klubforrás (csapatfeloldás és csapatmenetrend).
+  final EspnSoccerTeamRepository _espn;
+
+  /// A TheSportsDB ingyenes feedjének korlátja, amikor tartalékként ez adja
+  /// a csapatmérkőzéseket.
+  static const theSportsDbIncompleteWarning =
+      'TheSportsDB: az ingyenes feed hiányos lehet – csak a legutóbbi hazai '
+      'és a következő mérkőzést adja, ezért újabb idegenbeli eredmény '
+      'hiányozhat.';
 
   /// Visszafelé kompatibilis: a közös HTTP-klienst nem zárja le.
   void close() => _client.close();
@@ -74,7 +95,21 @@ class FootballDataRepository {
   Future<List<FootballGame>> fetchRecentTeamGames(String teamName) async =>
       (await fetchTeamGames(teamName)).recent;
 
-  Future<FootballTeamGames> fetchTeamGames(String teamName) async {
+  /// A csapat lejátszott és közelgő mérkőzései. A források sorrendje:
+  ///
+  /// 1. football-data.org (kulccsal, ha a csapat a Free listában van);
+  /// 2. ESPN (kulcs nélkül): a csapat a [EspnSoccerTeamRepository
+  ///    .resolveClub] bajnokságaiból, a meccsek a csapatmenetrendből;
+  /// 3. TheSportsDB Free v1 (csak tartalék: az ingyenes kulcs a legutóbbi
+  ///    hazai és a következő meccset adja – ilyenkor figyelmeztetés jár);
+  /// 4. OpenLigaDB a német csapatoknál, ami még hiányzik.
+  ///
+  /// A [competition] (ha ismert, például „MLS”) az ESPN-bajnokságok
+  /// keresési sorrendjét segíti.
+  Future<FootballTeamGames> fetchTeamGames(
+    String teamName, {
+    String? competition,
+  }) async {
     final warnings = <String>[];
     if (_client.config.footballDataKey.isNotEmpty) {
       try {
@@ -94,7 +129,11 @@ class FootballDataRepository {
         });
         final games = parseMatches(data, teamName, teamId: id);
         if (games.isNotEmpty) {
-          return FootballTeamGames(recent: games, warnings: warnings);
+          return FootballTeamGames(
+            recent: games,
+            warnings: warnings,
+            source: 'football-data.org',
+          );
         }
       } on StateError catch (error) {
         warnings.add('football-data.org: ${error.message}');
@@ -110,8 +149,27 @@ class FootballDataRepository {
       }
     }
 
+    // ESPN: teljes szezon (minden sorozat) és a menetrend, kulcs nélkül.
+    try {
+      final espn = await espnClubGames(teamName, competition: competition);
+      if (espn != null) {
+        warnings.addAll(espn.warnings);
+        if (espn.recent.isNotEmpty || espn.upcoming.isNotEmpty) {
+          return FootballTeamGames(
+            recent: espn.recent.take(5).toList(growable: false),
+            upcoming: espn.upcoming.take(5).toList(growable: false),
+            warnings: warnings,
+            source: espn.source,
+          );
+        }
+      }
+    } catch (error) {
+      warnings.add('ESPN: ${friendlyError(error)}');
+    }
+
     var recent = <FootballGame>[];
     var upcoming = <FootballGame>[];
+    final sources = <String>[];
     Object? sportsDbError;
     StackTrace? sportsDbStack;
     try {
@@ -128,6 +186,10 @@ class FootballDataRepository {
           ..sort((a, b) => b.date.compareTo(a.date));
         upcoming = parseTheSportsDbMatches(payloads[1], sportsDbId)
           ..sort((a, b) => a.date.compareTo(b.date));
+        if (recent.isNotEmpty || upcoming.isNotEmpty) {
+          sources.add('TheSportsDB');
+          warnings.add(theSportsDbIncompleteWarning);
+        }
       }
     } catch (error, stack) {
       sportsDbError = error;
@@ -142,8 +204,12 @@ class FootballDataRepository {
           teamName,
         );
         if (german != null) {
+          final before = recent.length + upcoming.length;
           if (recent.isEmpty) recent = german.recentGames();
           if (upcoming.isEmpty) upcoming = german.upcomingGames();
+          if (recent.length + upcoming.length > before) {
+            sources.add('OpenLigaDB');
+          }
         }
       } catch (error) {
         if (sportsDbError == null) {
@@ -158,8 +224,92 @@ class FootballDataRepository {
       recent: recent.take(5).toList(growable: false),
       upcoming: upcoming.take(5).toList(growable: false),
       warnings: warnings,
+      source: sources.join(' + '),
     );
   }
+
+  /// A csapat mérkőzései az ESPN-ből (a teljes lista, nem csak 5); `null`,
+  /// ha az ESPN egyik átnézett bajnokságában sincs ilyen csapat. Ha csak a
+  /// menetrend vagy csak az eredménylista hibázik, a másik megmarad, és a
+  /// hiba figyelmeztetésként jön; ha mindkettő, a hiba továbbmegy.
+  Future<FootballTeamGames?> espnClubGames(
+    String teamName, {
+    String? competition,
+  }) async {
+    final club = await _espn.resolveClub(teamName, competition: competition);
+    if (club == null) return null;
+    final (
+      (played, playedError, playedStack),
+      (fixtures, fixturesError, _),
+    ) = await (
+      _capture(() => _espn.clubResults(club)),
+      _capture(() => _espn.clubFixtures(club)),
+    ).wait;
+    if (playedError != null && fixturesError != null) {
+      Error.throwWithStackTrace(playedError, playedStack!);
+    }
+    return FootballTeamGames(
+      recent: [
+        for (final game in played ?? const <EspnSoccerGame>[])
+          footballGameFromEspn(game, club),
+      ],
+      upcoming: [
+        for (final game in fixtures ?? const <EspnScheduledGame>[])
+          footballFixtureFromEspn(game),
+      ],
+      warnings: [
+        if (playedError != null) 'ESPN: ${friendlyError(playedError)}',
+        if (fixturesError != null) 'ESPN: ${friendlyError(fixturesError)}',
+      ],
+      source: club.sourceLabel,
+    );
+  }
+
+  static Future<(T?, Object?, StackTrace?)> _capture<T>(
+    Future<T> Function() run,
+  ) async {
+    try {
+      return (await run(), null, null);
+    } catch (error, stack) {
+      return (null, error, stack);
+    }
+  }
+
+  /// Egy ESPN-eredmény a közös [FootballGame] alakban (lenyitható
+  /// ESPN-idővonallal).
+  static FootballGame footballGameFromEspn(
+    EspnSoccerGame game,
+    EspnSoccerClub club,
+  ) => FootballGame(
+    date: game.date.toLocal(),
+    opponent: game.opponent,
+    score: game.score,
+    result: switch (game.result) {
+      'GYŐZELEM' => FootballResult.win,
+      'VERESÉG' => FootballResult.loss,
+      _ => FootballResult.draw,
+    },
+    competition: game.competition,
+    homeAway: game.home ? 'home' : 'away',
+    espnMatch: game.eventId == null
+        ? null
+        : EspnMatchRef(
+            eventId: game.eventId!,
+            league: game.league ?? club.league,
+          ),
+  );
+
+  /// Egy ESPN-menetrendbeli (még le nem játszott) meccs [FootballGame]
+  /// alakban.
+  static FootballGame footballFixtureFromEspn(EspnScheduledGame game) =>
+      FootballGame(
+        date: game.start,
+        opponent: game.opponent,
+        score: '–',
+        result: FootballResult.unknown,
+        competition: game.competition,
+        homeAway: game.homeAway,
+      );
 
   static int? parseFootballDataTeamId(
     Map<String, dynamic> data,
