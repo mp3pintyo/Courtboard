@@ -16,7 +16,17 @@ class _WnbaWehoopCardState extends State<_WnbaWehoopCard> {
   @override
   void initState() {
     super.initState();
-    _games = WnbaWehoopRepository().recentGames(widget.athleteName);
+    _load();
+  }
+
+  void _load() {
+    _games = WnbaWehoopRepository.shared.recentGames(widget.athleteName);
+  }
+
+  @override
+  void didUpdateWidget(covariant _WnbaWehoopCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.athleteName != widget.athleteName) _load();
   }
 
   @override
@@ -35,9 +45,10 @@ class _WnbaWehoopCardState extends State<_WnbaWehoopCard> {
             Text('WNBA box score-ok letöltése és helyi gyorsítótárazása…'),
           ],
         ),
-        _ when snapshot.hasError => const Text(
-          'A wehoop WNBA-adat most nem érhető el. A cache vagy a hálózat később újrapróbálható.',
-          style: TextStyle(color: _muted),
+        _ when snapshot.hasError => CourtboardErrorState(
+          message:
+              'A wehoop WNBA-adat most nem érhető el. ${friendlyError(snapshot.error!)}',
+          onRetry: () => setState(_load),
         ),
         _ when snapshot.data == null || snapshot.data!.isEmpty => const Text(
           'Ehhez a játékoshoz nem érkezett 2026-os wehoop box score rekord.',
@@ -74,6 +85,11 @@ class _WnbaWehoopCardState extends State<_WnbaWehoopCard> {
                   ),
                 ),
                 const _Pill(text: 'WEHOOP · ESPN', color: _olive),
+                IconButton(
+                  tooltip: 'Újratöltés',
+                  onPressed: () => setState(_load),
+                  icon: const Icon(Icons.refresh),
+                ),
               ],
             ),
             const SizedBox(height: 6),
@@ -176,9 +192,9 @@ class _WnbaBasketballReferenceCardState
               ],
             )
           else if (snapshot.hasError)
-            Text(
-              'Basketball Reference WNBA hiba: ${snapshot.error}',
-              style: const TextStyle(color: _muted),
+            CourtboardErrorState.fromError(
+              snapshot.error!,
+              onRetry: () => setState(_load),
             )
           else
             BasketballReferenceGameList(
@@ -284,9 +300,9 @@ class _WnbaRapidApiCardState extends State<_WnbaRapidApiCard> {
               ],
             )
           else if (snapshot.hasError)
-            Text(
-              'RapidAPI WNBA hiba: ${snapshot.error}',
-              style: const TextStyle(color: _muted),
+            CourtboardErrorState.fromError(
+              snapshot.error!,
+              onRetry: () => setState(_load),
             )
           else if (snapshot.data == null)
             const Text(

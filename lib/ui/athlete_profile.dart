@@ -2,7 +2,9 @@ part of '../main.dart';
 
 class _ProfilePage extends StatelessWidget {
   const _ProfilePage({
+    super.key,
     required this.athlete,
+    required this.backLabel,
     required this.apiConfig,
     required this.videos,
     required this.note,
@@ -15,6 +17,9 @@ class _ProfilePage extends StatelessWidget {
     required this.onToggleAlert,
   });
   final Athlete athlete;
+
+  /// A „Vissza” gomb felirata a megnyitás helye szerint.
+  final String backLabel;
   final SportsApiConfig apiConfig;
   final List<SavedYouTubeVideo> videos;
   final String note;
@@ -45,7 +50,7 @@ class _ProfilePage extends StatelessWidget {
                 TextButton.icon(
                   onPressed: onBack,
                   icon: const Icon(Icons.arrow_back),
-                  label: const Text('Vissza az áttekintéshez'),
+                  label: Text(backLabel),
                 ),
                 const Spacer(),
                 IconButton(
@@ -160,26 +165,31 @@ class _ProfilePage extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 12),
-              LayoutBuilder(
-                builder: (context, constraints) {
-                  final w = (constraints.maxWidth - 48) / 4;
-                  return Wrap(
-                    spacing: 16,
-                    runSpacing: 16,
-                    children: athlete.metrics
-                        .map(
-                          (metric) => SizedBox(
-                            width: w,
-                            child: _MetricCard(
-                              metric: metric,
-                              accent: athlete.accent,
+              if (athlete.metrics.isEmpty)
+                const _ProfileEmptyNote(
+                  'Ehhez a sportolóhoz még nincs valós szezonadat. A számok csak élő adatforrásból jelennek meg.',
+                )
+              else
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final w = (constraints.maxWidth - 48) / 4;
+                    return Wrap(
+                      spacing: 16,
+                      runSpacing: 16,
+                      children: athlete.metrics
+                          .map(
+                            (metric) => SizedBox(
+                              width: w,
+                              child: _MetricCard(
+                                metric: metric,
+                                accent: athlete.accent,
+                              ),
                             ),
-                          ),
-                        )
-                        .toList(),
-                  );
-                },
-              ),
+                          )
+                          .toList(),
+                    );
+                  },
+                ),
               const SizedBox(height: 28),
               _SportTemplate(athlete: athlete),
               if (athlete.sport != 'NBA' && !ligaFProfile) ...[
@@ -198,9 +208,14 @@ class _ProfilePage extends StatelessWidget {
                   style: TextStyle(color: _muted),
                 ),
                 const SizedBox(height: 12),
-                ...athlete.matches.map(
-                  (match) => _MatchRow(match: match, accent: athlete.accent),
-                ),
+                if (athlete.matches.isEmpty)
+                  const _ProfileEmptyNote(
+                    'Még nincs megjeleníthető mérkőzésadat ehhez a sportolóhoz.',
+                  )
+                else
+                  ...athlete.matches.map(
+                    (match) => _MatchRow(match: match, accent: athlete.accent),
+                  ),
               ],
               const SizedBox(height: 28),
             ],
@@ -255,4 +270,21 @@ class _ProfilePage extends StatelessWidget {
       ),
     );
   }
+}
+
+class _ProfileEmptyNote extends StatelessWidget {
+  const _ProfileEmptyNote(this.message);
+  final String message;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    width: double.infinity,
+    padding: const EdgeInsets.all(18),
+    decoration: BoxDecoration(
+      color: _paper,
+      borderRadius: BorderRadius.circular(20),
+      border: Border.all(color: const Color(0xFFD8D4C8)),
+    ),
+    child: Text(message, style: const TextStyle(color: _muted)),
+  );
 }

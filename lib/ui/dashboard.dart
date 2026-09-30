@@ -5,38 +5,48 @@ class _Dashboard extends StatefulWidget {
     required this.athletes,
     required this.search,
     required this.sort,
+    required this.filter,
+    required this.onFilterChanged,
     required this.onOpenSettings,
     required this.onOpen,
+    required this.onAddAthlete,
   });
   final List<Athlete> athletes;
   final TextEditingController search;
   final String sort;
+
+  /// A sportág-szűrő a shellben él, így a profil megnyitása után megmarad.
+  final String filter;
+  final ValueChanged<String> onFilterChanged;
   final VoidCallback onOpenSettings;
   final ValueChanged<Athlete> onOpen;
+  final VoidCallback onAddAthlete;
   @override
   State<_Dashboard> createState() => _DashboardState();
 }
 
 class _DashboardState extends State<_Dashboard> {
-  String filter = 'Mind';
   @override
   Widget build(BuildContext context) {
+    final filter = widget.filter;
+    final query = normalizeAthleteName(widget.search.text.trim());
     final list = sortAthletes(
       widget.athletes
           .where(
             (a) =>
                 (filter == 'Mind' || a.sport == filter) &&
-                (widget.search.text.isEmpty ||
-                    a.name.toLowerCase().contains(
-                      widget.search.text.toLowerCase(),
-                    )),
+                (query.isEmpty || normalizeAthleteName(a.name).contains(query)),
           )
           .toList(),
       widget.sort,
     );
+    final focus = list.isEmpty
+        ? null
+        : sortAthletes(widget.athletes, widget.sort).first;
     return Container(
       color: _canvas,
       child: SingleChildScrollView(
+        key: const PageStorageKey('dashboard-scroll'),
         padding: const EdgeInsets.fromLTRB(34, 28, 34, 48),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -47,11 +57,10 @@ class _DashboardState extends State<_Dashboard> {
               onOpenSettings: widget.onOpenSettings,
             ),
             const SizedBox(height: 26),
-            _WelcomeStrip(
-              athlete: widget.athletes.first,
-              onOpen: () => widget.onOpen(widget.athletes.first),
-            ),
-            const SizedBox(height: 32),
+            if (focus != null) ...[
+              _WelcomeStrip(athlete: focus, onOpen: () => widget.onOpen(focus)),
+              const SizedBox(height: 32),
+            ],
             Wrap(
               spacing: 28,
               runSpacing: 14,
@@ -87,7 +96,7 @@ class _DashboardState extends State<_Dashboard> {
                                 context,
                               ).colorScheme.secondaryContainer,
                               side: const BorderSide(color: Color(0xFFCAC7BC)),
-                              onSelected: (_) => setState(() => filter = item),
+                              onSelected: (_) => widget.onFilterChanged(item),
                             ),
                           )
                           .toList(),
@@ -95,38 +104,100 @@ class _DashboardState extends State<_Dashboard> {
               ],
             ),
             const SizedBox(height: 16),
-            LayoutBuilder(
-              builder: (context, constraints) {
-                final columns = constraints.maxWidth > 1180
-                    ? 4
-                    : constraints.maxWidth > 820
-                    ? 3
-                    : 2;
-                final gap = 16.0;
-                final width =
-                    (constraints.maxWidth - gap * (columns - 1)) / columns;
-                return Wrap(
-                  spacing: gap,
-                  runSpacing: gap,
-                  children: list
-                      .map(
-                        (athlete) => SizedBox(
-                          width: width,
-                          child: _AthleteTile(
-                            athlete: athlete,
-                            onTap: () => widget.onOpen(athlete),
+            if (list.isEmpty)
+              _EmptyDashboard(
+                hasAthletes: widget.athletes.isNotEmpty,
+                onAddAthlete: widget.onAddAthlete,
+              )
+            else
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final columns = constraints.maxWidth > 1180
+                      ? 4
+                      : constraints.maxWidth > 820
+                      ? 3
+                      : 2;
+                  final gap = 16.0;
+                  final width =
+                      (constraints.maxWidth - gap * (columns - 1)) / columns;
+                  return Wrap(
+                    spacing: gap,
+                    runSpacing: gap,
+                    children: list
+                        .map(
+                          (athlete) => SizedBox(
+                            width: width,
+                            child: _AthleteTile(
+                              athlete: athlete,
+                              onTap: () => widget.onOpen(athlete),
+                            ),
                           ),
-                        ),
-                      )
-                      .toList(),
-                );
-              },
-            ),
+                        )
+                        .toList(),
+                  );
+                },
+              ),
           ],
         ),
       ),
     );
   }
+}
+
+/// Napszakhoz illő köszönés a nyitóoldal fejlécéhez.
+String courtboardGreeting(DateTime now) {
+  final hour = now.hour;
+  if (hour >= 4 && hour < 10) return 'Jó reggelt.';
+  if (hour >= 10 && hour < 18) return 'Szép napot.';
+  return 'Jó estét.';
+}
+
+class _EmptyDashboard extends StatelessWidget {
+  const _EmptyDashboard({
+    required this.hasAthletes,
+    required this.onAddAthlete,
+  });
+  final bool hasAthletes;
+  final VoidCallback onAddAthlete;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    key: const Key('dashboard-empty-state'),
+    width: double.infinity,
+    padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 40),
+    decoration: BoxDecoration(
+      color: _paper,
+      borderRadius: BorderRadius.circular(24),
+    ),
+    child: Column(
+      children: [
+        const Icon(Icons.person_search_outlined, size: 46, color: _muted),
+        const SizedBox(height: 12),
+        Text(
+          hasAthletes
+              ? 'Nincs a szűrésnek megfelelő sportoló.'
+              : 'Még nem követsz egyetlen sportolót sem.',
+          textAlign: TextAlign.center,
+          style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w900),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          hasAthletes
+              ? 'Módosítsd a keresést vagy a sportág-szűrőt, vagy adj hozzá új sportolót.'
+              : 'Adj hozzá egy sportolót, és itt jelenik meg a profilja.',
+          textAlign: TextAlign.center,
+          style: const TextStyle(color: _muted),
+        ),
+        const SizedBox(height: 18),
+        FilledButton.icon(
+          key: const Key('dashboard-add-athlete'),
+          onPressed: onAddAthlete,
+          icon: const Icon(Icons.person_add_alt_1),
+          label: const Text('Sportoló hozzáadása'),
+        ),
+      ],
+    ),
+  );
 }
 
 class _Header extends StatelessWidget {
@@ -141,21 +212,21 @@ class _Header extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Row(
     children: [
-      const Expanded(
+      Expanded(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Jó reggelt.',
-              style: TextStyle(
+              courtboardGreeting(DateTime.now()),
+              style: const TextStyle(
                 fontSize: 35,
                 height: .9,
                 fontWeight: FontWeight.w900,
                 letterSpacing: -2,
               ),
             ),
-            SizedBox(height: 10),
-            Text(
+            const SizedBox(height: 10),
+            const Text(
               'A te személyes sportközpontod',
               style: TextStyle(color: _muted, fontWeight: FontWeight.w600),
             ),
@@ -180,8 +251,6 @@ class _Header extends StatelessWidget {
         ),
       ),
       const SizedBox(width: 10),
-      _roundIcon(Icons.notifications_none_rounded),
-      const SizedBox(width: 8),
       _roundIcon(
         Icons.settings_outlined,
         onPressed: onOpenSettings,
@@ -277,9 +346,10 @@ class _WelcomeStrip extends StatelessWidget {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      athlete.showsTeam
-                          ? '${athlete.team} · ${athlete.country}'
-                          : athlete.country,
+                      [
+                        if (athlete.showsTeam) athlete.team,
+                        if (athlete.showsCountry) athlete.country,
+                      ].join(' · '),
                       style: const TextStyle(
                         color: Colors.white70,
                         fontSize: 16,
@@ -306,12 +376,21 @@ class _WelcomeStrip extends StatelessWidget {
                   ],
                 ),
               ),
-              _HeroStat(value: athlete.seasonValue, label: athlete.seasonLabel),
-              const SizedBox(width: 14),
-              _HeroStat(
-                value: athlete.primaryValue,
-                label: athlete.primaryLabel,
-              ),
+              // Csak valós, kitöltött értéket mutatunk; üres mezőnél nincs doboz.
+              if (athlete.seasonValue.isNotEmpty &&
+                  athlete.seasonLabel.isNotEmpty) ...[
+                _HeroStat(
+                  value: athlete.seasonValue,
+                  label: athlete.seasonLabel,
+                ),
+                const SizedBox(width: 14),
+              ],
+              if (athlete.primaryValue.isNotEmpty &&
+                  athlete.primaryLabel.isNotEmpty)
+                _HeroStat(
+                  value: athlete.primaryValue,
+                  label: athlete.primaryLabel,
+                ),
             ],
           ),
         ),

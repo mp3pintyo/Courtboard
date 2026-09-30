@@ -62,16 +62,7 @@ class _DataStatusPageState extends State<_DataStatusPage> {
     ).whenComplete(controller.dispose);
   }
 
-  Future<void> _openDocs(String url) async {
-    try {
-      await Process.start('cmd', ['/c', 'start', '', url]);
-    } catch (_) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('A dokumentáció nem nyitható meg.')),
-      );
-    }
-  }
+  Future<void> _openDocs(String url) => openExternalUrl(context, url);
 
   @override
   Widget build(BuildContext context) {

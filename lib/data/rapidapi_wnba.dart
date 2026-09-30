@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'file_util.dart';
 import 'sports_api.dart';
 import 'wehoop_wnba.dart';
 
@@ -27,21 +28,21 @@ class WnbaRapidProfile {
 }
 
 class WnbaRapidApiRepository {
+  /// A [wehoop] alapértelmezése a közös [WnbaWehoopRepository.shared]
+  /// példány, így a szezon-CSV nem töltődik le és dolgozódik fel minden
+  /// profilmegnyitáskor újra.
   WnbaRapidApiRepository(this.config,
-      {this.cacheLifetime = const Duration(days: 7)});
+      {this.cacheLifetime = const Duration(days: 7),
+      WnbaWehoopRepository? wehoop})
+      : _wehoop = wehoop ?? WnbaWehoopRepository.shared;
 
   final SportsApiConfig config;
   final Duration cacheLifetime;
+  final WnbaWehoopRepository _wehoop;
 
   Future<WnbaRapidProfile?> playerProfile(String athleteName) async {
     if (config.rapidApiDartsKey.trim().isEmpty) return null;
-    final wehoop = WnbaWehoopRepository();
-    late List<WnbaGameLog> games;
-    try {
-      games = await wehoop.recentGames(athleteName);
-    } finally {
-      wehoop.close();
-    }
+    final games = await _wehoop.recentGames(athleteName);
     final playerId = games.isEmpty ? '' : games.first.athleteId;
     if (playerId.isEmpty) return null;
 
@@ -57,8 +58,7 @@ class WnbaRapidApiRepository {
       final advanced = await client.rapidApiWnba(
           '/player-advanced-stats', {'playerId': playerId, 'type': 'wnba'});
       final payload = {'bio': bio, 'advanced': advanced};
-      await cache.parent.create(recursive: true);
-      await cache.writeAsString(jsonEncode(payload));
+      await writeFileAtomic(cache, jsonEncode(payload));
       return parseProfile(playerId, payload);
     } catch (_) {
       final stale = await _readCache(cache, freshOnly: false);
@@ -86,9 +86,8 @@ class WnbaRapidApiRepository {
   }
 
   static File _cacheFile(String playerId) {
-    final appData = Platform.environment['APPDATA'] ?? Directory.current.path;
-    return File(
-        '$appData/courtboard_cache/rapidapi_wnba/player_$playerId.json');
+    return File('${appDataPath()}/courtboard_cache/rapidapi_wnba/'
+        'player_${cacheSlug(playerId)}.json');
   }
 
   static WnbaRapidProfile parseProfile(

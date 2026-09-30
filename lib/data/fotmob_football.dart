@@ -1,12 +1,13 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'api_sports.dart' show athleteNamesMatch, normalizeAthleteName;
+import 'api_sports.dart' show findAthleteByName, normalizeAthleteName;
 import 'football_season.dart';
+import 'http_util.dart';
 
 class FotMobFootballRepository {
   FotMobFootballRepository({HttpClient? client})
-      : _client = client ?? HttpClient();
+      : _client = client ?? createHttpClient();
 
   final HttpClient _client;
   static final Map<String, _CachedFootballStat> _cache = {};
@@ -54,15 +55,10 @@ class FotMobFootballRepository {
   }
 
   Future<Map<String, dynamic>> _get(Uri uri) async {
-    final request = await _client.getUrl(uri);
-    request.headers
-      ..set(HttpHeaders.userAgentHeader, 'Courtboard/1.0')
-      ..set(HttpHeaders.acceptHeader, 'application/json');
-    final response = await request.close();
-    final body = await utf8.decoder.bind(response).join();
-    if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw HttpException('FotMob HTTP ${response.statusCode}', uri: uri);
-    }
+    final body = await httpGetText(_client, uri, provider: 'FotMob', headers: {
+      HttpHeaders.userAgentHeader: 'Courtboard/1.0',
+      HttpHeaders.acceptHeader: 'application/json',
+    });
     final decoded = jsonDecode(body);
     return decoded is Map
         ? Map<String, dynamic>.from(decoded)
@@ -72,18 +68,15 @@ class FotMobFootballRepository {
   static int? parsePlayerId(Map<String, dynamic> payload, String athleteName) {
     final suggestions = payload['squadMemberSuggest'];
     if (suggestions is! List) return null;
-    final normalized = normalizeAthleteName(athleteName);
     final candidates = <Map>[];
     for (final group in suggestions.whereType<Map>()) {
       final options = group['options'];
       if (options is List) candidates.addAll(options.whereType<Map>());
     }
-    if (candidates.isEmpty) return null;
-    final exact = candidates.cast<Map?>().firstWhere((candidate) {
-      final text = '${candidate?['text'] ?? ''}'.split('|').first;
-      return athleteNamesMatch(text, normalized);
-    }, orElse: () => candidates.first);
-    final payloadMap = exact?['payload'];
+    final exact = findAthleteByName(candidates, athleteName,
+        (candidate) => '${candidate['text'] ?? ''}'.split('|').first);
+    if (exact == null) return null;
+    final payloadMap = exact['payload'];
     return _asInt(payloadMap is Map ? payloadMap['id'] : null);
   }
 

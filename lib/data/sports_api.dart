@@ -1,5 +1,7 @@
-import 'dart:convert';
 import 'dart:io';
+
+import 'api_sports.dart' show findAthleteByName;
+import 'http_util.dart';
 
 /// A kulcsokat környezeti változóból olvassuk, hogy ne kerüljenek bele a Flutter
 /// forráskódjába. A desktop appból kikerülő kulcsok ettől még nem teljesen
@@ -44,26 +46,18 @@ class SportsApiClient {
       : config = config ?? SportsApiConfig.fromEnvironment();
 
   final SportsApiConfig config;
-  final HttpClient _http = HttpClient();
+  final HttpClient _http = createHttpClient();
   static const theSportsDbFreeKey = '123';
 
+  /// Közös GET: 10 mp kapcsolódási és 20 mp teljes időkorláttal. A hibák
+  /// [CourtboardHttpException]-ként érkeznek, query-paraméterek (és így
+  /// URL-ben küldött kulcsok) nélkül.
   Future<Map<String, dynamic>> _get(
-    String url, {
+    Uri uri, {
+    required String provider,
     Map<String, String> headers = const {},
-  }) async {
-    final request = await _http.getUrl(Uri.parse(url));
-    headers.forEach(request.headers.set);
-    final response = await request.close();
-    final body = await response.transform(utf8.decoder).join();
-    if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw HttpException('API hiba: ${response.statusCode}',
-          uri: Uri.parse(url));
-    }
-    final decoded = jsonDecode(body);
-    return decoded is Map<String, dynamic>
-        ? decoded
-        : <String, dynamic>{'data': decoded};
-  }
+  }) =>
+      httpGetJson(_http, uri, provider: provider, headers: headers);
 
   /// API-Sports hívó. A domain sportonként eltér: football, basketball/NBA,
   /// american-football/NFL; a konkrét liga-coverage-et az API dokumentációban
@@ -77,7 +71,8 @@ class SportsApiClient {
       throw StateError('API_SPORTS_KEY nincs beállítva.');
     }
     final uri = Uri.https('v3.$sportDomain.api-sports.io', path, query);
-    return _get(uri.toString(),
+    return _get(uri,
+        provider: 'API-Sports',
         headers: {'x-apisports-key': config.apiSportsKey});
   }
 
@@ -88,7 +83,8 @@ class SportsApiClient {
       throw StateError('BALLDONTLIE_KEY nincs beállítva.');
     }
     final uri = Uri.https('api.balldontlie.io', path, query);
-    return _get(uri.toString(),
+    return _get(uri,
+        provider: 'BALLDONTLIE',
         headers: {'Authorization': config.balldontlieKey});
   }
 
@@ -100,7 +96,8 @@ class SportsApiClient {
           'FOOTBALL_DATA_KEY nincs a futó alkalmazás környezetében.');
     }
     final uri = Uri.https('api.football-data.org', path, query);
-    return _get(uri.toString(),
+    return _get(uri,
+        provider: 'football-data.org',
         headers: {'X-Auth-Token': config.footballDataKey});
   }
 
@@ -108,7 +105,7 @@ class SportsApiClient {
   Future<Map<String, dynamic>> theSportsDb(String path,
       [Map<String, String> query = const {}]) {
     final uri = theSportsDbUri(path, query);
-    return _get(uri.toString());
+    return _get(uri, provider: 'TheSportsDB');
   }
 
   /// Sportbex Darts API a RapidAPI gatewayen keresztül. A jelenlegi API
@@ -120,7 +117,7 @@ class SportsApiClient {
       throw StateError('RAPIDAPI_DARTS_KEY nincs beállítva.');
     }
     final uri = Uri.https('darts-api.p.rapidapi.com', path, query);
-    return _get(uri.toString(), headers: {
+    return _get(uri, provider: 'RapidAPI Darts', headers: {
       'X-RapidAPI-Key': config.rapidApiDartsKey,
       'X-RapidAPI-Host': 'darts-api.p.rapidapi.com',
     });
@@ -134,7 +131,7 @@ class SportsApiClient {
       throw StateError('RapidAPI kulcs nincs beállítva.');
     }
     final uri = Uri.https('wnba-api.p.rapidapi.com', path, query);
-    return _get(uri.toString(), headers: {
+    return _get(uri, provider: 'RapidAPI WNBA', headers: {
       'X-RapidAPI-Key': config.rapidApiDartsKey,
       'X-RapidAPI-Host': 'wnba-api.p.rapidapi.com',
     });
@@ -149,19 +146,39 @@ class SportsApiClient {
     }
     final uri =
         Uri.https('api.livetennisapi.com', '/api/public/v1$path', query);
-    return _get(uri.toString(), headers: {
+    return _get(uri, provider: 'Live Tennis API', headers: {
       'Authorization': 'Bearer ${config.liveTennisKey.trim()}',
     });
   }
 
-  /// ESPN liga-paraméteres labdarúgó scoreboard. A Liga F kódja esp.w.1.
-  Future<Map<String, dynamic>> espnSoccerScoreboard(String league, int year) {
-    final uri = Uri.https(
-        'site.api.espn.com',
-        '/apis/site/v2/sports/soccer/$league/scoreboard',
-        {'dates': '$year', 'limit': '100'});
-    return _get(uri.toString());
-  }
+  /// ESPN liga-paraméteres labdarúgó scoreboard a [from]–[to] napok között
+  /// (mindkettő beleértve). A Liga F kódja esp.w.1.
+  Future<Map<String, dynamic>> espnSoccerScoreboard(
+    String league, {
+    required DateTime from,
+    required DateTime to,
+    int limit = 200,
+  }) =>
+      _get(espnScoreboardUri(league, from: from, to: to, limit: limit),
+          provider: 'ESPN');
+
+  static Uri espnScoreboardUri(
+    String league, {
+    required DateTime from,
+    required DateTime to,
+    int limit = 200,
+  }) =>
+      Uri.https(
+          'site.api.espn.com', '/apis/site/v2/sports/soccer/$league/scoreboard', {
+        'dates': '${espnDate(from)}-${espnDate(to)}',
+        'limit': '$limit',
+      });
+
+  /// ESPN `YYYYMMDD` dátumformátum.
+  static String espnDate(DateTime value) =>
+      '${value.year.toString().padLeft(4, '0')}'
+      '${value.month.toString().padLeft(2, '0')}'
+      '${value.day.toString().padLeft(2, '0')}';
 
   static Uri theSportsDbUri(String path,
           [Map<String, String> query = const {}]) =>
@@ -189,17 +206,23 @@ class SportsApiClient {
   Future<Map<String, dynamic>?> findTheSportsDbPlayer(
       String athleteName) async {
     final result = await theSportsDb('/searchplayers.php', {'p': athleteName});
+    return findTheSportsDbPlayerIn(result, athleteName);
+  }
+
+  /// A keresőtalálatok közül a névhez illő játékos; egyezés nélkül `null`,
+  /// nem az első (esetleg teljesen más) találat.
+  static Map<String, dynamic>? findTheSportsDbPlayerIn(
+      Map<String, dynamic> result, String athleteName) {
     final players = result['player'];
-    if (players is! List || players.isEmpty) return null;
-    final normalized = _normalizeName(athleteName);
-    final entries = players.whereType<Map>().toList();
-    final match = entries.cast<Map?>().firstWhere(
-        (entry) => _normalizeName('${entry?['strPlayer'] ?? ''}') == normalized,
-        orElse: () => entries.first);
+    if (players is! List) return null;
+    final match = findAthleteByName(players.whereType<Map>(), athleteName,
+        (entry) => '${entry['strPlayer'] ?? ''}');
     return match == null ? null : Map<String, dynamic>.from(match);
   }
 
   /// YouTube keresés: a playlistünk csak a returned videoId-kat menti el.
+  /// A kulcs a query-ben utazik, de a [CourtboardHttpException] üzenete nem
+  /// tartalmaz query-paramétert, így a kulcs hibaüzenetbe sem kerülhet.
   Future<List<Map<String, dynamic>>> searchYouTube(String query) async {
     if (config.youtubeKey.isEmpty) return const [];
     final uri = Uri.https('www.googleapis.com', '/youtube/v3/search', {
@@ -209,7 +232,7 @@ class SportsApiClient {
       'q': query,
       'key': config.youtubeKey,
     });
-    final result = await _get(uri.toString());
+    final result = await _get(uri, provider: 'YouTube Data API');
     final items = result['items'];
     return items is List
         ? items.whereType<Map<String, dynamic>>().toList()
@@ -218,12 +241,6 @@ class SportsApiClient {
 
   void close() => _http.close(force: true);
 }
-
-String _normalizeName(String value) => value
-    .toLowerCase()
-    .replaceAll(RegExp(r'[^a-z0-9áéíóöőúüűčćšž ]'), '')
-    .replaceAll(RegExp(r'\s+'), ' ')
-    .trim();
 
 /// Egységes sportoló-modell, amelyből a UI később providerfüggetlenül dolgozhat.
 class UnifiedAthleteRecord {

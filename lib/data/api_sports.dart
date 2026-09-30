@@ -1,7 +1,8 @@
 import 'dart:convert';
-import 'dart:io';
 
+import 'football_names.dart';
 import 'football_season.dart';
+import 'http_util.dart';
 
 class ApiSportsQuota {
   const ApiSportsQuota({required this.used, required this.limit});
@@ -83,21 +84,18 @@ class ApiSportsPlayer {
 class ApiSportsRepository {
   ApiSportsRepository(this.apiKey);
   final String apiKey;
-  static final Map<String, bool> _freePlanByKey = {};
+  /// Kulcsonként egyetlen `/status` hívás: az egyidejű első hívók ugyanazt a
+  /// Future-t kapják, hiba esetén a bejegyzés törlődik, így később újrapróbálható.
+  static final Map<String, Future<bool>> _freePlanByKey = {};
   Future<Map<String, dynamic>> get(String host, String path,
       [Map<String, String> query = const {}]) async {
     if (apiKey.trim().isEmpty) {
       throw StateError('API-Sports kulcs nincs beállítva.');
     }
-    final client = HttpClient();
+    final client = createHttpClient();
     try {
-      final request = await client.getUrl(Uri.https(host, path, query));
-      request.headers.set('x-apisports-key', apiKey);
-      final response = await request.close();
-      final body = await utf8.decoder.bind(response).join();
-      if (response.statusCode < 200 || response.statusCode >= 300) {
-        throw HttpException('API-Sports HTTP ${response.statusCode}');
-      }
+      final body = await httpGetText(client, Uri.https(host, path, query),
+          provider: 'API-Sports', headers: {'x-apisports-key': apiKey});
       final payload = Map<String, dynamic>.from(jsonDecode(body) as Map);
       final errors = payload['errors'];
       if (errors is Map && errors.isNotEmpty) {
@@ -112,17 +110,26 @@ class ApiSportsRepository {
   Future<ApiSportsQuota> status(String host) async =>
       ApiSportsQuota.fromStatus(await get(host, '/status'));
 
-  Future<bool> _usesFreePlan(String host) async {
-    final cached = _freePlanByKey[apiKey];
+  Future<bool> _usesFreePlan(String host) {
+    final cacheKey = '$host|$apiKey';
+    final cached = _freePlanByKey[cacheKey];
     if (cached != null) return cached;
-    final payload = await get(host, '/status');
-    final response = payload['response'];
-    final subscription = response is Map && response['subscription'] is Map
-        ? response['subscription'] as Map
-        : const {};
-    final isFree = '${subscription['plan'] ?? ''}'.toLowerCase() == 'free';
-    _freePlanByKey[apiKey] = isFree;
-    return isFree;
+    final future = () async {
+      final payload = await get(host, '/status');
+      final response = payload['response'];
+      final subscription = response is Map && response['subscription'] is Map
+          ? response['subscription'] as Map
+          : const {};
+      return '${subscription['plan'] ?? ''}'.toLowerCase() == 'free';
+    }();
+    _freePlanByKey[cacheKey] = future;
+    future.catchError((Object _) {
+      if (identical(_freePlanByKey[cacheKey], future)) {
+        _freePlanByKey.remove(cacheKey);
+      }
+      return false;
+    });
+    return future;
   }
 
   Future<List<ApiSportsGame>> footballRecent(String team) async {
@@ -131,13 +138,12 @@ class ApiSportsRepository {
     final teams = await get(host, '/teams', {'search': search});
     final items = teams['response'] as List? ?? const [];
     if (items.isEmpty) return const [];
-    final normalizedTeam = normalizeFootballTeamName(team);
-    final first = items.whereType<Map>().cast<Map?>().firstWhere((item) {
-          final rawTeam = item?['team'];
-          final candidate = rawTeam is Map ? '${rawTeam['name'] ?? ''}' : '';
-          return normalizeFootballTeamName(candidate) == normalizedTeam;
-        }, orElse: () => items.first as Map) ??
-        items.first as Map;
+    final first = findFootballTeamByName(items.whereType<Map>(), team, (item) {
+      final rawTeam = item['team'];
+      return rawTeam is Map ? '${rawTeam['name'] ?? ''}' : '';
+    });
+    // Nincs névegyezés: inkább üres lista, mint egy másik csapat meccsei.
+    if (first == null) return const [];
     final id =
         _asInt(first['team'] is Map ? (first['team'] as Map)['id'] : null);
     if (id == 0) return const [];
@@ -162,7 +168,10 @@ class ApiSportsRepository {
         .where((part) => part.isNotEmpty)
         .toList();
     final search = searchParts.isEmpty ? playerName : searchParts.last;
-    for (final season in [clock.year, clock.year - 1]) {
+    // Az európai szezon júliusban indul: január–június között a naptári év
+    // még az előző évben kezdődött szezonhoz tartozik.
+    final currentSeason = clock.month >= 7 ? clock.year : clock.year - 1;
+    for (final season in [currentSeason, currentSeason - 1]) {
       final payload =
           await get(host, '/players', {'search': search, 'season': '$season'});
       final parsed = parseFootballPlayerStats(payload, playerName);
@@ -175,15 +184,12 @@ class ApiSportsRepository {
       Map<String, dynamic> payload, String playerName) {
     final response = payload['response'];
     if (response is! List) return const [];
-    final normalized = normalizeAthleteName(playerName);
     final entries = response.whereType<Map>().toList();
-    if (entries.isEmpty) return const [];
-    final entry = entries.cast<Map?>().firstWhere((candidate) {
-          final player = candidate?['player'];
-          return player is Map &&
-              athleteNamesMatch('${player['name'] ?? ''}', normalized);
-        }, orElse: () => entries.first) ??
-        entries.first;
+    final entry = findAthleteByName(entries, playerName, (candidate) {
+      final player = candidate['player'];
+      return player is Map ? '${player['name'] ?? ''}' : '';
+    });
+    if (entry == null) return const [];
     final statistics = entry['statistics'];
     if (statistics is! List) return const [];
     return statistics
@@ -240,7 +246,6 @@ class ApiSportsRepository {
 
   static ApiSportsPlayer? parseNbaPlayer(
       Map<String, dynamic> payload, String name) {
-    final normalizedName = normalizeAthleteName(name);
     final response = payload['response'];
     if (response is! List) return null;
     final players = response
@@ -248,10 +253,7 @@ class ApiSportsRepository {
         .map(ApiSportsPlayer.fromJson)
         .where((player) => player.name.isNotEmpty)
         .toList();
-    if (players.isEmpty) return null;
-    return players.cast<ApiSportsPlayer?>().firstWhere(
-        (player) => athleteNamesMatch(player!.name, normalizedName),
-        orElse: () => players.first);
+    return findAthleteByName(players, name, (player) => player.name);
   }
 
   Future<Map<String, dynamic>> nflPlayer(String name) =>
@@ -292,20 +294,6 @@ class ApiSportsRepository {
     }).toList();
   }
 }
-
-String footballTeamSearchTerm(String value) {
-  final words = value.trim().split(RegExp(r'\s+'));
-  const clubTokens = {'fc', 'cf', 'afc', 'sc', 'ac'};
-  final useful = words
-      .where((word) => !clubTokens.contains(word.toLowerCase()))
-      .join(' ')
-      .trim();
-  return useful.isEmpty ? value.trim() : useful;
-}
-
-String normalizeFootballTeamName(String value) => footballTeamSearchTerm(value)
-    .toLowerCase()
-    .replaceAll(RegExp(r'[^a-z0-9]'), '');
 
 String normalizeAthleteName(String value) {
   const replacements = {
@@ -360,6 +348,25 @@ String normalizeAthleteName(String value) {
     'ž': 'z',
     'ź': 'z',
     'ż': 'z',
+    'ą': 'a',
+    'ā': 'a',
+    'ă': 'a',
+    'ę': 'e',
+    'ė': 'e',
+    'ē': 'e',
+    'ě': 'e',
+    'ī': 'i',
+    'į': 'i',
+    'ķ': 'k',
+    'ļ': 'l',
+    'ņ': 'n',
+    'ō': 'o',
+    'ŕ': 'r',
+    'ţ': 't',
+    'ū': 'u',
+    'ů': 'u',
+    'ų': 'u',
+    'ÿ': 'y',
     'æ': 'ae',
     'œ': 'oe',
     'ß': 'ss',
@@ -387,6 +394,56 @@ bool athleteNamesMatch(String first, String second) {
       List.generate(firstParts.length, (index) => index)
           .every((index) => firstParts[index] == secondParts[index]);
 }
+
+/// Laza, de nem „első találat” jellegű névegyezés külső keresőtalálatokhoz.
+///
+/// Elfogadja, ha a normalizált nevek egyeznek; ha ugyanazok a szavak más
+/// sorrendben szerepelnek (`Juhász Dorka` ~ `Dorka Juhasz`); ha a jelölt a
+/// keresett név minden szavát tartalmazza (középső név, második vezetéknév);
+/// ha a keresett név tartalmazza a legalább kétszavas jelölt minden szavát;
+/// vagy ha a vezetéknév egyezik és az egyik keresztnév csak kezdőbetű
+/// (`N. Jokic` ~ `Nikola Jokic`).
+bool athleteNameMatches(String query, String candidate) {
+  final queryTokens = _nameTokens(query);
+  final candidateTokens = _nameTokens(candidate);
+  if (queryTokens.isEmpty || candidateTokens.isEmpty) return false;
+  final querySet = queryTokens.toSet();
+  final candidateSet = candidateTokens.toSet();
+  if (candidateSet.containsAll(querySet)) return true;
+  if (candidateSet.length >= 2 && querySet.containsAll(candidateSet)) {
+    return true;
+  }
+  if (queryTokens.length >= 2 && candidateTokens.length >= 2) {
+    final queryFirst = queryTokens.first;
+    final candidateFirst = candidateTokens.first;
+    return queryTokens.last == candidateTokens.last &&
+        (queryFirst.length == 1 || candidateFirst.length == 1) &&
+        queryFirst[0] == candidateFirst[0];
+  }
+  return false;
+}
+
+/// A [query] névhez legjobban illő elem: először pontos (sorrendfüggetlen)
+/// egyezést keres, aztán [athleteNameMatches] szerinti lazábbat. Ha egyik
+/// sem illik, `null` – soha nem az első találat.
+T? findAthleteByName<T>(
+  Iterable<T> items,
+  String query,
+  String Function(T item) nameOf,
+) {
+  for (final item in items) {
+    if (athleteNamesMatch(nameOf(item), query)) return item;
+  }
+  for (final item in items) {
+    if (athleteNameMatches(query, nameOf(item))) return item;
+  }
+  return null;
+}
+
+List<String> _nameTokens(String value) => normalizeAthleteName(value)
+    .split(' ')
+    .where((token) => token.isNotEmpty)
+    .toList();
 
 String? _nonEmpty(dynamic value) {
   final text = '${value ?? ''}'.trim();

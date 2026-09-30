@@ -125,4 +125,14 @@ void main() {
     expect(calls.where((call) => call.startsWith('/matches?')),
         everyElement(contains('tour=wta')));
   });
+
+  test('player search returns null when no name matches', () {
+    final player = TennisRepository.findPlayer({
+      'data': [
+        {'id': 5, 'name': 'Coco Gauff', 'tour': 'wta'}
+      ]
+    }, 'Iga Świątek');
+
+    expect(player, isNull);
+  });
 }

@@ -212,4 +212,70 @@ void main() {
     expect(requested.first.queryParameters['search'], 'Nikola Jokić');
     expect(requested.last.path, '/players/j/jokicni01/gamelog/$season');
   });
+
+  test('September still belongs to the finished NBA season', () {
+    expect(BasketballReferenceRepository.seasonEndYear(DateTime(2026, 9, 30)),
+        2026);
+  });
+
+  test('parser skips rows with an unparsable date', () {
+    final games = BasketballReferenceRepository.parseGames({
+      'games': [
+        {'date': 'not-a-date', 'opponent': 'Bad Row'},
+        {'date': '2026-04-12', 'opponent': 'San Antonio Spurs'},
+      ]
+    });
+    expect(games.single.opponent, 'San Antonio Spurs');
+  });
+
+  test('empty current season falls back to the previous game log', () async {
+    final cache = await Directory.systemTemp.createTemp('courtboard-br-test-');
+    addTearDown(() => cache.delete(recursive: true));
+    final requested = <String>[];
+    final repository = BasketballReferenceRepository(
+      cacheDirectory: cache,
+      fetchHtml: (uri) async {
+        requested.add(uri.path);
+        if (uri.path == '/search/search.fcgi') {
+          return '<a href="/players/j/jokicni01.html">Nikola Jokić (2016-2026)</a>';
+        }
+        if (uri.path.endsWith('/2027')) {
+          return '<table id="player_game_log_reg"><tbody></tbody></table>';
+        }
+        return '''
+          <table id="player_game_log_reg"><tbody><tr>
+            <th data-stat="date">2026-04-12</th>
+            <td data-stat="opp_name_abbr">SAS</td>
+            <td data-stat="game_result">W, 104-72</td>
+            <td data-stat="mp">30</td><td data-stat="pts">23</td>
+          </tr></tbody></table>
+        ''';
+      },
+    );
+
+    final games = await repository.recentGames('Nikola Jokić',
+        now: DateTime(2026, 10, 5));
+
+    expect(games.single.points, 23);
+    expect(requested, [
+      '/search/search.fcgi',
+      '/players/j/jokicni01/gamelog/2027',
+      '/players/j/jokicni01/gamelog/2026',
+    ]);
+  });
+
+  test('unrelated search results are not used as the player', () async {
+    final cache = await Directory.systemTemp.createTemp('courtboard-br-test-');
+    addTearDown(() => cache.delete(recursive: true));
+    final repository = BasketballReferenceRepository(
+      cacheDirectory: cache,
+      fetchHtml: (uri) async =>
+          '<a href="/players/j/jovicni01.html">Nikola Jović (2023-2026)</a>',
+    );
+
+    await expectLater(
+      repository.recentGames('Nikola Jokić', now: DateTime(2026, 4, 1)),
+      throwsA(isA<StateError>()),
+    );
+  });
 }

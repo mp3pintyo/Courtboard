@@ -1,5 +1,15 @@
+import 'dart:io';
+
+import 'package:courtboard/data/http_util.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:courtboard/data/wehoop_wnba.dart';
+
+const _header =
+    'game_id,game_date,athlete_display_name,athlete_id,team_name,opponent_team_name,team_score,opponent_team_score,team_result,points,rebounds,assists,steals,blocks,minutes,athlete_headshot_href';
+
+String _csv(String date, int points) =>
+    '$_header\n'
+    '1,$date,Caitlin Clark,4433403,Fever,Liberty,88,81,WIN,$points,5,9,2,1,34.0,\n';
 
 void main() {
   test('wehoop parser returns normalized player game logs newest first', () {
@@ -69,6 +79,94 @@ void main() {
     expect(logs, hasLength(1));
     expect(logs.single.athleteId, '4398938');
     expect(logs.single.points, 12);
+  });
+
+  group('season cache and fallback', () {
+    late Directory cache;
+    setUp(() async {
+      cache = await Directory.systemTemp.createTemp('courtboard-wehoop-');
+    });
+    tearDown(() => cache.delete(recursive: true));
+
+    test('off-season 404 falls back to the previous season', () async {
+      final requested = <String>[];
+      final repository = WnbaWehoopRepository(
+        cacheDirectory: cache,
+        fetchCsv: (uri) async {
+          requested.add(uri.pathSegments.last);
+          if (uri.path.endsWith('player_box_2026.csv')) {
+            throw CourtboardHttpException(
+                provider: 'wehoop WNBA', statusCode: 404, uri: uri);
+          }
+          return _csv('2025-09-10', 30);
+        },
+      );
+
+      final games = await repository.recentGames('Caitlin Clark',
+          now: DateTime(2026, 3, 1));
+
+      expect(games.single.points, 30);
+      expect(requested, ['player_box_2026.csv', 'player_box_2025.csv']);
+      expect(File('${cache.path}/player_box_2025.csv').existsSync(), isTrue);
+    });
+
+    test('past seasons are served from disk without a download', () async {
+      await File('${cache.path}/player_box_2024.csv')
+          .writeAsString(_csv('2024-08-01', 12));
+      await File('${cache.path}/player_box_2024.csv')
+          .setLastModified(DateTime.now().subtract(const Duration(days: 400)));
+      final repository = WnbaWehoopRepository(
+        cacheDirectory: cache,
+        fetchCsv: (uri) async => throw StateError('no network expected'),
+      );
+
+      final games = await repository.recentGames('Caitlin Clark',
+          season: 2024, now: DateTime(2026, 8, 1));
+
+      expect(games.single.points, 12);
+    });
+
+    test('expired current season is refreshed, stale copy used offline',
+        () async {
+      final file = File('${cache.path}/player_box_2026.csv');
+      await file.writeAsString(_csv('2026-06-01', 10));
+      await file.setLastModified(
+          DateTime.now().subtract(const Duration(hours: 13)));
+
+      final offline = WnbaWehoopRepository(
+        cacheDirectory: cache,
+        fetchCsv: (uri) async => throw CourtboardHttpException(
+            provider: 'wehoop WNBA', uri: uri, timedOut: true),
+      );
+      final stale = await offline.recentGames('Caitlin Clark',
+          season: 2026, now: DateTime(2026, 8, 1));
+      expect(stale.single.points, 10);
+
+      final refreshCache =
+          await Directory.systemTemp.createTemp('courtboard-wehoop-');
+      addTearDown(() => refreshCache.delete(recursive: true));
+      final refreshed = File('${refreshCache.path}/player_box_2026.csv');
+      await refreshed.writeAsString(_csv('2026-06-01', 10));
+      await refreshed.setLastModified(
+          DateTime.now().subtract(const Duration(hours: 13)));
+      var downloads = 0;
+      final online = WnbaWehoopRepository(
+        cacheDirectory: refreshCache,
+        fetchCsv: (uri) async {
+          downloads++;
+          return _csv('2026-07-01', 25);
+        },
+      );
+      final fresh = await online.recentGames('Caitlin Clark',
+          season: 2026, now: DateTime(2026, 8, 1));
+      final again = await online.recentGames('Caitlin Clark',
+          season: 2026, now: DateTime(2026, 8, 1));
+
+      expect(fresh.single.points, 25);
+      expect(again.single.points, 25);
+      expect(downloads, 1);
+      expect(await refreshed.readAsString(), contains('2026-07-01'));
+    });
   });
 }
 

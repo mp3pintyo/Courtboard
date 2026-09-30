@@ -29,10 +29,30 @@ class LigaFRepository {
 
   final SportsApiClient _client;
 
-  Future<List<LigaFGame>> recentBarcelonaGames({int? year}) async {
-    final payload = await _client.espnSoccerScoreboard(
-        'esp.w.1', year ?? DateTime.now().year);
-    return parseGames(payload, 'Barcelona');
+  /// A belső HTTP-kliens lezárása; a repository ezután nem használható.
+  void close() => _client.close();
+
+  /// A Barcelona legutóbbi lejátszott Liga F mérkőzései.
+  ///
+  /// Az ESPN scoreboard `dates=ÉÉÉÉHHNN-ÉÉÉÉHHNN` tartományt kap az utolsó
+  /// [window] napra; ha ebben nincs lejátszott meccs (nyári szünet), egy
+  /// egyéves ablakkal próbálja újra.
+  Future<List<LigaFGame>> recentBarcelonaGames({
+    DateTime? now,
+    Duration window = const Duration(days: 60),
+  }) async {
+    final today = now ?? DateTime.now();
+    final recent = parseGames(
+        await _client.espnSoccerScoreboard('esp.w.1',
+            from: today.subtract(window), to: today),
+        'Barcelona');
+    if (recent.isNotEmpty) return recent;
+    return parseGames(
+        await _client.espnSoccerScoreboard('esp.w.1',
+            from: today.subtract(const Duration(days: 365)),
+            to: today,
+            limit: 500),
+        'Barcelona');
   }
 
   static List<LigaFGame> parseGames(

@@ -1,5 +1,8 @@
 import 'dart:convert';
-import 'dart:io';
+
+import 'http_util.dart';
+import 'url_safety.dart';
+import 'youtube_video_id.dart';
 
 class SavedYouTubeVideo {
   const SavedYouTubeVideo(
@@ -22,12 +25,28 @@ class SavedYouTubeVideo {
         'savedAt': savedAt.toIso8601String()
       };
   factory SavedYouTubeVideo.fromJson(Map<String, dynamic> json) =>
-      SavedYouTubeVideo(
-          videoId: '${json['videoId']}',
-          athleteName: '${json['athleteName']}',
-          title: '${json['title']}',
-          thumbnailUrl: '${json['thumbnailUrl']}',
-          savedAt: DateTime.tryParse('${json['savedAt']}') ?? DateTime.now());
+      tryFromJson(json) ??
+      (throw FormatException('Érvénytelen YouTube-azonosító: ${json['videoId']}'));
+
+  /// Mentett bejegyzés visszatöltése. A videóazonosítót újra ellenőrizzük
+  /// (a fájl kézzel is szerkeszthető), érvénytelen azonosítónál `null`; nem
+  /// biztonságos bélyegkép-cím helyett a YouTube alapértelmezett képe kerül be.
+  static SavedYouTubeVideo? tryFromJson(Map<String, dynamic> json) {
+    final videoId = YouTubeVideoId.parse('${json['videoId'] ?? ''}');
+    if (videoId == null) return null;
+    return SavedYouTubeVideo(
+        videoId: videoId,
+        athleteName: '${json['athleteName'] ?? ''}',
+        title: '${json['title'] ?? 'YouTube-videó'}',
+        thumbnailUrl: safeThumbnailUrl('${json['thumbnailUrl'] ?? ''}', videoId),
+        savedAt: DateTime.tryParse('${json['savedAt']}') ?? DateTime.now());
+  }
+
+  static String defaultThumbnailUrl(String videoId) =>
+      'https://i.ytimg.com/vi/$videoId/hqdefault.jpg';
+
+  static String safeThumbnailUrl(String url, String videoId) =>
+      isSafeWebUrl(url) ? url.trim() : defaultThumbnailUrl(videoId);
 }
 
 class YouTubeOEmbed {
@@ -35,20 +54,21 @@ class YouTubeOEmbed {
       String videoId, String athleteName) async {
     final url = Uri.https('www.youtube.com', '/oembed',
         {'url': 'https://www.youtube.com/watch?v=$videoId', 'format': 'json'});
-    final client = HttpClient();
+    final validId = YouTubeVideoId.parse(videoId);
+    if (validId == null) {
+      throw FormatException('Érvénytelen YouTube-azonosító: $videoId');
+    }
+    final client = createHttpClient();
     try {
-      final response = await (await client.getUrl(url)).close();
-      if (response.statusCode != 200) {
-        throw HttpException('oEmbed HTTP ${response.statusCode}');
-      }
-      final payload = jsonDecode(await utf8.decoder.bind(response).join());
+      final payload = jsonDecode(
+          await httpGetText(client, url, provider: 'YouTube oEmbed'));
       final map = Map<String, dynamic>.from(payload as Map);
       return SavedYouTubeVideo(
-          videoId: videoId,
+          videoId: validId,
           athleteName: athleteName,
           title: '${map['title'] ?? 'YouTube-videó'}',
-          thumbnailUrl:
-              '${map['thumbnail_url'] ?? 'https://i.ytimg.com/vi/$videoId/hqdefault.jpg'}',
+          thumbnailUrl: SavedYouTubeVideo.safeThumbnailUrl(
+              '${map['thumbnail_url'] ?? ''}', validId),
           savedAt: DateTime.now());
     } finally {
       client.close(force: true);
@@ -82,11 +102,13 @@ class AthleteVideoPlaylist {
       return AthleteVideoPlaylist(
           unassigned: raw
               .whereType<String>()
+              .map(YouTubeVideoId.parse)
+              .whereType<String>()
               .map((id) => SavedYouTubeVideo(
                   videoId: id,
                   athleteName: '',
                   title: 'Korábban mentett YouTube-videó',
-                  thumbnailUrl: 'https://i.ytimg.com/vi/$id/hqdefault.jpg',
+                  thumbnailUrl: SavedYouTubeVideo.defaultThumbnailUrl(id),
                   savedAt: DateTime.now()))
               .toList());
     }
@@ -95,8 +117,9 @@ class AthleteVideoPlaylist {
     List<SavedYouTubeVideo> parse(dynamic value) => value is List
         ? value
             .whereType<Map>()
-            .map(
-                (v) => SavedYouTubeVideo.fromJson(Map<String, dynamic>.from(v)))
+            .map((v) =>
+                SavedYouTubeVideo.tryFromJson(Map<String, dynamic>.from(v)))
+            .whereType<SavedYouTubeVideo>()
             .toList()
         : const [];
     return AthleteVideoPlaylist(

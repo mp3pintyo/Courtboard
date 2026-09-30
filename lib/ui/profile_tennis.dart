@@ -109,9 +109,9 @@ class _TennisDataCardState extends State<_TennisDataCard> {
                 );
               }
               if (snapshot.hasError) {
-                return Text(
-                  'Live Tennis API hiba: ${snapshot.error}',
-                  style: const TextStyle(color: Colors.red),
+                return CourtboardErrorState.fromError(
+                  snapshot.error!,
+                  onRetry: () => setState(() => _load(force: true)),
                 );
               }
               return TennisProfileFacts(

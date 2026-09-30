@@ -73,7 +73,9 @@ class _ProfileHero extends StatelessWidget {
                     ),
                     const SizedBox(height: 5),
                     Text(
-                      '${athlete.sportAndTeam} · ${athlete.country}',
+                      athlete.showsCountry
+                          ? '${athlete.sportAndTeam} · ${athlete.country}'
+                          : athlete.sportAndTeam,
                       style: const TextStyle(
                         color: Colors.white70,
                         fontSize: 16,
@@ -193,66 +195,25 @@ class _SportTemplate extends StatelessWidget {
           ),
           const SizedBox(height: 7),
           Text(content.$2, style: const TextStyle(color: Color(0xFF3F4538))),
-          const SizedBox(height: 22),
-          Row(
-            children: List.generate(
-              content.$3.length,
-              (index) => Expanded(
-                child: Padding(
-                  padding: EdgeInsets.only(right: index == 2 ? 0 : 14),
-                  child: _FormBar(
-                    label: content.$3[index],
-                    value: [84, 72, 91][index],
-                    color: athlete.accent,
-                  ),
-                ),
-              ),
-            ),
+          // Formamutatót csak valós adatból rajzolunk; amíg nincs ilyen
+          // forrás, a jelzők neve szerepel, kitalált százalék nélkül.
+          const SizedBox(height: 14),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: content.$3
+                .map((label) => _Pill(text: label.toUpperCase(), color: _paper))
+                .toList(),
+          ),
+          const SizedBox(height: 10),
+          const Text(
+            'Formaadat még nem érhető el ehhez a sportolóhoz.',
+            style: TextStyle(fontSize: 12, color: Color(0xFF3F4538)),
           ),
         ],
       ),
     );
   }
-}
-
-class _FormBar extends StatelessWidget {
-  const _FormBar({
-    required this.label,
-    required this.value,
-    required this.color,
-  });
-  final String label;
-  final int value;
-  final Color color;
-  @override
-  Widget build(BuildContext context) => Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            label,
-            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
-          ),
-          Text(
-            '$value%',
-            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w900),
-          ),
-        ],
-      ),
-      const SizedBox(height: 8),
-      ClipRRect(
-        borderRadius: BorderRadius.circular(8),
-        child: LinearProgressIndicator(
-          value: value / 100,
-          minHeight: 11,
-          color: _ink,
-          backgroundColor: Colors.white.withValues(alpha: .58),
-        ),
-      ),
-    ],
-  );
 }
 
 class _MatchRow extends StatelessWidget {
@@ -333,7 +294,6 @@ class _ClipCard extends StatelessWidget {
   const _ClipCard({required this.video, required this.onRemove});
   final SavedYouTubeVideo video;
   final VoidCallback onRemove;
-  void _play() => Process.start('cmd', ['/c', 'start', '', video.watchUrl]);
   @override
   Widget build(BuildContext context) => Container(
     width: 305,
@@ -379,12 +339,13 @@ class _ClipCard extends StatelessWidget {
         Row(
           children: [
             TextButton.icon(
-              onPressed: _play,
+              onPressed: () => openExternalUrl(context, video.watchUrl),
               icon: const Icon(Icons.play_arrow),
               label: const Text('Lejátszás'),
             ),
             const Spacer(),
             IconButton(
+              tooltip: 'Videó eltávolítása',
               onPressed: onRemove,
               icon: const Icon(Icons.delete_outline, color: Colors.white),
             ),
@@ -438,34 +399,12 @@ class _PersonalTools extends StatelessWidget {
           ),
         ),
         TextButton.icon(
-          onPressed: () {
-            final controller = TextEditingController(text: note);
-            showDialog<void>(
+          onPressed: () async {
+            final value = await showDialog<String>(
               context: context,
-              builder: (context) => AlertDialog(
-                title: const Text('Saját jegyzet'),
-                content: TextField(
-                  controller: controller,
-                  maxLines: 4,
-                  decoration: const InputDecoration(
-                    hintText: 'Mit szeretnél észben tartani?',
-                  ),
-                ),
-                actions: [
-                  TextButton(
-                    onPressed: () => Navigator.pop(context),
-                    child: const Text('Mégse'),
-                  ),
-                  FilledButton(
-                    onPressed: () {
-                      onSaveNote(controller.text.trim());
-                      Navigator.pop(context);
-                    },
-                    child: const Text('Mentés'),
-                  ),
-                ],
-              ),
+              builder: (_) => _NoteDialog(initialValue: note),
             );
+            if (value != null) onSaveNote(value);
           },
           icon: const Icon(Icons.edit_outlined),
           label: const Text('Szerkesztés'),
@@ -484,5 +423,48 @@ class _PersonalTools extends StatelessWidget {
         ),
       ],
     ),
+  );
+}
+
+/// Jegyzetszerkesztő párbeszédablak; a vezérlőt a saját állapota birtokolja
+/// és szabadítja fel, így az a bezárási animáció alatt is érvényes marad.
+class _NoteDialog extends StatefulWidget {
+  const _NoteDialog({required this.initialValue});
+  final String initialValue;
+
+  @override
+  State<_NoteDialog> createState() => _NoteDialogState();
+}
+
+class _NoteDialogState extends State<_NoteDialog> {
+  late final _controller = TextEditingController(text: widget.initialValue);
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+    title: const Text('Saját jegyzet'),
+    content: TextField(
+      controller: _controller,
+      autofocus: true,
+      maxLines: 4,
+      decoration: const InputDecoration(
+        hintText: 'Mit szeretnél észben tartani?',
+      ),
+    ),
+    actions: [
+      TextButton(
+        onPressed: () => Navigator.pop(context),
+        child: const Text('Mégse'),
+      ),
+      FilledButton(
+        onPressed: () => Navigator.pop(context, _controller.text.trim()),
+        child: const Text('Mentés'),
+      ),
+    ],
   );
 }

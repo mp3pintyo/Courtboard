@@ -39,7 +39,8 @@ class _ApiSportsCardState extends State<_ApiSportsCard> {
   @override
   void didUpdateWidget(covariant _ApiSportsCard oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.athleteName != widget.athleteName ||
+    if (oldWidget.sport != widget.sport ||
+        oldWidget.athleteName != widget.athleteName ||
         oldWidget.teamName != widget.teamName ||
         oldWidget.config.apiSportsKey != widget.config.apiSportsKey ||
         oldWidget.config.balldontlieKey != widget.config.balldontlieKey) {
@@ -73,6 +74,7 @@ class _ApiSportsCardState extends State<_ApiSportsCard> {
               ),
               const Spacer(),
               IconButton(
+                tooltip: 'Adatok frissítése',
                 onPressed: () => setState(_load),
                 icon: const Icon(Icons.refresh),
               ),
@@ -84,7 +86,10 @@ class _ApiSportsCardState extends State<_ApiSportsCard> {
               child: CircularProgressIndicator(),
             )
           else if (snapshot.hasError)
-            Text('${snapshot.error}', style: const TextStyle(color: Colors.red))
+            CourtboardErrorState.fromError(
+              snapshot.error!,
+              onRetry: () => setState(_load),
+            )
           else if (snapshot.data is List<ApiSportsGame>)
             ...((snapshot.data as List<ApiSportsGame>).map(
               (game) => Padding(
@@ -180,8 +185,9 @@ class _NbaSeasonSummaryCardState extends State<_NbaSeasonSummaryCard> {
           if (snapshot.hasError) {
             return _BasketballSeasonMessage(
               message:
-                  'A friss NBA szezonösszesítő most nem érhető el: ${snapshot.error}',
+                  'A friss NBA szezonösszesítő most nem érhető el. ${friendlyError(snapshot.error!)}',
               accent: widget.accent,
+              onRetry: () => setState(_load),
             );
           }
           final summary = snapshot.data;
@@ -207,11 +213,13 @@ class _BasketballSeasonMessage extends StatelessWidget {
     required this.message,
     required this.accent,
     this.loading = false,
+    this.onRetry,
   });
 
   final String message;
   final Color accent;
   final bool loading;
+  final VoidCallback? onRetry;
 
   @override
   Widget build(BuildContext context) => Container(
@@ -235,6 +243,12 @@ class _BasketballSeasonMessage extends StatelessWidget {
         Expanded(
           child: Text(message, style: const TextStyle(color: _muted)),
         ),
+        if (onRetry != null)
+          TextButton.icon(
+            onPressed: onRetry,
+            icon: const Icon(Icons.refresh, size: 18),
+            label: const Text('Újrapróbálás'),
+          ),
       ],
     ),
   );

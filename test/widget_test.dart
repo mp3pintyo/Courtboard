@@ -1,7 +1,14 @@
+import 'dart:async';
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:courtboard/common_ui.dart';
+import 'package:courtboard/data/http_util.dart';
+import 'package:courtboard/data/local_state.dart';
 import 'package:courtboard/data/multi_provider.dart';
+import 'package:courtboard/data/news.dart';
 import 'package:courtboard/data/basketball_reference.dart';
 import 'package:courtboard/data/basketball_season.dart';
 import 'package:courtboard/data/darts.dart';
@@ -10,6 +17,39 @@ import 'package:courtboard/data/espn_liga_f.dart';
 import 'package:courtboard/data/rapidapi_wnba.dart';
 import 'package:courtboard/data/wehoop_wnba.dart';
 import 'package:courtboard/main.dart';
+import 'package:courtboard/news_page.dart';
+
+const _seedNames = {
+  'Nikola Jokić',
+  'Aitana Bonmatí',
+  'Luke Humphries',
+  'Caitlin Clark',
+  'Saquon Barkley',
+};
+
+void _desktopView(WidgetTester tester) {
+  tester.view.devicePixelRatio = 1.0;
+  tester.view.physicalSize = const Size(1440, 900);
+  addTearDown(() {
+    tester.view.resetPhysicalSize();
+    tester.view.resetDevicePixelRatio();
+  });
+}
+
+/// A lekérdezéskor mindig hibát dobó hírtár a hibaállapot teszteléséhez.
+class _FailingNewsStore extends NewsStore {
+  _FailingNewsStore() : super(path: ':memory:');
+
+  @override
+  Future<List<NewsArticle>> query({
+    String text = '',
+    String sport = 'Mind',
+    String sourceId = 'Mind',
+    String athleteName = 'Mind',
+    int limit = 500,
+    int offset = 0,
+  }) async => throw const SocketException('offline');
+}
 
 void main() {
   setUpAll(() => BasketballReferenceRepository.networkEnabled = false);
@@ -44,6 +84,199 @@ void main() {
         ['Aitana Bonmatí', 'Luke Littler', 'Nikola Jokić']);
     expect(sortAthletes([nba, darts, football], 'sport').map((a) => a.sport),
         ['Darts', 'Foci', 'NBA']);
+  });
+
+  test('friendlyError maps provider failures to Hungarian messages', () {
+    expect(
+      friendlyError(CourtboardHttpException(provider: 'X', timedOut: true)),
+      'A szolgáltató nem válaszolt időben.',
+    );
+    expect(
+      friendlyError(CourtboardHttpException(provider: 'X', statusCode: 401)),
+      'Hibás vagy hiányzó API-kulcs.',
+    );
+    expect(
+      friendlyError(CourtboardHttpException(provider: 'X', statusCode: 403)),
+      'Hibás vagy hiányzó API-kulcs.',
+    );
+    expect(
+      friendlyError(CourtboardHttpException(provider: 'X', statusCode: 429)),
+      'Elérted a szolgáltató kvótáját, próbáld később.',
+    );
+    expect(
+      friendlyError(CourtboardHttpException(provider: 'X', statusCode: 404)),
+      'Nem található adat ehhez a sportolóhoz.',
+    );
+    expect(
+      friendlyError(const SocketException('failed host lookup')),
+      'Nincs internetkapcsolat.',
+    );
+    expect(
+      friendlyError(TimeoutException('slow')),
+      'A szolgáltató nem válaszolt időben.',
+    );
+    expect(
+      friendlyError(StateError('API_SPORTS_KEY nincs beállítva.')),
+      'Hibás vagy hiányzó API-kulcs.',
+    );
+    final generic = friendlyError(
+      Exception('https://example.com/api?key=SECRET failed'),
+    );
+    expect(generic, 'Az adatok most nem érhetők el. Próbáld újra később.');
+    expect(generic, isNot(contains('SECRET')));
+    expect(
+      friendlyError(
+        CourtboardHttpException(
+          provider: 'X',
+          statusCode: 500,
+          uri: Uri.parse('https://example.com/a?key=SECRET'),
+        ),
+      ),
+      isNot(contains('example.com')),
+    );
+  });
+
+  test('greeting follows the time of day', () {
+    expect(courtboardGreeting(DateTime(2026, 1, 1, 7)), 'Jó reggelt.');
+    expect(courtboardGreeting(DateTime(2026, 1, 1, 13)), 'Szép napot.');
+    expect(courtboardGreeting(DateTime(2026, 1, 1, 21)), 'Jó estét.');
+    expect(courtboardGreeting(DateTime(2026, 1, 1, 2)), 'Jó estét.');
+  });
+
+  testWidgets('empty dashboard shows an add-athlete call to action',
+      (tester) async {
+    _desktopView(tester);
+    await tester.pumpWidget(const CourtboardApp(
+      initialState: CourtboardLocalState(removedAthleteNames: _seedNames),
+    ));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('dashboard-empty-state')), findsOneWidget);
+    expect(find.text('Még nem követsz egyetlen sportolót sem.'), findsOneWidget);
+    expect(find.textContaining('MAI FÓKUSZ'), findsNothing);
+
+    await tester.tap(find.byKey(const Key('dashboard-add-athlete')));
+    await tester.pumpAndSettle();
+    expect(find.byType(AlertDialog), findsOneWidget);
+    expect(find.byKey(const Key('add-athlete-submit')), findsOneWidget);
+  });
+
+  testWidgets('dashboard search is accent-insensitive', (tester) async {
+    _desktopView(tester);
+    await tester.pumpWidget(const CourtboardApp());
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byType(TextField).first, 'jokic');
+    await tester.pump();
+    expect(find.byKey(const ValueKey('athlete-Nikola Jokić')), findsOneWidget);
+    expect(
+        find.byKey(const ValueKey('athlete-Luke Humphries')), findsNothing);
+  });
+
+  testWidgets('add-athlete dialog rejects an already followed athlete',
+      (tester) async {
+    _desktopView(tester);
+    await tester.pumpWidget(const CourtboardApp());
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Sportolók'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Sportoló hozzáadása'));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(
+        find.byKey(const Key('add-athlete-name')), 'nikola jokic');
+    await tester.tap(find.byKey(const Key('add-athlete-submit')));
+    await tester.pump();
+
+    expect(find.byKey(const Key('add-athlete-error')), findsOneWidget);
+    expect(find.text('Ez a sportoló már szerepel a követettek között.'),
+        findsOneWidget);
+  });
+
+  testWidgets('profile keeps origin navigation and dashboard filter',
+      (tester) async {
+    _desktopView(tester);
+    await tester.pumpWidget(const CourtboardApp());
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.widgetWithText(ChoiceChip, 'Darts'));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('athlete-Nikola Jokić')), findsNothing);
+
+    await tester.tap(find.byKey(const ValueKey('athlete-Luke Humphries')));
+    await tester.pumpAndSettle();
+    expect(find.text('Vissza: Áttekintés'), findsOneWidget);
+    // Nincs kitalált szezonstatisztika a profilon.
+    expect(find.text('98.42'), findsNothing);
+
+    await tester.tap(find.text('Vissza: Áttekintés'));
+    await tester.pumpAndSettle();
+    final chip = tester.widget<ChoiceChip>(
+        find.widgetWithText(ChoiceChip, 'Darts'));
+    expect(chip.selected, isTrue);
+    expect(find.byKey(const ValueKey('athlete-Nikola Jokić')), findsNothing);
+
+    await tester.tap(find.text('Sportolók'));
+    await tester.pumpAndSettle();
+    await tester
+        .tap(find.byKey(const ValueKey('directory-athlete-Luke Humphries')));
+    await tester.pumpAndSettle();
+    expect(find.text('Vissza: Sportolók'), findsOneWidget);
+  });
+
+  testWidgets('saved custom order drives the directory list', (tester) async {
+    _desktopView(tester);
+    await tester.pumpWidget(const CourtboardApp(
+      initialState: CourtboardLocalState(
+        athleteOrder: ['Saquon Barkley', 'Luke Humphries', 'Nikola Jokić'],
+      ),
+    ));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Sportolók'));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('athlete-directory-reorderable')),
+        findsOneWidget);
+    double top(String name) => tester
+        .getTopLeft(find.byKey(ValueKey('directory-athlete-$name')))
+        .dy;
+    expect(top('Saquon Barkley'), lessThan(top('Luke Humphries')));
+    expect(top('Luke Humphries'), lessThan(top('Nikola Jokić')));
+    expect(top('Nikola Jokić'), lessThan(top('Aitana Bonmatí')));
+  });
+
+  testWidgets('calendar shows an honest empty state', (tester) async {
+    _desktopView(tester);
+    await tester.pumpWidget(const CourtboardApp());
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Naptár'));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('calendar-empty-state')), findsOneWidget);
+    expect(find.byIcon(Icons.notifications_none), findsNothing);
+  });
+
+  testWidgets('news page shows a retryable error when the archive fails',
+      (tester) async {
+    _desktopView(tester);
+    final repository = NewsRepository(store: _FailingNewsStore());
+    addTearDown(repository.close);
+
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(
+        body: NewsPage(
+          athletes: const [],
+          repository: repository,
+          autoRefresh: false,
+        ),
+      ),
+    ));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('news-load-error')), findsOneWidget);
+    expect(find.textContaining('Nincs internetkapcsolat.'), findsOneWidget);
+    expect(find.text('Újrapróbálás'), findsOneWidget);
+    expect(find.byType(CircularProgressIndicator), findsNothing);
   });
 
   testWidgets('overview settings button opens configurable settings',

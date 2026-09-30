@@ -20,4 +20,32 @@ void main() {
         AthleteVideoPlaylist(videos: [video]).toJson());
     expect(restored.forAthlete('Szoboszlai Dominik').single.title, 'Tesztcím');
   });
+
+  test('invalid stored video IDs are dropped and unsafe thumbnails replaced',
+      () {
+    final playlist = AthleteVideoPlaylist.fromJson({
+      'version': 2,
+      'videos': [
+        {
+          'videoId': 'dQw4w9WgXcQ',
+          'athleteName': 'A',
+          'title': 'Jó',
+          'thumbnailUrl': 'file:///C:/secret.png',
+        },
+        {
+          'videoId': '"><script>',
+          'athleteName': 'A',
+          'title': 'Rossz',
+          'thumbnailUrl': 'https://i.ytimg.com/vi/x/hqdefault.jpg',
+        },
+      ],
+      'unassigned': [],
+    });
+    final legacy = AthleteVideoPlaylist.fromJson(['dQw4w9WgXcQ', 'bad id']);
+
+    expect(playlist.videos.single.title, 'Jó');
+    expect(playlist.videos.single.thumbnailUrl,
+        'https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg');
+    expect(legacy.unassigned.single.videoId, 'dQw4w9WgXcQ');
+  });
 }

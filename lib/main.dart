@@ -4,6 +4,8 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 
+import 'common_ui.dart';
+
 import 'data/api_sports.dart';
 import 'data/basketball_reference.dart';
 import 'data/basketball_season.dart';
@@ -13,6 +15,7 @@ import 'data/football_data.dart';
 import 'data/football_data_players.dart';
 import 'data/football_season.dart';
 import 'data/football_season_repository.dart';
+import 'data/file_util.dart';
 import 'data/local_state.dart';
 import 'data/live_tennis.dart';
 import 'data/multi_provider.dart';
@@ -41,4 +44,17 @@ part 'ui/video_library.dart';
 part 'ui/data_sources.dart';
 part 'ui/navigation.dart';
 
-void main() => runApp(const CourtboardApp());
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  // Az állapotot egyszer, a futtatás előtt töltjük be, hogy a mentett téma
+  // már az első képkockán érvényes legyen (nincs zöld villanás).
+  final store = LocalStateStore();
+  final state = await store.load();
+  runApp(
+    CourtboardApp(
+      initialState: state,
+      stateStore: store,
+      playlistFile: File('${appDataPath()}/courtboard_playlist.json'),
+    ),
+  );
+}

@@ -3,10 +3,20 @@ part of '../main.dart';
 class CourtboardShell extends StatefulWidget {
   const CourtboardShell({
     super.key,
-    required this.theme,
+    this.initialState = const CourtboardLocalState(),
+    this.stateStore,
+    this.playlistFile,
     required this.onThemeChanged,
   });
-  final String theme;
+
+  /// A futtatás előtt betöltött helyi állapot.
+  final CourtboardLocalState initialState;
+
+  /// `null` esetén az állapot nem kerül lemezre (például tesztben).
+  final LocalStateStore? stateStore;
+
+  /// `null` esetén a videólista nem töltődik be és nem mentődik.
+  final File? playlistFile;
   final ValueChanged<String> onThemeChanged;
 
   @override
@@ -15,11 +25,14 @@ class CourtboardShell extends StatefulWidget {
 
 class _CourtboardShellState extends State<CourtboardShell> {
   final _search = TextEditingController();
-  late final File _playlistFile;
   AthleteVideoPlaylist _playlist = const AthleteVideoPlaylist();
+
+  /// Igaz, ha a videólista-fájl nem volt beolvasható, és biztonsági másolat
+  /// sem készülhetett róla: ilyenkor a mentés felülírná a felhasználó adatát.
+  bool _playlistSaveBlocked = false;
   Athlete? _openAthlete;
   int _activeNav = 0;
-  final LocalStateStore _stateStore = LocalStateStore();
+  String _dashboardFilter = 'Mind';
   final NewsRepository _newsRepository = NewsRepository();
   Map<String, String> _notes = {};
   Map<String, bool> _alerts = {};
@@ -27,244 +40,85 @@ class _CourtboardShellState extends State<CourtboardShell> {
   SportsApiConfig _apiConfig = SportsApiConfig.fromEnvironment();
   String _overviewSort = 'custom';
   String _athleteSort = 'custom';
-  late String _selectedTheme;
+  String _selectedTheme = 'green';
 
   final List<Athlete> _athletes = [
-    Athlete(
+    _seedAthlete(
       name: 'Nikola Jokić',
       sport: 'NBA',
       team: 'Denver Nuggets',
       country: 'Szerbia',
-      accent: Color(0xFFE9B86E),
+      accent: const Color(0xFFE9B86E),
       photoUrl:
           'https://upload.wikimedia.org/wikipedia/commons/7/79/Nikola_Jokic_2023.jpg',
-      seasonLabel: 'SZEZON PONT / MECCS',
-      seasonValue: '26.8',
-      primaryLabel: 'TRIPLA-DUPLA',
-      primaryValue: '31',
-      metrics: [
-        Metric('PONT', '26.8', '+2.1 az előző szezonhoz'),
-        Metric('LEPATTANÓ', '12.4', 'Liga #2'),
-        Metric('GÓLPASSZ', '9.1', 'Poszt #1'),
-        Metric('MEZŐNY', '58.7%', 'Kiemelkedő'),
-      ],
-      matches: [
-        MatchLine(
-          'JAN 18',
-          'Phoenix Suns',
-          'GYŐZELEM',
-          '124 – 111',
-          '34 PTS · 14 REB · 8 AST',
-          'A+',
-        ),
-        MatchLine(
-          'JAN 15',
-          'Dallas Mavericks',
-          'GYŐZELEM',
-          '118 – 106',
-          '29 PTS · 11 REB · 12 AST',
-          'A',
-        ),
-        MatchLine(
-          'JAN 12',
-          'Boston Celtics',
-          'VERESÉG',
-          '102 – 109',
-          '24 PTS · 13 REB · 7 AST',
-          'B+',
-        ),
-      ],
     ),
-    Athlete(
+    _seedAthlete(
       name: 'Aitana Bonmatí',
       sport: 'Foci',
       team: 'FC Barcelona',
       country: 'Spanyolország',
-      accent: Color(0xFF9CAAF7),
+      accent: const Color(0xFF9CAAF7),
       photoUrl:
           'https://upload.wikimedia.org/wikipedia/commons/8/8f/Aitana_Bonmat%C3%AD_2023.jpg',
-      seasonLabel: 'GÓLHOZZÁJÁRULÁS',
-      seasonValue: '19',
-      primaryLabel: 'KULCSPASSZ',
-      primaryValue: '62',
-      metrics: [
-        Metric('GÓL', '9', 'Minden sorozat'),
-        Metric('GÓLPASSZ', '10', 'Minden sorozat'),
-        Metric('PASSZPONT.', '91.8%', 'Szezon'),
-        Metric('ÉRTÉKELÉS', '7.84', 'Átlag'),
-      ],
-      matches: [
-        MatchLine(
-          'JAN 19',
-          'Real Madrid',
-          'GYŐZELEM',
-          '2 – 1',
-          '1 gól · 2 kulcspassz · 8.7',
-          'A+',
-        ),
-        MatchLine(
-          'JAN 15',
-          'Atlético',
-          'DÖNTETLEN',
-          '1 – 1',
-          '1 gólpassz · 92% passz · 7.9',
-          'A',
-        ),
-        MatchLine(
-          'JAN 10',
-          'Sevilla',
-          'GYŐZELEM',
-          '3 – 0',
-          '4 szerelés · 5 kulcspassz · 8.3',
-          'A',
-        ),
-      ],
     ),
-    Athlete(
+    _seedAthlete(
       name: 'Luke Humphries',
       sport: 'Darts',
       team: 'PDC',
       country: 'Anglia',
-      accent: Color(0xFFE894A7),
+      accent: const Color(0xFFE894A7),
       photoUrl:
           'https://upload.wikimedia.org/wikipedia/commons/6/6e/Luke_Humphries_2023.jpg',
-      seasonLabel: '3 DART ÁTLAG',
-      seasonValue: '98.42',
-      primaryLabel: '180-ASOK',
-      primaryValue: '214',
-      metrics: [
-        Metric('3 DART ÁTLAG', '98.42', 'Szezon'),
-        Metric('KISZÁLLÓ', '44.9%', 'Checkout'),
-        Metric('180-ASOK', '214', 'Szezon'),
-        Metric('LEGMAGASABB', '170', 'Checkout'),
-      ],
-      matches: [
-        MatchLine(
-          'JAN 18',
-          'M. van Gerwen',
-          'GYŐZELEM',
-          '10 – 8',
-          '101.6 átlag · 7×180 · 46% CO',
-          'A+',
-        ),
-        MatchLine(
-          'JAN 15',
-          'G. Price',
-          'GYŐZELEM',
-          '6 – 3',
-          '99.2 átlag · 4×180 · 50% CO',
-          'A',
-        ),
-        MatchLine(
-          'JAN 10',
-          'L. Littler',
-          'VERESÉG',
-          '5 – 6',
-          '96.8 átlag · 3×180 · 38% CO',
-          'B',
-        ),
-      ],
     ),
-    Athlete(
+    _seedAthlete(
       name: 'Caitlin Clark',
       sport: 'WNBA',
       team: 'Indiana Fever',
       country: 'USA',
-      accent: Color(0xFF70B7C5),
+      accent: const Color(0xFF70B7C5),
       photoUrl:
           'https://upload.wikimedia.org/wikipedia/commons/8/8d/Caitlin_Clark_2024.jpg',
-      seasonLabel: 'GÓLPASSZ / MECCS',
-      seasonValue: '8.4',
-      primaryLabel: 'HÁRMASOK',
-      primaryValue: '122',
-      metrics: [
-        Metric('PONT', '19.2', 'Újonc szezon'),
-        Metric('GÓLPASSZ', '8.4', 'Liga #1'),
-        Metric('HÁRMAS', '122', 'Szezon'),
-        Metric('LABDASZERZÉS', '1.3', 'Meccsenként'),
-      ],
-      matches: [
-        MatchLine(
-          'SZEPT 19',
-          'Connecticut Sun',
-          'GYŐZELEM',
-          '91 – 84',
-          '24 PTS · 9 AST · 4 REB',
-          'A+',
-        ),
-        MatchLine(
-          'SZEPT 15',
-          'Las Vegas Aces',
-          'VERESÉG',
-          '78 – 86',
-          '18 PTS · 11 AST · 5 REB',
-          'A',
-        ),
-        MatchLine(
-          'SZEPT 11',
-          'Chicago Sky',
-          'GYŐZELEM',
-          '95 – 89',
-          '27 PTS · 8 AST · 6 REB',
-          'A+',
-        ),
-      ],
     ),
-    Athlete(
+    _seedAthlete(
       name: 'Saquon Barkley',
       sport: 'NFL',
       team: 'Philadelphia Eagles',
       country: 'USA',
-      accent: Color(0xFF8ED19C),
+      accent: const Color(0xFF8ED19C),
       photoUrl:
           'https://upload.wikimedia.org/wikipedia/commons/9/9c/Saquon_Barkley_2023.jpg',
-      seasonLabel: 'FUTOTT YARD / MECCS',
-      seasonValue: '124.5',
-      primaryLabel: 'FUTOTT TD',
-      primaryValue: '13',
-      metrics: [
-        Metric('FUTOTT YARD', '2,005', 'Alapszakasz'),
-        Metric('CARRY', '345', 'Szezon'),
-        Metric('YARD / CARRY', '5.8', 'Elit hatékonyság'),
-        Metric('FUTOTT TD', '13', 'Szezon'),
-      ],
-      matches: [
-        MatchLine(
-          'JAN 19',
-          'L. A. Rams',
-          'GYŐZELEM',
-          '28 – 22',
-          '205 RUSH YDS · 2 TD · 26 carry',
-          'A+',
-        ),
-        MatchLine(
-          'JAN 12',
-          'Green Bay Packers',
-          'GYŐZELEM',
-          '22 – 10',
-          '119 RUSH YDS · 1 TD · 25 carry',
-          'A',
-        ),
-        MatchLine(
-          'JAN 05',
-          'New York Giants',
-          'GYŐZELEM',
-          '20 – 13',
-          '96 RUSH YDS · 4 REC · 1 TD',
-          'A',
-        ),
-      ],
     ),
   ];
+
+  /// Alap sportoló kitalált statisztikák nélkül: a számok kizárólag élő
+  /// adatforrásból érkezhetnek a profiloldalon.
+  static Athlete _seedAthlete({
+    required String name,
+    required String sport,
+    required String team,
+    required String country,
+    required Color accent,
+    required String photoUrl,
+  }) => Athlete(
+    name: name,
+    sport: sport,
+    team: team,
+    country: country,
+    photoUrl: photoUrl,
+    accent: accent,
+    seasonLabel: '',
+    seasonValue: '',
+    primaryLabel: '',
+    primaryValue: '',
+    metrics: const [],
+    matches: const [],
+  );
 
   @override
   void initState() {
     super.initState();
-    _selectedTheme = widget.theme;
-    final appData = Platform.environment['APPDATA'] ?? Directory.current.path;
-    _playlistFile = File('$appData/courtboard_playlist.json');
-    _loadPlaylist();
-    _loadLocalState();
+    _applyState(widget.initialState);
+    unawaited(_loadPlaylist());
   }
 
   @override
@@ -274,90 +128,124 @@ class _CourtboardShellState extends State<CourtboardShell> {
     super.dispose();
   }
 
-  Future<void> _loadLocalState() async {
-    final state = await _stateStore.load();
-    if (!mounted) return;
-    widget.onThemeChanged(state.theme);
-    setState(() {
-      _notes = state.notes;
-      _alerts = state.alerts;
-      _apiConfig = SportsApiConfig(
-        apiSportsKey: state.apiSportsKey.isNotEmpty
-            ? state.apiSportsKey
-            : _apiConfig.apiSportsKey,
-        balldontlieKey: state.balldontlieKey.isNotEmpty
-            ? state.balldontlieKey
-            : _apiConfig.balldontlieKey,
-        footballDataKey: state.footballDataKey.isNotEmpty
-            ? state.footballDataKey
-            : _apiConfig.footballDataKey,
-        youtubeKey: _apiConfig.youtubeKey,
-        rapidApiDartsKey: state.rapidApiDartsKey.isNotEmpty
-            ? state.rapidApiDartsKey
-            : _apiConfig.rapidApiDartsKey,
-        liveTennisKey: state.liveTennisKey.isNotEmpty
-            ? state.liveTennisKey
-            : _apiConfig.liveTennisKey,
-      );
-      _removedAthleteNames = state.removedAthleteNames;
-      _overviewSort = state.overviewSort;
-      _athleteSort = state.athleteSort;
-      _selectedTheme = state.theme;
-      _athletes.removeWhere(
-        (athlete) => _removedAthleteNames.contains(athlete.name),
-      );
-      _athletes.addAll(state.customAthletes.map(_customToAthlete));
-    });
+  void _applyState(CourtboardLocalState state) {
+    _notes = {...state.notes};
+    _alerts = {...state.alerts};
+    _apiConfig = SportsApiConfig(
+      apiSportsKey: state.apiSportsKey.isNotEmpty
+          ? state.apiSportsKey
+          : _apiConfig.apiSportsKey,
+      balldontlieKey: state.balldontlieKey.isNotEmpty
+          ? state.balldontlieKey
+          : _apiConfig.balldontlieKey,
+      footballDataKey: state.footballDataKey.isNotEmpty
+          ? state.footballDataKey
+          : _apiConfig.footballDataKey,
+      youtubeKey: _apiConfig.youtubeKey,
+      rapidApiDartsKey: state.rapidApiDartsKey.isNotEmpty
+          ? state.rapidApiDartsKey
+          : _apiConfig.rapidApiDartsKey,
+      liveTennisKey: state.liveTennisKey.isNotEmpty
+          ? state.liveTennisKey
+          : _apiConfig.liveTennisKey,
+    );
+    _removedAthleteNames = {...state.removedAthleteNames};
+    _overviewSort = state.overviewSort;
+    _athleteSort = state.athleteSort;
+    _selectedTheme = state.theme;
+    _athletes.removeWhere(
+      (athlete) => _removedAthleteNames.contains(athlete.name),
+    );
+    final known = _athletes.map((athlete) => athlete.name).toSet();
+    _athletes.addAll(
+      state.customAthletes
+          .where((athlete) => known.add(athlete.name))
+          .map(_customToAthlete),
+    );
+    _applyAthleteOrder(state.athleteOrder);
+  }
+
+  /// A mentett „Saját sorrend” alkalmazása; a listában nem szereplő
+  /// sportolók eredeti sorrendjükben a végére kerülnek.
+  void _applyAthleteOrder(List<String> order) {
+    if (order.isEmpty) return;
+    final rank = {for (var i = 0; i < order.length; i++) order[i]: i};
+    final indexed = _athletes.asMap().entries.toList()
+      ..sort((a, b) {
+        final aRank = rank[a.value.name] ?? order.length + a.key;
+        final bRank = rank[b.value.name] ?? order.length + b.key;
+        return aRank.compareTo(bRank);
+      });
+    _athletes
+      ..clear()
+      ..addAll(indexed.map((entry) => entry.value));
   }
 
   Athlete _customToAthlete(CustomAthlete athlete) => Athlete(
     name: athlete.name,
     sport: athlete.sport,
     team: athlete.team,
-    country: athlete.country.isEmpty ? 'Ismeretlen' : athlete.country,
+    // Régebbi mentésekben „Ismeretlen” helyőrző szerepelhet: nem mutatjuk.
+    country: athlete.country.trim() == 'Ismeretlen' ? '' : athlete.country,
     photoUrl: athlete.photoUrl,
     accent: const Color(0xFF9BAF65),
     seasonLabel: '',
     seasonValue: '',
-    primaryLabel: 'ADATFORRÁS',
-    primaryValue: 'Vár',
-    metrics: const [
-      Metric('ADAT', '—', 'Provider csatlakoztatása után'),
-      Metric('FORMA', '—', 'Még nincs mérkőzés'),
-      Metric('RATING', '—', 'Nincs adat'),
-      Metric('FRISSÍTVE', '—', 'Helyi profil'),
-    ],
+    primaryLabel: '',
+    primaryValue: '',
+    metrics: const [],
     matches: const [],
     isCustom: true,
   );
 
-  Future<void> _saveLocalState() => _stateStore.save(
-    CourtboardLocalState(
-      notes: _notes,
-      alerts: _alerts,
-      removedAthleteNames: _removedAthleteNames,
-      footballDataKey: _apiConfig.footballDataKey,
-      apiSportsKey: _apiConfig.apiSportsKey,
-      balldontlieKey: _apiConfig.balldontlieKey,
-      rapidApiDartsKey: _apiConfig.rapidApiDartsKey,
-      liveTennisKey: _apiConfig.liveTennisKey,
-      theme: _selectedTheme,
-      overviewSort: _overviewSort,
-      athleteSort: _athleteSort,
-      customAthletes: _athletes
-          .where((a) => a.isCustom)
-          .map(
-            (a) => CustomAthlete(
-              name: a.name,
-              sport: a.sport,
-              team: a.team,
-              country: a.country,
-              photoUrl: a.photoUrl,
-            ),
-          )
-          .toList(),
-    ),
+  CourtboardLocalState _currentState() => CourtboardLocalState(
+    notes: _notes,
+    alerts: _alerts,
+    removedAthleteNames: _removedAthleteNames,
+    footballDataKey: _apiConfig.footballDataKey,
+    apiSportsKey: _apiConfig.apiSportsKey,
+    balldontlieKey: _apiConfig.balldontlieKey,
+    rapidApiDartsKey: _apiConfig.rapidApiDartsKey,
+    liveTennisKey: _apiConfig.liveTennisKey,
+    theme: _selectedTheme,
+    overviewSort: _overviewSort,
+    athleteSort: _athleteSort,
+    athleteOrder: _athletes.map((athlete) => athlete.name).toList(),
+    customAthletes: _athletes
+        .where((a) => a.isCustom)
+        .map(
+          (a) => CustomAthlete(
+            name: a.name,
+            sport: a.sport,
+            team: a.team,
+            country: a.country,
+            photoUrl: a.photoUrl,
+          ),
+        )
+        .toList(),
   );
+
+  /// Háttérben menti az állapotot (a tároló sorba rendezi az írásokat);
+  /// hiba esetén SnackBar jelzi, hogy a módosítás nem került lemezre.
+  void _saveLocalState() {
+    final store = widget.stateStore;
+    if (store == null) return;
+    unawaited(
+      store
+          .save(_currentState())
+          .catchError(
+            (Object _) =>
+                _showSnack('A módosítások mentése nem sikerült. Próbáld újra.'),
+          ),
+    );
+  }
+
+  void _showSnack(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
+  }
 
   void _setNote(Athlete athlete, String value) {
     setState(() => _notes = {..._notes, athlete.name: value});
@@ -375,82 +263,76 @@ class _CourtboardShellState extends State<CourtboardShell> {
   }
 
   Future<void> _loadPlaylist() async {
+    final file = widget.playlistFile;
+    if (file == null) return;
     try {
-      if (!await _playlistFile.exists()) return;
-      final content = jsonDecode(await _playlistFile.readAsString());
+      if (!await file.exists()) return;
+      final content = jsonDecode(await file.readAsString());
       if (mounted) {
         setState(() => _playlist = AthleteVideoPlaylist.fromJson(content));
       }
-    } catch (_) {}
+    } catch (_) {
+      // A hibás fájlt nem írhatjuk felül: előbb biztonsági másolat készül,
+      // és csak ennek sikere után engedjük a mentést.
+      final backup = await _backupPlaylistFile(file);
+      if (!mounted) return;
+      setState(() => _playlistSaveBlocked = backup == null);
+      _showSnack(
+        backup == null
+            ? 'A mentett videólista nem olvasható be. A fájl védelmében a videólista módosításai most nem kerülnek mentésre.'
+            : 'A mentett videólista nem olvasható be. Az eredeti fájlról biztonsági másolat készült: ${backup.path}',
+      );
+    }
   }
 
-  Future<void> _savePlaylist() =>
-      _playlistFile.writeAsString(jsonEncode(_playlist.toJson()));
+  Future<File?> _backupPlaylistFile(File file) async {
+    final stamp = DateTime.now()
+        .toUtc()
+        .toIso8601String()
+        .replaceAll(RegExp(r'[^0-9]'), '')
+        .substring(0, 17);
+    final path = file.path.endsWith('.json')
+        ? file.path.substring(0, file.path.length - 5)
+        : file.path;
+    try {
+      return await file.copy('$path.corrupt-$stamp.json');
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// A videólista mentése. Hibát dob, ha a fájl nem írható, vagy ha a
+  /// korábbi, olvashatatlan fájl védelme miatt a mentés tiltott.
+  Future<void> _savePlaylist(AthleteVideoPlaylist playlist) async {
+    final file = widget.playlistFile;
+    if (file == null) return;
+    if (_playlistSaveBlocked) {
+      throw const FileSystemException('A videólista mentése le van tiltva.');
+    }
+    await writeFileAtomic(file, jsonEncode(playlist.toJson()));
+  }
 
   void _toggleVideo(SavedYouTubeVideo video) {
-    setState(() => _playlist = _playlist.remove(video));
-    _savePlaylist();
+    final updated = _playlist.remove(video);
+    setState(() => _playlist = updated);
+    unawaited(
+      _savePlaylist(updated).catchError(
+        (Object _) => _showSnack('A videólista mentése nem sikerült.'),
+      ),
+    );
+  }
+
+  Future<void> _addVideo(SavedYouTubeVideo video) async {
+    final updated = _playlist.add(video);
+    await _savePlaylist(updated);
+    if (mounted) setState(() => _playlist = updated);
   }
 
   void _openAddVideo(Athlete athlete) {
-    final input = TextEditingController();
     showDialog<void>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('YouTube-videó hozzáadása'),
-        content: SizedBox(
-          width: 460,
-          child: TextField(
-            controller: input,
-            autofocus: true,
-            decoration: const InputDecoration(
-              labelText: 'YouTube link vagy videóazonosító',
-              hintText: 'https://youtu.be/… vagy 11 karakteres ID',
-            ),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Mégse'),
-          ),
-          FilledButton(
-            onPressed: () async {
-              final id = YouTubeVideoId.parse(input.text);
-              if (id == null) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text(
-                      'Érvénytelen YouTube-link vagy videóazonosító.',
-                    ),
-                  ),
-                );
-                return;
-              }
-              try {
-                final video = await YouTubeOEmbed.resolve(id, athlete.name);
-                if (!mounted) return;
-                setState(() => _playlist = _playlist.add(video));
-                await _savePlaylist();
-                if (dialogContext.mounted) {
-                  Navigator.pop(dialogContext);
-                }
-              } catch (_) {
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text(
-                        'A YouTube videócíme most nem kérhető le. Próbáld újra később.',
-                      ),
-                    ),
-                  );
-                }
-              }
-            },
-            child: const Text('Hozzáadás'),
-          ),
-        ],
-      ),
+      builder: (_) =>
+          _AddVideoDialog(athleteName: athlete.name, onSave: _addVideo),
     );
   }
 
@@ -484,6 +366,15 @@ class _CourtboardShellState extends State<CourtboardShell> {
     );
   }
 
+  /// A profil „Vissza” gombjának felirata a megnyitás helye szerint.
+  String get _backLabel => switch (_activeNav) {
+    1 => 'Vissza: Sportolók',
+    4 => 'Vissza: Videók',
+    _ => 'Vissza: Áttekintés',
+  };
+
+  void _openProfile(Athlete athlete) => setState(() => _openAthlete = athlete);
+
   @override
   Widget build(BuildContext context) {
     final showingProfile = _openAthlete != null;
@@ -492,7 +383,8 @@ class _CourtboardShellState extends State<CourtboardShell> {
         child: Row(
           children: [
             _SideRail(
-              active: showingProfile ? 0 : _activeNav,
+              // A profil megnyitásakor a kiinduló menüpont marad kiemelve.
+              active: _activeNav,
               onSelect: (index) => setState(() {
                 _openAthlete = null;
                 _activeNav = index;
@@ -501,7 +393,9 @@ class _CourtboardShellState extends State<CourtboardShell> {
             Expanded(
               child: showingProfile
                   ? _ProfilePage(
+                      key: ValueKey(_openAthlete!.name),
                       athlete: _openAthlete!,
+                      backLabel: _backLabel,
                       apiConfig: _apiConfig,
                       videos: _playlist.forAthlete(_openAthlete!.name),
                       note: _notes[_openAthlete!.name] ?? '',
@@ -526,14 +420,18 @@ class _CourtboardShellState extends State<CourtboardShell> {
       athletes: _athletes,
       search: _search,
       sort: _overviewSort,
+      filter: _dashboardFilter,
+      onFilterChanged: (value) => setState(() => _dashboardFilter = value),
       onOpenSettings: () => setState(() => _activeNav = 6),
-      onOpen: (athlete) => setState(() => _openAthlete = athlete),
+      onOpen: _openProfile,
+      onAddAthlete: _openAddAthlete,
     ),
     1 => _AthleteDirectory(
       athletes: _athletes,
       sort: _athleteSort,
-      onOpen: (athlete) => setState(() => _openAthlete = athlete),
+      onOpen: _openProfile,
       onAdd: _openAddAthlete,
+      onReorder: _reorderAthletes,
     ),
     2 => const _CalendarPage(),
     3 => NewsPage(
@@ -548,7 +446,7 @@ class _CourtboardShellState extends State<CourtboardShell> {
     4 => VideoLibraryPage(
       athletes: _athletes,
       playlist: _playlist,
-      onOpenAthlete: (athlete) => setState(() => _openAthlete = athlete),
+      onOpenAthlete: _openProfile,
       onRemoveVideo: _toggleVideo,
       onOpenAthletes: () => setState(() => _activeNav = 1),
     ),
@@ -656,94 +554,308 @@ class _CourtboardShellState extends State<CourtboardShell> {
     _saveLocalState();
   }
 
-  void _openAddAthlete() {
-    final name = TextEditingController();
-    final team = TextEditingController();
-    String sport = 'NBA';
-    showDialog<void>(
+  /// „Saját sorrend” módosítása húzással (a teljes, szűretlen listán).
+  /// A [newIndex] már az elem kivétele utáni listára vonatkozik.
+  void _reorderAthletes(int oldIndex, int newIndex) {
+    if (oldIndex == newIndex) return;
+    setState(() {
+      final athlete = _athletes.removeAt(oldIndex);
+      _athletes.insert(newIndex, athlete);
+    });
+    _saveLocalState();
+  }
+
+  /// Profilkép keresése; hiba vagy időtúllépés esetén `null` (monogram).
+  Future<String?> _resolveProfileImage(String name) async {
+    final client = SportsApiClient(config: _apiConfig);
+    try {
+      return await client
+          .resolveProfileImage(name)
+          .timeout(const Duration(seconds: 25));
+    } catch (_) {
+      return null;
+    } finally {
+      client.close();
+    }
+  }
+
+  Future<void> _openAddAthlete() async {
+    final athlete = await showDialog<CustomAthlete>(
       context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          title: const Text('Sportoló hozzáadása'),
-          content: SizedBox(
-            width: 420,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: name,
-                  autofocus: true,
-                  decoration: const InputDecoration(labelText: 'Név'),
-                ),
-                const SizedBox(height: 12),
-                DropdownButtonFormField<String>(
-                  initialValue: sport,
-                  decoration: const InputDecoration(labelText: 'Sportág'),
-                  items: const ['NBA', 'WNBA', 'Foci', 'Darts', 'Tenisz', 'NFL']
-                      .map(
-                        (item) =>
-                            DropdownMenuItem(value: item, child: Text(item)),
-                      )
-                      .toList(),
-                  onChanged: (value) =>
-                      setDialogState(() => sport = value ?? sport),
-                ),
-                if (sport != 'Darts' && sport != 'Tenisz') ...[
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: team,
-                    decoration: const InputDecoration(
-                      labelText: 'Csapat / klub',
-                    ),
-                  ),
-                ] else ...[
-                  const SizedBox(height: 10),
-                  Text(
-                    sport == 'Tenisz'
-                        ? 'A teniszezőkhöz nem kell csapatot megadni.'
-                        : 'A dartsjátékosokhoz nem kell csapatot megadni.',
-                    style: const TextStyle(fontSize: 12, color: _muted),
-                  ),
-                ],
-                const SizedBox(height: 10),
-                const Text(
-                  'A profilképet a rendszer háttérben próbálja feloldani; sikertelen esetben monogram jelenik meg.',
-                  style: TextStyle(fontSize: 12, color: _muted),
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Mégse'),
-            ),
-            FilledButton(
-              onPressed: () async {
-                if (name.text.trim().isEmpty) return;
-                final imageUrl = await SportsApiClient(
-                  config: _apiConfig,
-                ).resolveProfileImage(name.text.trim());
-                if (!context.mounted) return;
-                final athlete = _customToAthlete(
-                  CustomAthlete(
-                    name: name.text.trim(),
-                    sport: sport,
-                    team: team.text.trim(),
-                    photoUrl: imageUrl ?? '',
-                  ),
-                );
-                setState(() => _athletes.add(athlete));
-                _saveLocalState();
-                Navigator.pop(context);
-              },
-              child: const Text('Hozzáadás'),
-            ),
-          ],
-        ),
+      builder: (_) => _AddAthleteDialog(
+        existingNames: _athletes.map((athlete) => athlete.name).toList(),
+        resolveImage: _resolveProfileImage,
+      ),
+    );
+    if (athlete == null || !mounted) return;
+    setState(() => _athletes.add(_customToAthlete(athlete)));
+    _saveLocalState();
+  }
+}
+
+class _AddAthleteDialog extends StatefulWidget {
+  const _AddAthleteDialog({
+    required this.existingNames,
+    required this.resolveImage,
+  });
+
+  final List<String> existingNames;
+  final Future<String?> Function(String name) resolveImage;
+
+  @override
+  State<_AddAthleteDialog> createState() => _AddAthleteDialogState();
+}
+
+class _AddAthleteDialogState extends State<_AddAthleteDialog> {
+  final _name = TextEditingController();
+  final _team = TextEditingController();
+  String _sport = 'NBA';
+  bool _busy = false;
+  String? _error;
+
+  @override
+  void dispose() {
+    _name.dispose();
+    _team.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    if (_busy) return;
+    final name = _name.text.trim();
+    if (name.isEmpty) {
+      setState(() => _error = 'Add meg a sportoló nevét.');
+      return;
+    }
+    final normalized = normalizeAthleteName(name);
+    if (widget.existingNames.any(
+      (existing) => normalizeAthleteName(existing) == normalized,
+    )) {
+      setState(
+        () => _error = 'Ez a sportoló már szerepel a követettek között.',
+      );
+      return;
+    }
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    String? imageUrl;
+    try {
+      imageUrl = await widget.resolveImage(name);
+    } catch (_) {
+      // A képkeresés hibája nem akadályozza a hozzáadást: monogram jelenik meg.
+      imageUrl = null;
+    }
+    if (!mounted) return;
+    Navigator.pop(
+      context,
+      CustomAthlete(
+        name: name,
+        sport: _sport,
+        team: _sport == 'Darts' || _sport == 'Tenisz' ? '' : _team.text.trim(),
+        photoUrl: imageUrl ?? '',
       ),
     );
   }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+    title: const Text('Sportoló hozzáadása'),
+    content: SizedBox(
+      width: 420,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          TextField(
+            key: const Key('add-athlete-name'),
+            controller: _name,
+            autofocus: true,
+            enabled: !_busy,
+            decoration: const InputDecoration(labelText: 'Név'),
+            onSubmitted: (_) => _submit(),
+          ),
+          const SizedBox(height: 12),
+          DropdownButtonFormField<String>(
+            initialValue: _sport,
+            decoration: const InputDecoration(labelText: 'Sportág'),
+            items: const ['NBA', 'WNBA', 'Foci', 'Darts', 'Tenisz', 'NFL']
+                .map((item) => DropdownMenuItem(value: item, child: Text(item)))
+                .toList(),
+            onChanged: _busy
+                ? null
+                : (value) => setState(() => _sport = value ?? _sport),
+          ),
+          if (_sport != 'Darts' && _sport != 'Tenisz') ...[
+            const SizedBox(height: 12),
+            TextField(
+              controller: _team,
+              enabled: !_busy,
+              decoration: const InputDecoration(labelText: 'Csapat / klub'),
+            ),
+          ] else ...[
+            const SizedBox(height: 10),
+            Text(
+              _sport == 'Tenisz'
+                  ? 'A teniszezőkhöz nem kell csapatot megadni.'
+                  : 'A dartsjátékosokhoz nem kell csapatot megadni.',
+              style: const TextStyle(fontSize: 12, color: _muted),
+            ),
+          ],
+          const SizedBox(height: 10),
+          Text(
+            _busy
+                ? 'Profilkép keresése…'
+                : 'A profilképet a rendszer háttérben próbálja feloldani; sikertelen esetben monogram jelenik meg.',
+            style: const TextStyle(fontSize: 12, color: _muted),
+          ),
+          if (_error != null) ...[
+            const SizedBox(height: 10),
+            Text(
+              _error!,
+              key: const Key('add-athlete-error'),
+              style: const TextStyle(
+                fontSize: 12,
+                color: Color(0xFFB44646),
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ],
+      ),
+    ),
+    actions: [
+      TextButton(
+        onPressed: _busy ? null : () => Navigator.pop(context),
+        child: const Text('Mégse'),
+      ),
+      FilledButton.icon(
+        key: const Key('add-athlete-submit'),
+        onPressed: _busy ? null : _submit,
+        icon: _busy
+            ? const SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+            : const Icon(Icons.add),
+        label: const Text('Hozzáadás'),
+      ),
+    ],
+  );
+}
+
+class _AddVideoDialog extends StatefulWidget {
+  const _AddVideoDialog({required this.athleteName, required this.onSave});
+
+  final String athleteName;
+  final Future<void> Function(SavedYouTubeVideo video) onSave;
+
+  @override
+  State<_AddVideoDialog> createState() => _AddVideoDialogState();
+}
+
+class _AddVideoDialogState extends State<_AddVideoDialog> {
+  final _input = TextEditingController();
+  bool _busy = false;
+  String? _error;
+
+  @override
+  void dispose() {
+    _input.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    if (_busy) return;
+    final id = YouTubeVideoId.parse(_input.text);
+    if (id == null) {
+      setState(() => _error = 'Érvénytelen YouTube-link vagy videóazonosító.');
+      return;
+    }
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    final SavedYouTubeVideo video;
+    try {
+      video = await YouTubeOEmbed.resolve(id, widget.athleteName);
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _busy = false;
+          _error =
+              'A YouTube videócíme most nem kérhető le. Próbáld újra később.';
+        });
+      }
+      return;
+    }
+    try {
+      await widget.onSave(video);
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _busy = false;
+          _error = 'A videó mentése nem sikerült.';
+        });
+      }
+      return;
+    }
+    if (mounted) Navigator.pop(context);
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+    title: const Text('YouTube-videó hozzáadása'),
+    content: SizedBox(
+      width: 460,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          TextField(
+            controller: _input,
+            autofocus: true,
+            enabled: !_busy,
+            onSubmitted: (_) => _submit(),
+            decoration: const InputDecoration(
+              labelText: 'YouTube link vagy videóazonosító',
+              hintText: 'https://youtu.be/… vagy 11 karakteres ID',
+            ),
+          ),
+          if (_error != null) ...[
+            const SizedBox(height: 10),
+            Text(
+              _error!,
+              style: const TextStyle(
+                fontSize: 12,
+                color: Color(0xFFB44646),
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ],
+      ),
+    ),
+    actions: [
+      TextButton(
+        onPressed: _busy ? null : () => Navigator.pop(context),
+        child: const Text('Mégse'),
+      ),
+      FilledButton.icon(
+        onPressed: _busy ? null : _submit,
+        icon: _busy
+            ? const SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+            : const Icon(Icons.add),
+        label: const Text('Hozzáadás'),
+      ),
+    ],
+  );
 }
 
 List<Athlete> sortAthletes(List<Athlete> athletes, String mode) {

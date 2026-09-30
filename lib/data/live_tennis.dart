@@ -1,7 +1,8 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'api_sports.dart' show athleteNamesMatch, normalizeAthleteName;
+import 'api_sports.dart' show athleteNamesMatch, findAthleteByName;
+import 'file_util.dart';
 import 'sports_api.dart';
 
 typedef TennisApiCall = Future<Map<String, dynamic>> Function(
@@ -318,8 +319,7 @@ class TennisRepository {
         'fixtures': responses[2],
         'usage': responses[3],
       };
-      await cache.parent.create(recursive: true);
-      await cache.writeAsString(jsonEncode(bundle));
+      await writeFileAtomic(cache, jsonEncode(bundle));
       return parseProfileBundle(bundle);
     } finally {
       client?.close();
@@ -335,24 +335,8 @@ class TennisRepository {
         .map((item) => TennisPlayer.fromJson(Map<String, dynamic>.from(item)))
         .where((player) => player.id != 0)
         .toList();
-    for (final player in players) {
-      if (athleteNamesMatch(player.name, athleteName)) return player;
-    }
-    final wanted = normalizeAthleteName(athleteName);
-    final wantedTokens =
-        wanted.split(' ').where((token) => token.isNotEmpty).toSet();
-    for (final player in players) {
-      final candidate = normalizeAthleteName(player.name);
-      final candidateTokens =
-          candidate.split(' ').where((token) => token.isNotEmpty).toSet();
-      if (candidate.contains(wanted) ||
-          wanted.contains(candidate) ||
-          candidateTokens.containsAll(wantedTokens) ||
-          wantedTokens.containsAll(candidateTokens)) {
-        return player;
-      }
-    }
-    return players.isEmpty ? null : players.first;
+    // Nincs névegyezés: `null`, hogy ne egy másik játékos profilja jelenjen meg.
+    return findAthleteByName(players, athleteName, (player) => player.name);
   }
 
   static TennisProfileData parseProfileBundle(Map<String, dynamic> bundle) {
@@ -413,9 +397,8 @@ class TennisRepository {
   }
 
   static File _cacheFile(String athleteName) {
-    final appData = Platform.environment['APPDATA'] ?? Directory.current.path;
-    final slug = normalizeAthleteName(athleteName).replaceAll(' ', '_');
-    return File('$appData/courtboard_cache/live_tennis/$slug.json');
+    return File('${appDataPath()}/courtboard_cache/live_tennis/'
+        '${cacheSlug(athleteName)}.json');
   }
 }
 

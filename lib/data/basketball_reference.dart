@@ -6,6 +6,8 @@ import 'package:html/parser.dart' as html_parser;
 
 import 'api_sports.dart';
 import 'basketball_season.dart';
+import 'file_util.dart';
+import 'http_util.dart';
 
 typedef BasketballReferenceHtmlFetcher = Future<String> Function(Uri uri);
 
@@ -61,6 +63,12 @@ class NbaGameLog {
     return 'C';
   }
 
+  /// Értelmezhetetlen dátumú sornál `null` – külső adatnál ezt kell használni.
+  static NbaGameLog? tryFromJson(Map<String, dynamic> json) =>
+      DateTime.tryParse('${json['date'] ?? ''}') == null
+          ? null
+          : NbaGameLog.fromJson(json);
+
   factory NbaGameLog.fromJson(Map<String, dynamic> json) => NbaGameLog(
         date: DateTime.parse('${json['date']}'),
         opponent: '${json['opponent'] ?? 'Ismeretlen'}',
@@ -87,9 +95,8 @@ class BasketballReferenceRepository {
   BasketballReferenceRepository({
     this.cacheLifetime = const Duration(hours: 6),
     BasketballReferenceHtmlFetcher? fetchHtml,
-    Directory? cacheDirectory,
-  })  : _fetchHtml = fetchHtml ?? _downloadHtml,
-        _cacheDirectory = cacheDirectory;
+    this._cacheDirectory,
+  }) : _fetchHtml = fetchHtml ?? _downloadHtml;
 
   static bool networkEnabled = true;
   final Duration cacheLifetime;
@@ -120,8 +127,7 @@ class BasketballReferenceRepository {
       final payload = normalizedLeague == 'wnba'
           ? await _fetchWnba(athleteName, season)
           : await _fetchNba(athleteName, season);
-      await cache.parent.create(recursive: true);
-      await cache.writeAsString(jsonEncode(payload), flush: true);
+      await writeFileAtomic(cache, jsonEncode(payload));
       return parseGames(payload);
     } catch (_) {
       final stale = await _readCache(cache, effectiveNow, freshOnly: false);
@@ -130,8 +136,10 @@ class BasketballReferenceRepository {
     }
   }
 
+  /// Az NBA alapszakasz október második felében indul: szeptemberben még az
+  /// előző (júniusban véget ért) szezon a legfrissebb.
   static int seasonEndYear(DateTime now) =>
-      now.month >= 9 ? now.year + 1 : now.year;
+      now.month >= 10 ? now.year + 1 : now.year;
 
   Future<BasketballSeasonStat?> seasonSummary(
     String athleteName, {
@@ -158,8 +166,7 @@ class BasketballReferenceRepository {
           'A Basketball Reference nem adott NBA szezonösszesítőt: $athleteName',
         );
       }
-      await cache.parent.create(recursive: true);
-      await cache.writeAsString(jsonEncode(summary.toJson()), flush: true);
+      await writeFileAtomic(cache, jsonEncode(summary.toJson()));
       return summary;
     } catch (_) {
       final stale = await _readCache(cache, effectiveNow, freshOnly: false);
@@ -230,7 +237,8 @@ class BasketballReferenceRepository {
     if (games is! List) return const [];
     final parsed = games
         .whereType<Map>()
-        .map((game) => NbaGameLog.fromJson(Map<String, dynamic>.from(game)))
+        .map((game) => NbaGameLog.tryFromJson(Map<String, dynamic>.from(game)))
+        .whereType<NbaGameLog>()
         .toList();
     parsed.sort((a, b) => b.date.compareTo(a.date));
     return parsed;
@@ -256,19 +264,31 @@ class BasketballReferenceRepository {
     if (identifier.isEmpty) {
       throw StateError('Érvénytelen Basketball Reference játékosazonosító.');
     }
-    final uri = Uri.https(
-      _host,
-      '/players/${identifier[0]}/$identifier/gamelog/$season',
-    );
-    final html = await _fetchHtml(uri);
-    final games = parseNbaGameLogHtml(html).take(5).toList();
-    return _payload(
-      provider: 'Basketball Reference',
-      player: player.$1,
-      identifier: identifier,
-      season: season,
-      games: games,
-    );
+    // Ha a számolt szezonban még nincs meccs (vagy az oldal 404), az előző
+    // szezon naplóját adjuk vissza, hogy a profil ne maradjon üresen.
+    for (final candidate in [season, season - 1]) {
+      final uri = Uri.https(
+        _host,
+        '/players/${identifier[0]}/$identifier/gamelog/$candidate',
+      );
+      final String html;
+      try {
+        html = await _fetchHtml(uri);
+      } on CourtboardHttpException catch (error) {
+        if (error.isNotFound && candidate == season) continue;
+        rethrow;
+      }
+      final games = parseNbaGameLogHtml(html).take(5).toList();
+      if (games.isEmpty && candidate == season) continue;
+      return _payload(
+        provider: 'Basketball Reference',
+        player: player.$1,
+        identifier: identifier,
+        season: candidate,
+        games: games,
+      );
+    }
+    throw StateError('Nem található Basketball Reference meccsnapló.');
   }
 
   Future<Map<String, dynamic>> _fetchWnba(
@@ -314,11 +334,19 @@ class BasketballReferenceRepository {
       );
     }
     final wanted = normalizeAthleteName(athleteName).replaceAll(' ', '');
-    return candidates.firstWhere(
-      (candidate) =>
-          normalizeAthleteName(candidate.$1).replaceAll(' ', '') == wanted,
-      orElse: () => candidates.first,
-    );
+    for (final candidate in candidates) {
+      if (normalizeAthleteName(candidate.$1).replaceAll(' ', '') == wanted) {
+        return candidate;
+      }
+    }
+    final match =
+        findAthleteByName(candidates, athleteName, (candidate) => candidate.$1);
+    if (match == null) {
+      throw StateError(
+        'Nem található Basketball Reference $league játékos: $athleteName',
+      );
+    }
+    return match;
   }
 
   static Map<String, dynamic> _payload({
@@ -358,43 +386,28 @@ class BasketballReferenceRepository {
 
   Future<File> _cacheFile(String athleteName, int season, String league) async {
     final directory = _cacheDirectory ??
-        Directory(
-          '${Platform.environment['APPDATA'] ?? Directory.current.path}'
-          '/courtboard_cache/basketball_reference',
-        );
-    final slug = normalizeAthleteName(athleteName).replaceAll(' ', '_');
-    return File('${directory.path}/${league}_${slug}_$season.json');
+        Directory('${appDataPath()}/courtboard_cache/basketball_reference');
+    return File(
+        '${directory.path}/${league}_${cacheSlug(athleteName)}_$season.json');
   }
 
   static Future<String> _downloadHtml(Uri uri) async {
-    final client = HttpClient();
-    client.connectionTimeout = const Duration(seconds: 20);
+    final client = createHttpClient();
     try {
-      final request =
-          await client.getUrl(uri).timeout(const Duration(seconds: 20));
-      request.followRedirects = true;
-      request.maxRedirects = 5;
-      request.headers.set(
-        HttpHeaders.userAgentHeader,
-        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
-        'AppleWebKit/537.36 Chrome/126.0 Safari/537.36 Courtboard/0.1',
+      return await httpGetText(
+        client,
+        uri,
+        provider: 'Basketball Reference',
+        allowMalformed: true,
+        timeout: const Duration(seconds: 30),
+        headers: {
+          HttpHeaders.userAgentHeader:
+              'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
+                  'AppleWebKit/537.36 Chrome/126.0 Safari/537.36 Courtboard/0.1',
+          HttpHeaders.acceptLanguageHeader: 'en-US,en;q=0.9',
+          HttpHeaders.acceptHeader: 'text/html,application/xhtml+xml',
+        },
       );
-      request.headers.set(HttpHeaders.acceptLanguageHeader, 'en-US,en;q=0.9');
-      request.headers
-          .set(HttpHeaders.acceptHeader, 'text/html,application/xhtml+xml');
-      final response =
-          await request.close().timeout(const Duration(seconds: 30));
-      final body = await response
-          .transform(const Utf8Decoder(allowMalformed: true))
-          .join()
-          .timeout(const Duration(seconds: 30));
-      if (response.statusCode < 200 || response.statusCode >= 300) {
-        throw HttpException(
-          'Basketball Reference HTTP ${response.statusCode}',
-          uri: uri,
-        );
-      }
-      return body;
     } finally {
       client.close(force: true);
     }

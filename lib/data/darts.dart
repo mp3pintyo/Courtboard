@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'file_util.dart';
+import 'friendly_error.dart';
 import 'sports_api.dart';
 
 class DartsResult {
@@ -17,6 +19,13 @@ class DartsResult {
   final String detail;
   final int? position;
   final String? country;
+
+  /// Értelmezhetetlen dátumú sornál `null`; a külső adat így nem dönti el a
+  /// teljes listát.
+  static DartsResult? tryFromJson(Map<String, dynamic> json) =>
+      DateTime.tryParse('${json['dateEvent'] ?? ''}') == null
+          ? null
+          : DartsResult.fromJson(json);
 
   factory DartsResult.fromJson(Map<String, dynamic> json) => DartsResult(
         date: DateTime.parse('${json['dateEvent']}'),
@@ -76,7 +85,7 @@ class DartsRepository {
             await client.theSportsDb('/playerresults.php', {'id': id});
         results = parseResults(payload);
       } catch (error) {
-        theSportsDbError = '$error';
+        theSportsDbError = friendlyError(error);
       }
     }();
 
@@ -86,12 +95,15 @@ class DartsRepository {
         final payload = await _rapidCompetitions(client);
         competitions = parseCompetitions(payload);
       } catch (error) {
-        rapidApiError = '$error';
+        rapidApiError = friendlyError(error);
       }
     }();
 
-    await Future.wait([sportsDbFuture, rapidFuture]);
-    client.close();
+    try {
+      await Future.wait([sportsDbFuture, rapidFuture]);
+    } finally {
+      client.close();
+    }
     return DartsProfileData(
       player: player,
       results: results,
@@ -115,14 +127,13 @@ class DartsRepository {
     } catch (_) {}
 
     final payload = await client.rapidApiDarts('/competitions/3503');
-    await cache.parent.create(recursive: true);
-    await cache.writeAsString(jsonEncode(payload));
+    await writeFileAtomic(cache, jsonEncode(payload));
     return payload;
   }
 
   static File _rapidCacheFile() {
-    final appData = Platform.environment['APPDATA'] ?? Directory.current.path;
-    return File('$appData/courtboard_cache/rapidapi_darts/competitions.json');
+    return File(
+        '${appDataPath()}/courtboard_cache/rapidapi_darts/competitions.json');
   }
 
   static List<DartsResult> parseResults(Map<String, dynamic> payload) {
@@ -130,7 +141,8 @@ class DartsRepository {
     if (raw is! List) return const [];
     final parsed = raw
         .whereType<Map>()
-        .map((item) => DartsResult.fromJson(Map<String, dynamic>.from(item)))
+        .map((item) => DartsResult.tryFromJson(Map<String, dynamic>.from(item)))
+        .whereType<DartsResult>()
         .toList();
     parsed.sort((a, b) => b.date.compareTo(a.date));
     return parsed.take(5).toList();

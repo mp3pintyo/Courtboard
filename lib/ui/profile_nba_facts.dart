@@ -47,7 +47,7 @@ class UnifiedAthleteFacts extends StatelessWidget {
       if (data.facts.isEmpty)
         const Text(
           'Egyik beállított szolgáltató sem talált ilyen nevű NBA-játékost.',
-          style: TextStyle(color: Colors.red),
+          style: TextStyle(color: _muted),
         )
       else
         Wrap(

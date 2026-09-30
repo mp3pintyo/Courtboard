@@ -1,5 +1,6 @@
 import 'api_sports.dart';
 import 'basketball_reference.dart';
+import 'friendly_error.dart';
 import 'sports_api.dart';
 
 class AthleteFact {
@@ -158,13 +159,11 @@ class MultiProviderAthleteRepository {
         .whereType<Map>()
         .map((player) => Map<String, dynamic>.from(player))
         .toList();
-    if (players.isEmpty) return null;
-    final wanted = normalizeAthleteName(athleteName);
-    return players.cast<Map<String, dynamic>?>().firstWhere((player) {
-      final name = '${player?['first_name'] ?? ''} '
-          '${player?['last_name'] ?? ''}';
-      return normalizeAthleteName(name) == wanted;
-    }, orElse: () => players.first);
+    return findAthleteByName(
+        players,
+        athleteName,
+        (player) => '${player['first_name'] ?? ''} '
+            '${player['last_name'] ?? ''}');
   }
 
   static String? _draftLabel(Map<String, dynamic> player) {
@@ -212,7 +211,7 @@ class MultiProviderAthleteRepository {
           name: provider,
           configured: true,
           hasData: false,
-          message: '$error',
+          message: friendlyError(error),
         ),
       );
     }

@@ -1,8 +1,8 @@
 import 'dart:async';
-import 'dart:io';
 
 import 'package:flutter/material.dart';
 
+import 'common_ui.dart';
 import 'data/api_sports.dart' show normalizeAthleteName;
 import 'data/news.dart';
 
@@ -15,6 +15,17 @@ class NewsAthleteRef {
   final String name;
   final String sport;
 }
+
+/// A cikkben említett követett sportolók nevei (legfeljebb [max]).
+List<String> newsRelatedAthletes(
+  NewsArticle article,
+  List<NewsAthleteRef> athletes, {
+  int max = 3,
+}) => athletes
+    .where((athlete) => newsMatchesAthlete(article, athlete.name))
+    .map((athlete) => athlete.name)
+    .take(max)
+    .toList();
 
 class NewsPage extends StatefulWidget {
   const NewsPage({
@@ -36,7 +47,17 @@ class _NewsPageState extends State<NewsPage> {
   late final NewsRepository _repository;
   final _search = TextEditingController();
   Timer? _debounce;
+  static const _pageSize = 60;
+
   List<NewsArticle> _articles = const [];
+
+  /// Cikkenként (dedupeKey) a kapcsolódó sportolók, betöltéskor egyszer
+  /// számolva, hogy a kártyák építése ne ismételje az egyeztetést.
+  Map<String, List<String>> _related = const {};
+  bool _hasMore = false;
+  bool _loadingMore = false;
+  String? _loadError;
+  bool _refreshFailed = false;
   List<NewsSourceState> _sources = const [];
   String _sport = 'Mind';
   String _source = 'Mind';
@@ -58,44 +79,101 @@ class _NewsPageState extends State<NewsPage> {
     if (widget.autoRefresh) unawaited(_refresh());
   }
 
+  Future<List<NewsArticle>> _queryPage(int offset) => _repository.store.query(
+    text: _search.text,
+    sport: _sport,
+    sourceId: _source,
+    athleteName: _athlete,
+    limit: _pageSize + 1,
+    offset: offset,
+  );
+
+  Map<String, List<String>> _relatedFor(Iterable<NewsArticle> articles) => {
+    for (final article in articles)
+      article.dedupeKey: newsRelatedAthletes(article, widget.athletes),
+  };
+
   Future<void> _reload() async {
-    final articles = await _repository.store.query(
-      text: _search.text,
-      sport: _sport,
-      sourceId: _source,
-      athleteName: _athlete,
-    );
-    final sources = await _repository.store.sourceStates();
-    final count = await _repository.store.count();
-    if (!mounted) return;
-    setState(() {
-      _articles = articles;
-      _sources = sources;
-      _storedCount = count;
-      _loading = false;
-    });
+    try {
+      final page = await _queryPage(0);
+      final sources = await _repository.store.sourceStates();
+      final count = await _repository.store.count();
+      if (!mounted) return;
+      final articles = page.take(_pageSize).toList();
+      setState(() {
+        _articles = articles;
+        _related = _relatedFor(articles);
+        _hasMore = page.length > _pageSize;
+        _sources = sources;
+        _storedCount = count;
+        _loadError = null;
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(
+        () => _loadError =
+            'A mentett hírek nem tölthetők be. ${friendlyError(error)}',
+      );
+    } finally {
+      if (mounted && _loading) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _loadMore() async {
+    if (_loadingMore || !_hasMore) return;
+    setState(() => _loadingMore = true);
+    try {
+      final page = await _queryPage(_articles.length);
+      if (!mounted) return;
+      final more = page.take(_pageSize).toList();
+      setState(() {
+        _articles = [..._articles, ...more];
+        _related = {..._related, ..._relatedFor(more)};
+        _hasMore = page.length > _pageSize;
+      });
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+        SnackBar(
+          content: Text(
+            'További hírek nem tölthetők be. ${friendlyError(error)}',
+          ),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _loadingMore = false);
+    }
   }
 
   Future<void> _refresh({bool force = false}) async {
     if (_refreshing) return;
     setState(() {
       _refreshing = true;
+      _refreshFailed = false;
       _status = '';
     });
-    final report = await _repository.refresh(force: force);
-    if (!mounted) return;
-    if (report.skipped) {
-      _status = 'A feedek 20 percen belül már frissültek.';
-    } else if (report.errors.isEmpty) {
-      _status = report.newArticles == 0
-          ? '${report.updatedSources} forrás frissítve, nem érkezett új hír.'
-          : '${report.newArticles} új hír tartósan elmentve.';
-    } else {
+    try {
+      final report = await _repository.refresh(force: force);
+      if (!mounted) return;
+      if (report.skipped) {
+        _status = 'A feedek 20 percen belül már frissültek.';
+      } else if (report.errors.isEmpty) {
+        _status = report.newArticles == 0
+            ? '${report.updatedSources} forrás frissítve, nem érkezett új hír.'
+            : '${report.newArticles} új hír tartósan elmentve.';
+      } else {
+        _status =
+            '${report.updatedSources} forrás frissült, ${report.errors.length} átmenetileg hibázott. A korábban mentett hírek elérhetők maradnak.';
+      }
+    } catch (error) {
+      if (!mounted) return;
+      _refreshFailed = true;
       _status =
-          '${report.updatedSources} forrás frissült, ${report.errors.length} átmenetileg hibázott. A korábban mentett hírek elérhetők maradnak.';
+          'A hírek frissítése nem sikerült. ${friendlyError(error)} A korábban mentett hírek elérhetők maradnak.';
+    } finally {
+      if (mounted) setState(() => _refreshing = false);
     }
-    setState(() => _refreshing = false);
-    await _reload();
+    if (mounted) await _reload();
   }
 
   void _scheduleReload() {
@@ -135,7 +213,7 @@ class _NewsPageState extends State<NewsPage> {
                           'Utolsó hiba: ${state.lastError}',
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(color: Colors.red),
+                          style: const TextStyle(color: Color(0xFFB44646)),
                         ),
                     ],
                   ),
@@ -261,17 +339,30 @@ class _NewsPageState extends State<NewsPage> {
                 label: 'aktív hírforrás',
               ),
               _NewsStat(
-                value: '${_articles.length}',
+                value: '${_articles.length}${_hasMore ? '+' : ''}',
                 label: 'jelenlegi találat',
               ),
             ],
           ),
           if (_status.isNotEmpty) ...[
             const SizedBox(height: 12),
-            Text(
-              _status,
-              key: const Key('news-refresh-status'),
-              style: const TextStyle(color: _newsMuted),
+            Wrap(
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: 8,
+              children: [
+                Text(
+                  _status,
+                  key: const Key('news-refresh-status'),
+                  style: const TextStyle(color: _newsMuted),
+                ),
+                if (_refreshFailed)
+                  TextButton.icon(
+                    key: const Key('news-refresh-retry'),
+                    onPressed: _refreshing ? null : () => _refresh(force: true),
+                    icon: const Icon(Icons.refresh, size: 18),
+                    label: const Text('Újrapróbálás'),
+                  ),
+              ],
             ),
           ],
           const SizedBox(height: 18),
@@ -293,6 +384,7 @@ class _NewsPageState extends State<NewsPage> {
                     suffixIcon: _search.text.isEmpty
                         ? null
                         : IconButton(
+                            tooltip: 'Keresés törlése',
                             onPressed: () {
                               _search.clear();
                               _scheduleReload();
@@ -395,6 +487,17 @@ class _NewsPageState extends State<NewsPage> {
           Expanded(
             child: _loading
                 ? const Center(child: CircularProgressIndicator())
+                : _loadError != null && _articles.isEmpty
+                ? Center(
+                    key: const Key('news-load-error'),
+                    child: CourtboardErrorState(
+                      message: _loadError!,
+                      onRetry: () {
+                        setState(() => _loading = true);
+                        unawaited(_reload());
+                      },
+                    ),
+                  )
                 : _articles.isEmpty
                 ? const _EmptyNews()
                 : LayoutBuilder(
@@ -405,25 +508,65 @@ class _NewsPageState extends State<NewsPage> {
                           ? 2
                           : 1;
                       const gap = 16.0;
-                      final width =
-                          (constraints.maxWidth - gap * (columns - 1)) /
-                          columns;
-                      return SingleChildScrollView(
-                        child: Wrap(
-                          spacing: gap,
-                          runSpacing: gap,
-                          children: _articles
-                              .map(
-                                (article) => SizedBox(
-                                  width: width,
-                                  child: NewsArticleCard(
-                                    article: article,
-                                    athletes: widget.athletes,
-                                  ),
+                      final rows = (_articles.length + columns - 1) ~/ columns;
+                      // Soronként, lustán épített lista: csak a látható
+                      // kártyák készülnek el, a teljes archívum soha.
+                      return ListView.builder(
+                        key: const PageStorageKey('news-list'),
+                        itemCount: rows + (_hasMore ? 1 : 0),
+                        itemBuilder: (context, row) {
+                          if (row == rows) {
+                            return Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 8),
+                              child: Center(
+                                child: OutlinedButton.icon(
+                                  key: const Key('news-load-more'),
+                                  onPressed: _loadingMore ? null : _loadMore,
+                                  icon: _loadingMore
+                                      ? const SizedBox(
+                                          width: 16,
+                                          height: 16,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                          ),
+                                        )
+                                      : const Icon(Icons.expand_more_rounded),
+                                  label: const Text('Továbbiak betöltése'),
                                 ),
-                              )
-                              .toList(),
-                        ),
+                              ),
+                            );
+                          }
+                          final start = row * columns;
+                          return Padding(
+                            padding: EdgeInsets.only(
+                              bottom: row == rows - 1 ? 0 : gap,
+                            ),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                for (
+                                  var column = 0;
+                                  column < columns;
+                                  column++
+                                ) ...[
+                                  if (column > 0) const SizedBox(width: gap),
+                                  Expanded(
+                                    child: start + column < _articles.length
+                                        ? NewsArticleCard(
+                                            article: _articles[start + column],
+                                            relatedAthletes:
+                                                _related[_articles[start +
+                                                        column]
+                                                    .dedupeKey] ??
+                                                const [],
+                                          )
+                                        : const SizedBox.shrink(),
+                                  ),
+                                ],
+                              ],
+                            ),
+                          );
+                        },
                       );
                     },
                   ),
@@ -461,25 +604,23 @@ class NewsArticleCard extends StatelessWidget {
   const NewsArticleCard({
     super.key,
     required this.article,
-    required this.athletes,
+    this.relatedAthletes = const [],
   });
   final NewsArticle article;
-  final List<NewsAthleteRef> athletes;
+
+  /// Előre kiszámolt kapcsolódó sportolók ([newsRelatedAthletes]).
+  final List<String> relatedAthletes;
 
   @override
   Widget build(BuildContext context) {
-    final related = athletes
-        .where((athlete) => newsMatchesAthlete(article, athlete.name))
-        .map((athlete) => athlete.name)
-        .take(3)
-        .toList();
+    final related = relatedAthletes;
     return Material(
       color: _newsPaper,
       borderRadius: BorderRadius.circular(20),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         key: ValueKey('news-${article.dedupeKey}'),
-        onTap: () => _openArticle(article.url),
+        onTap: () => openExternalUrl(context, article.url),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -623,14 +764,6 @@ class _EmptyNews extends StatelessWidget {
       ],
     ),
   );
-}
-
-Future<void> _openArticle(String url) async {
-  if (!Platform.isWindows) return;
-  await Process.start('rundll32.exe', [
-    'url.dll,FileProtocolHandler',
-    url,
-  ], mode: ProcessStartMode.detached);
 }
 
 String _newsDate(DateTime date) =>

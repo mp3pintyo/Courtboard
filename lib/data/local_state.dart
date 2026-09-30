@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'file_util.dart';
+
 class CustomAthlete {
   const CustomAthlete({
     required this.name,
@@ -47,6 +49,7 @@ class CourtboardLocalState {
     this.theme = 'green',
     this.overviewSort = 'custom',
     this.athleteSort = 'custom',
+    this.athleteOrder = const [],
   });
 
   final Map<String, String> notes;
@@ -62,6 +65,9 @@ class CourtboardLocalState {
   final String overviewSort;
   final String athleteSort;
 
+  /// A „Saját sorrend” szerinti névsor; üres lista esetén az alapsorrend él.
+  final List<String> athleteOrder;
+
   Map<String, dynamic> toJson() => {
         'notes': notes,
         'alerts': alerts,
@@ -76,6 +82,7 @@ class CourtboardLocalState {
         'theme': theme,
         'overviewSort': overviewSort,
         'athleteSort': athleteSort,
+        'athleteOrder': athleteOrder,
       };
 
   factory CourtboardLocalState.fromJson(Map<String, dynamic> json) {
@@ -83,6 +90,7 @@ class CourtboardLocalState {
     final rawAlerts = json['alerts'];
     final rawRemoved = json['removedAthleteNames'];
     final rawAthletes = json['customAthletes'];
+    final rawOrder = json['athleteOrder'];
     return CourtboardLocalState(
       notes: rawNotes is Map
           ? rawNotes.map((key, value) => MapEntry('$key', '$value'))
@@ -108,6 +116,9 @@ class CourtboardLocalState {
       theme: json['theme'] as String? ?? 'green',
       overviewSort: json['overviewSort'] as String? ?? 'custom',
       athleteSort: json['athleteSort'] as String? ?? 'custom',
+      athleteOrder: rawOrder is List
+          ? rawOrder.whereType<String>().toList()
+          : const [],
     );
   }
 }
@@ -117,25 +128,65 @@ class LocalStateStore {
 
   final File _file;
 
-  static File _defaultFile() {
-    final appData = Platform.environment['APPDATA'] ?? Directory.current.path;
-    return File('$appData/courtboard_state.json');
-  }
+  /// Az egymás utáni mentések láncolata: egyszerre mindig csak egy írás fut,
+  /// és a sorrend megegyezik a hívások sorrendjével (az utolsó állapot nyer).
+  Future<void> _saveChain = Future<void>.value();
+
+  static File _defaultFile() => File('${appDataPath()}/courtboard_state.json');
+
+  /// Az utolsó [load] során félretett sérült állapotfájl, ha volt ilyen.
+  File? lastCorruptBackup;
 
   Future<CourtboardLocalState> load() async {
+    // Egy folyamatban lévő mentést megvárunk, hogy ne félkész fájlt olvassunk.
+    await _saveChain;
+    final String raw;
     try {
       if (!await _file.exists()) return const CourtboardLocalState();
-      final decoded = jsonDecode(await _file.readAsString());
-      return decoded is Map<String, dynamic>
-          ? CourtboardLocalState.fromJson(decoded)
-          : const CourtboardLocalState();
-    } catch (_) {
+      raw = await _file.readAsString();
+    } on FileSystemException {
       return const CourtboardLocalState();
+    }
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is Map<String, dynamic>) {
+        return CourtboardLocalState.fromJson(decoded);
+      }
+    } catch (_) {
+      // Lent félretesszük a sérült fájlt.
+    }
+    await _preserveCorruptFile();
+    return const CourtboardLocalState();
+  }
+
+  /// A sérült állapotfájlt `courtboard_state.corrupt-<időbélyeg>.json` néven
+  /// lemásolja, hogy a következő mentés ne írja felül visszaállíthatatlanul.
+  Future<void> _preserveCorruptFile() async {
+    final stamp = DateTime.now()
+        .toUtc()
+        .toIso8601String()
+        .replaceAll(RegExp(r'[^0-9]'), '')
+        .substring(0, 17);
+    final name = _file.uri.pathSegments.last;
+    final dot = name.lastIndexOf('.');
+    final base = dot > 0 ? name.substring(0, dot) : name;
+    final extension = dot > 0 ? name.substring(dot) : '.json';
+    final backup = File('${_file.parent.path}/$base.corrupt-$stamp$extension');
+    try {
+      lastCorruptBackup = await _file.copy(backup.path);
+    } on FileSystemException {
+      lastCorruptBackup = null;
     }
   }
 
-  Future<void> save(CourtboardLocalState state) async {
-    await _file.parent.create(recursive: true);
-    await _file.writeAsString(jsonEncode(state.toJson()));
+  /// Atomikus mentés (ideiglenes fájl + átnevezés). Az egyidejű hívások
+  /// sorban futnak le; egy korábbi mentés hibája nem akasztja meg a későbbieket.
+  Future<void> save(CourtboardLocalState state) {
+    final contents = jsonEncode(state.toJson());
+    final next = _saveChain
+        .catchError((Object _) {})
+        .then((_) => writeFileAtomic(_file, contents));
+    _saveChain = next.catchError((Object _) {});
+    return next;
   }
 }

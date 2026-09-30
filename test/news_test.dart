@@ -431,9 +431,9 @@ void main() {
           body: SingleChildScrollView(
             child: NewsArticleCard(
               article: article,
-              athletes: const [
+              relatedAthletes: newsRelatedAthletes(article, const [
                 NewsAthleteRef(name: 'Nikola Jokić', sport: 'NBA'),
-              ],
+              ]),
             ),
           ),
         ),

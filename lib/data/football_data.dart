@@ -1,3 +1,4 @@
+import 'football_names.dart';
 import 'sports_api.dart';
 
 enum FootballResult { win, draw, loss, unknown }
@@ -15,11 +16,39 @@ class FootballGame {
   final FootballResult result;
 }
 
+/// Csapatmérkőzések adatforrás-állapottal: a lejátszott és a közelgő
+/// mérkőzések külön listában, a kihagyott/hibás forrás üzenetével együtt.
+class FootballTeamGames {
+  const FootballTeamGames({
+    this.recent = const [],
+    this.upcoming = const [],
+    this.warnings = const [],
+  });
+
+  /// Lejátszott mérkőzések, legújabb elöl.
+  final List<FootballGame> recent;
+
+  /// Közelgő mérkőzések, legközelebbi elöl.
+  final List<FootballGame> upcoming;
+
+  /// Felhasználónak szóló, kulcsmentes figyelmeztetések (például
+  /// „football-data.org: a kulcs hibás vagy nincs jogosultság (HTTP 403)”).
+  final List<String> warnings;
+}
+
 class FootballDataRepository {
   FootballDataRepository(this._client);
   final SportsApiClient _client;
 
-  Future<List<FootballGame>> fetchRecentTeamGames(String teamName) async {
+  /// A belső HTTP-kliens lezárása; a repository ezután nem használható.
+  void close() => _client.close();
+
+  /// Visszafelé kompatibilis nézet: csak a lejátszott mérkőzések.
+  Future<List<FootballGame>> fetchRecentTeamGames(String teamName) async =>
+      (await fetchTeamGames(teamName)).recent;
+
+  Future<FootballTeamGames> fetchTeamGames(String teamName) async {
+    final warnings = <String>[];
     if (_client.config.footballDataKey.isNotEmpty) {
       try {
         final teams = await _client.footballData('/v4/teams', {'limit': '500'});
@@ -35,10 +64,18 @@ class FootballDataRepository {
           'dateFrom': date(from),
           'dateTo': date(now),
         });
-        final games = parseMatches(data, teamName);
-        if (games.isNotEmpty) return games;
-      } catch (_) {
-        // A kulcs nélküli, szélesebb csapatlefedettségű fallback lent fut le.
+        final games = parseMatches(data, teamName, teamId: id);
+        if (games.isNotEmpty) {
+          return FootballTeamGames(recent: games, warnings: warnings);
+        }
+      } on StateError catch (error) {
+        warnings.add('football-data.org: ${error.message}');
+      } catch (error) {
+        // A kulcs nélküli, szélesebb csapatlefedettségű fallback lent fut le,
+        // de a kulcs- vagy kvótahibát a felületnek látnia kell.
+        final text = '$error';
+        warnings.add(
+            text.startsWith('football-data.org') ? text : 'football-data.org: $text');
       }
     }
 
@@ -46,17 +83,20 @@ class FootballDataRepository {
       't': footballTeamSearchTerm(teamName),
     });
     final sportsDbId = parseTheSportsDbTeamId(teams, teamName);
-    if (sportsDbId == null) return const [];
+    if (sportsDbId == null) return FootballTeamGames(warnings: warnings);
     final payloads = await Future.wait([
       _client.theSportsDb('/eventslast.php', {'id': sportsDbId}),
       _client.theSportsDb('/eventsnext.php', {'id': sportsDbId}),
     ]);
-    final games = [
-      ...parseTheSportsDbMatches(payloads[0], sportsDbId),
-      ...parseTheSportsDbMatches(payloads[1], sportsDbId),
-    ];
-    games.sort((a, b) => b.date.compareTo(a.date));
-    return games.take(5).toList(growable: false);
+    final recent = parseTheSportsDbMatches(payloads[0], sportsDbId)
+      ..sort((a, b) => b.date.compareTo(a.date));
+    final upcoming = parseTheSportsDbMatches(payloads[1], sportsDbId)
+      ..sort((a, b) => a.date.compareTo(b.date));
+    return FootballTeamGames(
+      recent: recent.take(5).toList(growable: false),
+      upcoming: upcoming.take(5).toList(growable: false),
+      warnings: warnings,
+    );
   }
 
   static int? parseFootballDataTeamId(
@@ -106,51 +146,85 @@ class FootballDataRepository {
   ) {
     final rawEvents = data['results'] ?? data['events'];
     if (rawEvents is! List) return const [];
-    return rawEvents
-        .whereType<Map>()
-        .map((raw) {
-          final isHome = '${raw['idHomeTeam'] ?? ''}' == teamId;
-          final opponent = isHome
-              ? '${raw['strAwayTeam'] ?? 'Ismeretlen'}'
-              : '${raw['strHomeTeam'] ?? 'Ismeretlen'}';
-          final ownScore = isHome ? raw['intHomeScore'] : raw['intAwayScore'];
-          final otherScore = isHome ? raw['intAwayScore'] : raw['intHomeScore'];
-          final own = int.tryParse('${ownScore ?? ''}');
-          final other = int.tryParse('${otherScore ?? ''}');
-          final result = own == null || other == null
-              ? FootballResult.unknown
-              : own == other
-              ? FootballResult.draw
-              : own > other
-              ? FootballResult.win
-              : FootballResult.loss;
-          final date = '${raw['dateEvent'] ?? ''}';
-          final time = '${raw['strTime'] ?? ''}'.trim();
-          return FootballGame(
-            date:
-                DateTime.tryParse(time.isEmpty ? date : '${date}T$time') ??
-                DateTime(2000),
-            opponent: opponent,
-            score: own == null || other == null ? '–' : '$own–$other',
-            result: result,
-          );
-        })
-        .toList(growable: false);
+    final games = <FootballGame>[];
+    for (final raw in rawEvents.whereType<Map>()) {
+      final date = parseTheSportsDbEventTime(
+        '${raw['dateEvent'] ?? ''}',
+        '${raw['strTime'] ?? ''}',
+      );
+      if (date == null) continue;
+      final isHome = '${raw['idHomeTeam'] ?? ''}' == teamId;
+      final opponent = isHome
+          ? '${raw['strAwayTeam'] ?? 'Ismeretlen'}'
+          : '${raw['strHomeTeam'] ?? 'Ismeretlen'}';
+      final ownScore = isHome ? raw['intHomeScore'] : raw['intAwayScore'];
+      final otherScore = isHome ? raw['intAwayScore'] : raw['intHomeScore'];
+      final own = int.tryParse('${ownScore ?? ''}');
+      final other = int.tryParse('${otherScore ?? ''}');
+      final result = own == null || other == null
+          ? FootballResult.unknown
+          : own == other
+          ? FootballResult.draw
+          : own > other
+          ? FootballResult.win
+          : FootballResult.loss;
+      games.add(FootballGame(
+        date: date,
+        opponent: opponent,
+        score: own == null || other == null ? '–' : '$own–$other',
+        result: result,
+      ));
+    }
+    return games;
   }
 
+  /// A TheSportsDB `dateEvent` + `strTime` mezői UTC-ben értendők; a helyi
+  /// időre alakított időpontot adja vissza. Időpont nélkül a napot helyi
+  /// dátumként kezeli, értelmezhetetlen adatnál `null`.
+  static DateTime? parseTheSportsDbEventTime(String date, String time) {
+    final day = date.trim();
+    if (day.isEmpty) return null;
+    final clock = time.trim();
+    if (clock.isEmpty) return DateTime.tryParse(day);
+    final hasOffset = RegExp(r'(Z|[+-]\d{2}:?\d{2})$').hasMatch(clock);
+    final parsed = DateTime.tryParse('${day}T$clock${hasOffset ? '' : 'Z'}');
+    return parsed?.toLocal() ?? DateTime.tryParse(day);
+  }
+
+  /// football-data.org mérkőzések a [teamName] csapat szemszögéből.
+  ///
+  /// Ha a csapat azonosítója ([teamId]) ismert, a hazai/vendég oldalt az
+  /// azonosító dönti el; különben normalizált névösszevetés (a `FC`, `CF`,
+  /// `AFC` toldalékok és ékezetek figyelmen kívül hagyásával).
   static List<FootballGame> parseMatches(
     Map<String, dynamic> data,
-    String teamName,
-  ) {
+    String teamName, {
+    int? teamId,
+  }) {
     final matches = data['matches'];
     if (matches is! List) return const [];
-    final normalized = teamName.trim().toLowerCase().replaceAll(' fc', '');
-    final games = matches.whereType<Map>().map((raw) {
+    final expected = normalizeFootballTeamName(teamName);
+    bool isTeam(Map<String, dynamic> side) {
+      if (teamId != null && side['id'] != null) {
+        return int.tryParse('${side['id']}') == teamId;
+      }
+      return [
+        '${side['name'] ?? ''}',
+        '${side['shortName'] ?? ''}',
+        '${side['tla'] ?? ''}',
+      ].any((name) =>
+          name.isNotEmpty && normalizeFootballTeamName(name) == expected);
+    }
+
+    final games = <FootballGame>[];
+    for (final raw in matches.whereType<Map>()) {
       final home = Map<String, dynamic>.from(raw['homeTeam'] as Map? ?? {});
       final away = Map<String, dynamic>.from(raw['awayTeam'] as Map? ?? {});
+      final date = DateTime.tryParse('${raw['utcDate'] ?? ''}');
+      if (date == null) continue;
       final homeName = '${home['name'] ?? ''}';
       final awayName = '${away['name'] ?? ''}';
-      final isHome = homeName.toLowerCase().replaceAll(' fc', '') == normalized;
+      final isHome = isTeam(home) || !isTeam(away);
       final score = Map<String, dynamic>.from(raw['score'] as Map? ?? {});
       final fullTime = Map<String, dynamic>.from(
         score['fullTime'] as Map? ?? {},
@@ -163,29 +237,17 @@ class FootballDataRepository {
           : (isHome && winner == 'HOME_TEAM') ||
                 (!isHome && winner == 'AWAY_TEAM')
           ? FootballResult.win
-          : FootballResult.loss;
-      return FootballGame(
-        date: DateTime.tryParse('${raw['utcDate']}') ?? DateTime(2000),
+          : winner == 'HOME_TEAM' || winner == 'AWAY_TEAM'
+          ? FootballResult.loss
+          : FootballResult.unknown;
+      games.add(FootballGame(
+        date: date.toLocal(),
         opponent: isHome ? awayName : homeName,
         score: isHome ? '$homeScore–$awayScore' : '$awayScore–$homeScore',
         result: result,
-      );
-    }).toList();
+      ));
+    }
     games.sort((a, b) => b.date.compareTo(a.date));
     return games.take(5).toList();
   }
 }
-
-String footballTeamSearchTerm(String value) {
-  final words = value.trim().split(RegExp(r'\s+'));
-  const clubTokens = {'fc', 'cf', 'afc', 'sc', 'ac'};
-  final useful = words
-      .where((word) => !clubTokens.contains(word.toLowerCase()))
-      .join(' ')
-      .trim();
-  return useful.isEmpty ? value.trim() : useful;
-}
-
-String normalizeFootballTeamName(String value) => footballTeamSearchTerm(
-  value,
-).toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');

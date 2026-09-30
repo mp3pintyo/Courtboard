@@ -2,6 +2,8 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'api_sports.dart' show athleteNamesMatch, normalizeAthleteName;
+import 'file_util.dart';
+import 'football_names.dart';
 import 'fotmob_football.dart';
 import 'sports_api.dart';
 
@@ -244,8 +246,8 @@ class FootballDataPlayerRepository {
   }
 
   Future<void> _writeCache(List<Map<String, dynamic>> teams) async {
-    await _cacheFile.parent.create(recursive: true);
-    await _cacheFile.writeAsString(
+    await writeFileAtomic(
+      _cacheFile,
       jsonEncode({
         'savedAt': DateTime.now().toUtc().toIso8601String(),
         'teams': teams,
@@ -279,16 +281,12 @@ class FootballDataPlayerRepository {
   }
 
   static File _defaultCacheFile() {
-    final root = Platform.environment['APPDATA'] ?? Directory.current.path;
-    return File('$root/courtboard_cache/football_data/free_players.json');
+    return File(
+        '${appDataPath()}/courtboard_cache/football_data/free_players.json');
   }
 }
 
-String _normalizeTeam(String value) => normalizeAthleteName(value)
-    .split(' ')
-    .where((part) => !const {'fc', 'cf', 'afc', 'sc', 'ac'}.contains(part))
-    .join('')
-    .replaceAll(RegExp(r'[^a-z0-9]'), '');
+String _normalizeTeam(String value) => normalizeFootballTeamName(value);
 
 String? _nonEmpty(dynamic value) {
   final text = '${value ?? ''}'.trim();

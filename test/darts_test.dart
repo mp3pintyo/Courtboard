@@ -35,4 +35,15 @@ void main() {
     expect(competitions.single.name, 'PDC World Championship');
     expect(competitions.single.id, '123');
   });
+
+  test('darts results with an invalid date are skipped', () {
+    final results = DartsRepository.parseResults({
+      'results': [
+        {'dateEvent': '', 'strEvent': 'Broken'},
+        {'dateEvent': '2026-07-26', 'strEvent': 'World Matchplay Final'},
+      ]
+    });
+
+    expect(results.single.event, 'World Matchplay Final');
+  });
 }

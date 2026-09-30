@@ -47,6 +47,12 @@ class Athlete {
       team.trim().toLowerCase() != 'nincs megadva';
 
   String get sportAndTeam => showsTeam ? '$sport · $team' : sport;
+
+  /// Ismeretlen vagy üres országot nem jelenítünk meg.
+  bool get showsCountry {
+    final value = country.trim();
+    return value.isNotEmpty && value.toLowerCase() != 'ismeretlen';
+  }
 }
 
 class Metric {
@@ -82,27 +88,29 @@ class ClipItem {
 }
 
 class CourtboardApp extends StatefulWidget {
-  const CourtboardApp({super.key});
+  const CourtboardApp({
+    super.key,
+    this.initialState = const CourtboardLocalState(),
+    this.stateStore,
+    this.playlistFile,
+  });
+
+  /// A futtatás előtt egyszer betöltött helyi állapot.
+  final CourtboardLocalState initialState;
+
+  /// Az állapot mentésének helye; `null` esetén (például widget-tesztben)
+  /// az alkalmazás semmit nem ír a lemezre.
+  final LocalStateStore? stateStore;
+
+  /// A saját videólista fájlja; `null` esetén nincs betöltés és mentés.
+  final File? playlistFile;
 
   @override
   State<CourtboardApp> createState() => _CourtboardAppState();
 }
 
 class _CourtboardAppState extends State<CourtboardApp> {
-  String _theme = 'green';
-
-  @override
-  void initState() {
-    super.initState();
-    _loadTheme();
-  }
-
-  Future<void> _loadTheme() async {
-    final state = await LocalStateStore().load();
-    if (mounted && state.theme != _theme) {
-      setState(() => _theme = state.theme);
-    }
-  }
+  late String _theme = widget.initialState.theme;
 
   @override
   Widget build(BuildContext context) {
@@ -123,7 +131,9 @@ class _CourtboardAppState extends State<CourtboardApp> {
         colorScheme: scheme,
       ),
       home: CourtboardShell(
-        theme: _theme,
+        initialState: widget.initialState,
+        stateStore: widget.stateStore,
+        playlistFile: widget.playlistFile,
         onThemeChanged: (value) => setState(() => _theme = value),
       ),
     );

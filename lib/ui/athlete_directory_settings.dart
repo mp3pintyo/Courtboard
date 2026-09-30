@@ -6,11 +6,16 @@ class _AthleteDirectory extends StatefulWidget {
     required this.sort,
     required this.onOpen,
     required this.onAdd,
+    required this.onReorder,
   });
   final List<Athlete> athletes;
   final String sort;
   final ValueChanged<Athlete> onOpen;
   final VoidCallback onAdd;
+
+  /// A „Saját sorrend” módosítása: régi és (a kivétel után már igazított)
+  /// új index a teljes listában.
+  final void Function(int oldIndex, int newIndex) onReorder;
 
   @override
   State<_AthleteDirectory> createState() => _AthleteDirectoryState();
@@ -40,6 +45,10 @@ class _AthleteDirectoryState extends State<_AthleteDirectory> {
           .toList(),
       widget.sort,
     );
+    final customOrder = widget.sort == 'custom';
+    // Húzással csak a teljes, szűretlen listát lehet átrendezni, különben az
+    // indexek nem a tényleges sorrendre vonatkoznának.
+    final reorderable = customOrder && query.isEmpty && _sport == 'Mind';
     return Container(
       color: _canvas,
       padding: const EdgeInsets.all(34),
@@ -137,6 +146,15 @@ class _AthleteDirectoryState extends State<_AthleteDirectory> {
                       .toList(),
             ),
           ),
+          if (customOrder) ...[
+            const SizedBox(height: 10),
+            Text(
+              reorderable
+                  ? 'Saját sorrend: a fogantyúval húzva átrendezheted a listát.'
+                  : 'Az átrendezéshez töröld a keresést, és válaszd a „Mind” szűrőt.',
+              style: const TextStyle(color: _muted, fontSize: 12),
+            ),
+          ],
           const SizedBox(height: 18),
           Expanded(
             child: athletes.isEmpty
@@ -146,37 +164,74 @@ class _AthleteDirectoryState extends State<_AthleteDirectory> {
                       style: TextStyle(color: _muted),
                     ),
                   )
+                : reorderable
+                ? ReorderableListView.builder(
+                    key: const Key('athlete-directory-reorderable'),
+                    buildDefaultDragHandles: false,
+                    itemCount: athletes.length,
+                    onReorderItem: widget.onReorder,
+                    itemBuilder: (context, index) => Padding(
+                      key: ValueKey('reorder-${athletes[index].name}'),
+                      padding: const EdgeInsets.only(bottom: 10),
+                      child: _DirectoryTile(
+                        athlete: athletes[index],
+                        onOpen: widget.onOpen,
+                        trailing: ReorderableDragStartListener(
+                          index: index,
+                          child: const Tooltip(
+                            message: 'Húzd az átrendezéshez',
+                            child: Icon(Icons.drag_handle),
+                          ),
+                        ),
+                      ),
+                    ),
+                  )
                 : ListView.separated(
                     itemCount: athletes.length,
                     separatorBuilder: (_, __) => const SizedBox(height: 10),
-                    itemBuilder: (context, index) {
-                      final athlete = athletes[index];
-                      return Material(
-                        color: _paper,
-                        borderRadius: BorderRadius.circular(16),
-                        clipBehavior: Clip.antiAlias,
-                        child: ListTile(
-                          key: ValueKey('directory-athlete-${athlete.name}'),
-                          onTap: () => widget.onOpen(athlete),
-                          leading: CircleAvatar(
-                            backgroundColor: athlete.accent,
-                            child: Text(athlete.name.substring(0, 1)),
-                          ),
-                          title: Text(
-                            athlete.name,
-                            style: const TextStyle(fontWeight: FontWeight.w800),
-                          ),
-                          subtitle: Text(athlete.sportAndTeam),
-                          trailing: const Icon(Icons.arrow_forward),
-                        ),
-                      );
-                    },
+                    itemBuilder: (context, index) => _DirectoryTile(
+                      athlete: athletes[index],
+                      onOpen: widget.onOpen,
+                      trailing: const Icon(Icons.arrow_forward),
+                    ),
                   ),
           ),
         ],
       ),
     );
   }
+}
+
+class _DirectoryTile extends StatelessWidget {
+  const _DirectoryTile({
+    required this.athlete,
+    required this.onOpen,
+    required this.trailing,
+  });
+  final Athlete athlete;
+  final ValueChanged<Athlete> onOpen;
+  final Widget trailing;
+
+  @override
+  Widget build(BuildContext context) => Material(
+    color: _paper,
+    borderRadius: BorderRadius.circular(16),
+    clipBehavior: Clip.antiAlias,
+    child: ListTile(
+      key: ValueKey('directory-athlete-${athlete.name}'),
+      onTap: () => onOpen(athlete),
+      leading: CircleAvatar(
+        backgroundColor: athlete.accent,
+        child: Text(athlete.name.substring(0, 1)),
+      ),
+      title: Text(
+        athlete.name,
+        style: const TextStyle(fontWeight: FontWeight.w800),
+      ),
+      subtitle: Text(athlete.sportAndTeam),
+      trailing: trailing,
+    ),
+  );
 }
 
 class _SettingsPage extends StatelessWidget {
@@ -247,7 +302,7 @@ class _SettingsPage extends StatelessWidget {
         _SettingsCard(
           title: 'Sportolók rendezése',
           description:
-              'Az Áttekintés és a Sportolók lista sorrendje külön állítható.',
+              'Az Áttekintés és a Sportolók lista sorrendje külön állítható. A saját sorrendet a Sportolók oldalon, húzással módosíthatod.',
           child: Column(
             children: [
               DropdownButtonFormField<String>(
@@ -335,74 +390,51 @@ class _SettingsCard extends StatelessWidget {
 class _CalendarPage extends StatelessWidget {
   const _CalendarPage();
   @override
-  Widget build(BuildContext context) {
-    const events = [
-      ('JAN 23', 'Denver Nuggets', 'vs. Lakers · NBA'),
-      ('JAN 24', 'FC Barcelona', 'vs. Valencia · LaLiga'),
-      ('JAN 25', 'Philadelphia Eagles', 'vs. Rams · NFL'),
-      ('JAN 30', 'PDC Premier League', 'Luke Humphries · Darts'),
-    ];
-    return Container(
-      color: _canvas,
-      child: Padding(
-        padding: const EdgeInsets.all(34),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Naptár és mérkőzések',
-              style: TextStyle(
-                fontSize: 34,
-                fontWeight: FontWeight.w900,
-                letterSpacing: -1.5,
+  Widget build(BuildContext context) => Container(
+    color: _canvas,
+    child: const Padding(
+      padding: EdgeInsets.all(34),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Naptár és mérkőzések',
+            style: TextStyle(
+              fontSize: 34,
+              fontWeight: FontWeight.w900,
+              letterSpacing: -1.5,
+            ),
+          ),
+          SizedBox(height: 6),
+          Text(
+            'Követett sportolóid következő eseményei és utolsó eredményei.',
+            style: TextStyle(color: _muted),
+          ),
+          SizedBox(height: 28),
+          Expanded(
+            child: Center(
+              key: Key('calendar-empty-state'),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.event_available_outlined, size: 46, color: _muted),
+                  SizedBox(height: 12),
+                  Text(
+                    'Még nincs megjeleníthető esemény.',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
+                  ),
+                  SizedBox(height: 6),
+                  Text(
+                    'A naptár a követett sportolók közelgő eseményeiből épül fel — hamarosan.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: _muted),
+                  ),
+                ],
               ),
             ),
-            const SizedBox(height: 6),
-            const Text(
-              'Követett sportolóid következő eseményei és utolsó eredményei.',
-              style: TextStyle(color: _muted),
-            ),
-            const SizedBox(height: 28),
-            ...events.map(
-              (event) => Container(
-                margin: const EdgeInsets.only(bottom: 12),
-                padding: const EdgeInsets.all(18),
-                decoration: BoxDecoration(
-                  color: _paper,
-                  borderRadius: BorderRadius.circular(18),
-                ),
-                child: Row(
-                  children: [
-                    SizedBox(
-                      width: 80,
-                      child: Text(
-                        event.$1,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w900,
-                          color: _moss,
-                        ),
-                      ),
-                    ),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            event.$2,
-                            style: const TextStyle(fontWeight: FontWeight.w800),
-                          ),
-                          Text(event.$3, style: const TextStyle(color: _muted)),
-                        ],
-                      ),
-                    ),
-                    const Icon(Icons.notifications_none),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
-    );
-  }
+    ),
+  );
 }

@@ -76,9 +76,9 @@ class _DartsDataCardState extends State<_DartsDataCard> {
               child: CircularProgressIndicator(),
             )
           else if (snapshot.hasError)
-            Text(
-              'Darts adatforrás hiba: ${snapshot.error}',
-              style: const TextStyle(color: Colors.red),
+            CourtboardErrorState.fromError(
+              snapshot.error!,
+              onRetry: () => setState(_load),
             )
           else
             DartsProfileFacts(data: snapshot.data!, accent: widget.accent),

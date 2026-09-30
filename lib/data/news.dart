@@ -6,6 +6,9 @@ import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:xml/xml.dart';
 
 import 'api_sports.dart' show normalizeAthleteName;
+import 'file_util.dart';
+import 'friendly_error.dart';
+import 'url_safety.dart';
 
 const newsRefreshInterval = Duration(minutes: 20);
 
@@ -180,6 +183,7 @@ class NewsArticle {
     this.summary = '',
     this.imageUrl = '',
     this.author = '',
+    this.publishedAtParsed = true,
   });
 
   final int? id;
@@ -195,6 +199,11 @@ class NewsArticle {
   final String author;
   final DateTime publishedAt;
   final DateTime fetchedAt;
+
+  /// Igaz, ha a [publishedAt] a hírfolyamból értelmezett dátum; hamis, ha a
+  /// forrás nem adott (értelmezhető) dátumot, és a letöltés ideje került be.
+  /// Ilyenkor egy későbbi frissítés nem írhatja felül a tárolt dátumot.
+  final bool publishedAtParsed;
 
   String get searchText => normalizeAthleteName('$title $summary');
 }
@@ -333,16 +342,9 @@ class RssParser {
         'content',
       ]);
       final summary = source.summaryEnabled ? cleanSummary(rawSummary) : '';
-      final publishedAt =
-          parseNewsDate(
-            _childText(entry, const [
-              'pubDate',
-              'published',
-              'updated',
-              'date',
-            ]),
-          ) ??
-          fetched;
+      final parsedDate = parseNewsDate(
+        _childText(entry, const ['pubDate', 'published', 'updated', 'date']),
+      );
       articles.add(
         NewsArticle(
           dedupeKey: dedupeKey(
@@ -359,7 +361,8 @@ class RssParser {
           url: url,
           imageUrl: _image(entry, rawSummary),
           author: _plainText(_childText(entry, const ['creator', 'author'])),
-          publishedAt: publishedAt,
+          publishedAt: parsedDate ?? fetched,
+          publishedAtParsed: parsedDate != null,
           fetchedAt: fetched,
         ),
       );
@@ -423,9 +426,9 @@ class RssParser {
       (element) => const {'link', 'origLink'}.contains(element.name.local),
     )) {
       final href = child.getAttribute('href')?.trim() ?? '';
-      if (href.startsWith('http')) return href;
+      if (isSafeWebUrl(href)) return href;
       final text = child.innerText.trim();
-      if (text.startsWith('http')) return text;
+      if (isSafeWebUrl(text)) return text;
     }
     return '';
   }
@@ -438,7 +441,7 @@ class RssParser {
         final type = element.getAttribute('type') ?? '';
         final medium = element.getAttribute('medium') ?? '';
         if (url != null &&
-            url.startsWith('http') &&
+            isSafeWebUrl(url) &&
             (local == 'thumbnail' ||
                 type.startsWith('image') ||
                 medium == 'image')) {
@@ -447,7 +450,7 @@ class RssParser {
       }
     }
     final fragment = html_parser.parseFragment(rawSummary);
-    return fragment.querySelector('img')?.attributes['src'] ?? '';
+    return _safeUrl(fragment.querySelector('img')?.attributes['src'] ?? '');
   }
 
   static String _childText(XmlElement entry, Iterable<String> names) {
@@ -500,11 +503,9 @@ class FoxPageFeedParser {
       final thumbnail = raw['thumbnail'] is Map
           ? raw['thumbnail'] as Map
           : const {};
-      final publishedAt =
-          parseNewsDate(
-            '${urls['original_publish_date'] ?? raw['last_published_date'] ?? raw['original_import_date'] ?? ''}',
-          ) ??
-          fetched;
+      final parsedDate = parseNewsDate(
+        '${urls['original_publish_date'] ?? raw['last_published_date'] ?? raw['original_import_date'] ?? ''}',
+      );
       final externalId = '${raw['id'] ?? raw['external_id'] ?? ''}'.trim();
       articles.add(
         NewsArticle(
@@ -522,10 +523,12 @@ class FoxPageFeedParser {
             '${raw['dek'] ?? raw['description'] ?? ''}',
           ),
           url: url,
-          imageUrl: '${thumbnail['url'] ?? raw['external_thumbnail'] ?? ''}'
-              .trim(),
+          imageUrl: _safeUrl(
+            '${thumbnail['url'] ?? raw['external_thumbnail'] ?? ''}',
+          ),
           author: _authors(raw['authors']),
-          publishedAt: publishedAt,
+          publishedAt: parsedDate ?? fetched,
+          publishedAtParsed: parsedDate != null,
           fetchedAt: fetched,
         ),
       );
@@ -534,11 +537,22 @@ class FoxPageFeedParser {
     return articles;
   }
 
+  /// Abszolút `http(s)` cím a feed linkjéből. Protokoll-relatív (`//…`) és
+  /// séma nélküli (`foxsports.com/…`) alakot `https`-re egészít ki; minden
+  /// más sémát (`file://`, UNC, `javascript:` stb.) üres szövegre cserél, így
+  /// a cikk kimarad.
   static String _absoluteUrl(String value) {
-    if (value.isEmpty) return '';
-    if (value.startsWith('//')) return 'https:$value';
-    if (!value.contains('://')) return 'https://$value';
-    return value;
+    final text = value.trim();
+    if (text.isEmpty) return '';
+    final String candidate;
+    if (text.startsWith('//')) {
+      candidate = 'https:$text';
+    } else if (!text.contains('://') && !text.contains(':')) {
+      candidate = 'https://$text';
+    } else {
+      candidate = text;
+    }
+    return _safeUrl(candidate);
   }
 
   static String _publisher(Map raw, String url, String fallback) {
@@ -566,6 +580,12 @@ class FoxPageFeedParser {
         .where((author) => author.isNotEmpty)
         .join(', ');
   }
+}
+
+/// A cím változatlanul, ha biztonságos `http(s)` webcím; különben üres.
+String _safeUrl(String value) {
+  final text = value.trim();
+  return isSafeWebUrl(text) ? text : '';
 }
 
 DateTime? parseNewsDate(String value) {
@@ -638,20 +658,35 @@ class NewsStore {
   NewsStore({String? path}) : _path = path ?? defaultPath();
 
   final String _path;
-  Database? _database;
 
-  static String defaultPath() {
-    final appData = Platform.environment['APPDATA'] ?? Directory.current.path;
-    return '$appData/Courtboard/courtboard_news.sqlite';
+  /// A megnyitás Future-je: az egyidejű első hívók ugyanazt az adatbázist
+  /// kapják, nem nyitnak párhuzamosan két kapcsolatot. Sikertelen megnyitás
+  /// után a következő hívás újrapróbálja.
+  Future<Database>? _database;
+
+  static String defaultPath() =>
+      '${appDataPath()}/Courtboard/courtboard_news.sqlite';
+
+  Future<Database> get database {
+    final existing = _database;
+    if (existing != null) return existing;
+    final opening = _open();
+    _database = opening;
+    opening.then<void>(
+      (_) {},
+      onError: (Object _) {
+        if (identical(_database, opening)) _database = null;
+      },
+    );
+    return opening;
   }
 
-  Future<Database> get database async {
-    if (_database != null) return _database!;
+  Future<Database> _open() async {
     sqfliteFfiInit();
     if (_path != inMemoryDatabasePath) {
       await Directory(File(_path).parent.path).create(recursive: true);
     }
-    _database = await databaseFactoryFfi.openDatabase(
+    final db = await databaseFactoryFfi.openDatabase(
       _path,
       options: OpenDatabaseOptions(
         version: 3,
@@ -660,8 +695,8 @@ class NewsStore {
         onUpgrade: _upgrade,
       ),
     );
-    await _seedSources(_database!);
-    return _database!;
+    await _seedSources(db);
+    return db;
   }
 
   Future<void> _create(Database db, int version) async {
@@ -868,7 +903,10 @@ class NewsStore {
               if (article.imageUrl.isNotEmpty) 'image_url': article.imageUrl,
               if (article.author.isNotEmpty) 'author': article.author,
               'search_text': article.searchText,
-              'published_at': article.publishedAt.millisecondsSinceEpoch,
+              // Dátum nélküli tételnél megtartjuk az első mentéskori időt,
+              // különben minden frissítéskor a lista tetejére ugrana.
+              if (article.publishedAtParsed)
+                'published_at': article.publishedAt.millisecondsSinceEpoch,
               'fetched_at': article.fetchedAt.millisecondsSinceEpoch,
             },
             where: 'id = ?',
@@ -894,6 +932,7 @@ class NewsStore {
     String sourceId = 'Mind',
     String athleteName = 'Mind',
     int limit = 500,
+    int offset = 0,
   }) async {
     final db = await database;
     final where = <String>[];
@@ -929,9 +968,9 @@ class NewsStore {
       ${where.isEmpty ? '' : 'WHERE ${where.join(' AND ')}'}
       GROUP BY n.id
       ORDER BY n.published_at DESC, n.id DESC
-      LIMIT ?
+      LIMIT ? OFFSET ?
     ''',
-      [...args, limit],
+      [...args, limit, offset],
     );
     return rows.map(_articleFromRow).toList();
   }
@@ -945,8 +984,14 @@ class NewsStore {
   }
 
   Future<void> close() async {
-    await _database?.close();
+    final opening = _database;
     _database = null;
+    if (opening == null) return;
+    try {
+      await (await opening).close();
+    } catch (_) {
+      // A sikertelen megnyitást nem kell lezárni.
+    }
   }
 
   static NewsArticle _articleFromRow(Map<String, Object?> row) => NewsArticle(
@@ -1036,7 +1081,7 @@ class NewsRepository {
           );
           updatedSources++;
         } catch (error) {
-          final message = '$error';
+          final message = friendlyError(error);
           errors[state.source.id] = message;
           await store.markSourceResult(
             state.source.id,

@@ -2,7 +2,7 @@ name: courtboard
 
 description: Sportolókövető asztali alkalmazás Flutterhez.
 publish_to: none
-version: 0.8.0+8
+version: 0.8.1+9
 
 environment:
   sdk: '>=3.12.0 <4.0.0'
@@ -13,6 +13,7 @@ dependencies:
     sdk: flutter
   html: ^0.15.6
   sqflite_common_ffi: ^2.4.2
+  url_launcher: ^6.3.2
   xml: ^6.6.1
 
 dev_dependencies:

@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:courtboard/data/api_sports.dart';
+import 'package:courtboard/data/football_names.dart';
 
 void main() {
   test('status parser reports the remaining daily quota', () {
@@ -98,5 +99,61 @@ void main() {
     expect(stats.single.assists, 7);
     expect(stats.single.yellowCards, 8);
     expect(stats.single.redCards, 1);
+  });
+
+  test('athlete name matching accepts real variants only', () {
+    expect(athleteNameMatches('Nikola Jokić', 'Nikola Jokic'), isTrue);
+    expect(athleteNameMatches('Juhász Dorka', 'Dorka Juhasz'), isTrue);
+    expect(athleteNameMatches('Vinicius Junior',
+        'Vinicius Jose Paixao de Oliveira Junior'), isTrue);
+    expect(athleteNameMatches('Aitana Bonmatí Conca', 'Aitana Bonmati'),
+        isTrue);
+    expect(athleteNameMatches('N. Jokic', 'Nikola Jokic'), isTrue);
+    expect(athleteNameMatches('Iga Świątek', 'Swiatek Iga'), isTrue);
+    expect(athleteNameMatches('Nikola Jokic', 'Nikola Jovic'), isFalse);
+    expect(athleteNameMatches('Caitlin Clark', 'Caitlin Brown'), isFalse);
+    expect(athleteNameMatches('', 'Anyone'), isFalse);
+  });
+
+  test('NBA parser returns null instead of the first unrelated hit', () {
+    final player = ApiSportsRepository.parseNbaPlayer({
+      'response': [
+        {'id': 1, 'firstname': 'Nikola', 'lastname': 'Jovic'},
+        {'id': 2, 'firstname': 'Nikola', 'lastname': 'Vucevic'},
+      ]
+    }, 'Nikola Jokić');
+    expect(player, isNull);
+  });
+
+  test('football player parser ignores unrelated search results', () {
+    final stats = ApiSportsRepository.parseFootballPlayerStats({
+      'response': [
+        {
+          'player': {'id': 9, 'name': 'Dominik Livakovic'},
+          'statistics': [
+            {
+              'team': {'name': 'Fenerbahce'},
+              'league': {'name': 'Super Lig', 'season': 2025},
+              'games': {'appearences': 30},
+            }
+          ]
+        }
+      ]
+    }, 'Szoboszlai Dominik');
+    expect(stats, isEmpty);
+  });
+
+  test('team matching tolerates club affixes and accents', () {
+    expect(footballTeamNamesMatch('FC Barcelona', 'Barcelona'), isTrue);
+    expect(footballTeamNamesMatch('Bayern Munchen', 'FC Bayern München'),
+        isTrue);
+    expect(footballTeamNamesMatch('Liverpool', 'Everton'), isFalse);
+    expect(
+      findFootballTeamByName(
+          ['Espanyol', 'FC Barcelona'], 'Barcelona', (name) => name),
+      'FC Barcelona',
+    );
+    expect(findFootballTeamByName(['Everton'], 'Liverpool', (name) => name),
+        isNull);
   });
 }

@@ -407,9 +407,6 @@ class _VideoLibraryCard extends StatelessWidget {
   final VoidCallback? onOpenAthlete;
   final VoidCallback onRemove;
 
-  void _play() =>
-      Process.start('cmd', ['/c', 'start', '', entry.video.watchUrl]);
-
   @override
   Widget build(BuildContext context) {
     final athlete = entry.athlete;
@@ -420,7 +417,7 @@ class _VideoLibraryCard extends StatelessWidget {
       borderRadius: BorderRadius.circular(22),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
-        onTap: _play,
+        onTap: () => openExternalUrl(context, entry.video.watchUrl),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

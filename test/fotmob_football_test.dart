@@ -66,4 +66,21 @@ void main() {
 
     expect(stat, isNull);
   });
+
+  test('FotMob search returns null instead of an unrelated first hit', () {
+    final id = FotMobFootballRepository.parsePlayerId({
+      'squadMemberSuggest': [
+        {
+          'options': [
+            {
+              'text': 'Aitana Martínez|123',
+              'payload': {'id': '123'}
+            }
+          ]
+        }
+      ]
+    }, 'Bonmatí Aitana');
+
+    expect(id, isNull);
+  });
 }
