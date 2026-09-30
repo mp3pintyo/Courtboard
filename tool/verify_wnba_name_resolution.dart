@@ -19,17 +19,17 @@ Future<void> main() async {
     wehoop.close();
   }
 
+  // Flutter-motor nélkül a biztonságos tároló nem érhető el: a kulcs a
+  // RAPIDAPI_KEY / RAPIDAPI_DARTS_KEY változóból vagy a régi állapotfájlból jön.
   final saved = await LocalStateStore().load();
-  final environment = SportsApiConfig.fromEnvironment();
-  final key = saved.rapidApiDartsKey.isNotEmpty
-      ? saved.rapidApiDartsKey
-      : environment.rapidApiDartsKey;
-  if (key.isEmpty) {
-    throw StateError('A RapidAPI kulcs nincs beállítva.');
+  final config =
+      SportsApiConfig.fromEnvironment().withKeys(saved.legacyApiKeys);
+  if (config.rapidApiKey.isEmpty) {
+    throw StateError('A RapidAPI kulcs nincs beállítva (RAPIDAPI_KEY).');
   }
-  final profile = await WnbaRapidApiRepository(
-    SportsApiConfig(rapidApiDartsKey: key),
-  ).playerProfile(athleteName);
+  final profile = await WnbaRapidApiRepository(config).playerProfile(
+    athleteName,
+  );
   if (profile == null) {
     throw StateError('A RapidAPI profil nem töltődött be.');
   }

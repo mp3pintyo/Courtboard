@@ -3,18 +3,14 @@ part of '../main.dart';
 class _DataStatusPage extends StatefulWidget {
   const _DataStatusPage({
     required this.config,
-    required this.onSaveFootballKey,
-    required this.onSaveApiSportsKey,
-    required this.onSaveBallDontLieKey,
-    required this.onSaveRapidApiDartsKey,
-    required this.onSaveLiveTennisKey,
+    required this.onSaveKey,
+    this.secureStorageAvailable = true,
   });
   final SportsApiConfig config;
-  final ValueChanged<String> onSaveFootballKey;
-  final ValueChanged<String> onSaveApiSportsKey;
-  final ValueChanged<String> onSaveBallDontLieKey;
-  final ValueChanged<String> onSaveRapidApiDartsKey;
-  final ValueChanged<String> onSaveLiveTennisKey;
+  final void Function(ApiKeyId id, String value) onSaveKey;
+
+  /// Hamis esetén figyelmeztetés: a kulcsok nem a biztonságos tárolóban vannak.
+  final bool secureStorageAvailable;
 
   @override
   State<_DataStatusPage> createState() => _DataStatusPageState();
@@ -24,42 +20,33 @@ class _DataStatusPageState extends State<_DataStatusPage> {
   final _searchController = TextEditingController();
   String _sport = 'Mind';
 
+  /// A napi/havi kerettel rendelkező szolgáltatók helyi kérésszámlálója.
+  late final Future<List<QuotaUsage>> _quota = HttpService.shared.quota
+      .snapshot();
+
   @override
   void dispose() {
     _searchController.dispose();
     super.dispose();
   }
 
-  void _editKey({
-    required String title,
-    required String value,
-    required ValueChanged<String> onSave,
-  }) {
-    final controller = TextEditingController(text: value);
-    showDialog<void>(
+  /// A kulcsgombok felirata és a szerkesztőablak címe.
+  static const _keyButtons = <(ApiKeyId, String, String)>[
+    (ApiKeyId.footballData, 'football-data.org', 'football-data.org API-kulcs'),
+    (ApiKeyId.apiSports, 'API-Sports', 'API-Sports API-kulcs'),
+    (ApiKeyId.balldontlie, 'BALLDONTLIE', 'BALLDONTLIE API-kulcs'),
+    (ApiKeyId.rapidApi, 'RapidAPI (Darts + WNBA)', 'RapidAPI közös kulcs'),
+    (ApiKeyId.liveTennis, 'Live Tennis API', 'Live Tennis API-kulcs'),
+  ];
+
+  /// A kulcs szerkesztése; a dialógus csak mentéskor ad vissza értéket.
+  Future<void> _editKey(ApiKeyId id, String title) async {
+    final value = await showDialog<String>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Text(title),
-        content: TextField(
-          controller: controller,
-          obscureText: true,
-          decoration: const InputDecoration(labelText: 'API-kulcs'),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Mégse'),
-          ),
-          FilledButton(
-            onPressed: () {
-              onSave(controller.text.trim());
-              Navigator.pop(dialogContext);
-            },
-            child: const Text('Mentés'),
-          ),
-        ],
-      ),
-    ).whenComplete(controller.dispose);
+      builder: (_) =>
+          _ApiKeyDialog(title: title, initialValue: widget.config.key(id)),
+    );
+    if (value != null) widget.onSaveKey(id, value);
   }
 
   Future<void> _openDocs(String url) => openExternalUrl(context, url);
@@ -153,62 +140,31 @@ class _DataStatusPageState extends State<_DataStatusPage> {
                 ),
                 const SizedBox(height: 5),
                 const Text(
-                  'Mind opcionális. A mentett RapidAPI kulcsot a Darts és a WNBA API is használja, de mindkét API-ra külön fel kell iratkozni.',
+                  'Mind opcionális. A kulcsok a Windows biztonságos tárolójában '
+                  '(Hitelesítőadat-kezelő, titkosítva) kerülnek mentésre. '
+                  'A közös RapidAPI kulcsot a Darts és a WNBA API is használja, '
+                  'de mindkét API-ra külön fel kell iratkozni.',
                   style: TextStyle(color: _muted),
                 ),
+                if (!widget.secureStorageAvailable) ...[
+                  const SizedBox(height: 12),
+                  const _SecureStorageWarning(),
+                ],
                 const SizedBox(height: 12),
                 Wrap(
                   spacing: 9,
                   runSpacing: 9,
                   children: [
-                    OutlinedButton.icon(
-                      onPressed: () => _editKey(
-                        title: 'football-data.org API-kulcs',
-                        value: widget.config.footballDataKey,
-                        onSave: widget.onSaveFootballKey,
+                    for (final (id, label, title) in _keyButtons)
+                      OutlinedButton.icon(
+                        key: Key('api-key-button-${id.name}'),
+                        onPressed: () => unawaited(_editKey(id, title)),
+                        icon: const Icon(Icons.key_rounded),
+                        label: Text(label),
                       ),
-                      icon: const Icon(Icons.key_rounded),
-                      label: const Text('football-data.org'),
-                    ),
-                    OutlinedButton.icon(
-                      onPressed: () => _editKey(
-                        title: 'API-Sports API-kulcs',
-                        value: widget.config.apiSportsKey,
-                        onSave: widget.onSaveApiSportsKey,
-                      ),
-                      icon: const Icon(Icons.key_rounded),
-                      label: const Text('API-Sports'),
-                    ),
-                    OutlinedButton.icon(
-                      onPressed: () => _editKey(
-                        title: 'BALLDONTLIE API-kulcs',
-                        value: widget.config.balldontlieKey,
-                        onSave: widget.onSaveBallDontLieKey,
-                      ),
-                      icon: const Icon(Icons.key_rounded),
-                      label: const Text('BALLDONTLIE'),
-                    ),
-                    OutlinedButton.icon(
-                      onPressed: () => _editKey(
-                        title: 'RapidAPI közös alkalmazáskulcs',
-                        value: widget.config.rapidApiDartsKey,
-                        onSave: widget.onSaveRapidApiDartsKey,
-                      ),
-                      icon: const Icon(Icons.key_rounded),
-                      label: const Text('RapidAPI · Darts + WNBA'),
-                    ),
-                    OutlinedButton.icon(
-                      key: const Key('live-tennis-key-button'),
-                      onPressed: () => _editKey(
-                        title: 'Live Tennis API-kulcs',
-                        value: widget.config.liveTennisKey,
-                        onSave: widget.onSaveLiveTennisKey,
-                      ),
-                      icon: const Icon(Icons.key_rounded),
-                      label: const Text('Live Tennis API'),
-                    ),
                   ],
                 ),
+                _QuotaUsageLines(future: _quota),
               ],
             ),
           ),
@@ -279,6 +235,117 @@ class _DataStatusPageState extends State<_DataStatusPage> {
       ),
     );
   }
+}
+
+/// API-kulcs szerkesztőablak. A vezérlőt a dialógus saját állapota birtokolja,
+/// így a bezáró animáció alatt sem használ felszabadított vezérlőt.
+class _ApiKeyDialog extends StatefulWidget {
+  const _ApiKeyDialog({required this.title, required this.initialValue});
+
+  final String title;
+  final String initialValue;
+
+  @override
+  State<_ApiKeyDialog> createState() => _ApiKeyDialogState();
+}
+
+class _ApiKeyDialogState extends State<_ApiKeyDialog> {
+  late final _controller = TextEditingController(text: widget.initialValue);
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _save() => Navigator.pop(context, _controller.text.trim());
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+    title: Text(widget.title),
+    content: TextField(
+      controller: _controller,
+      obscureText: true,
+      autofocus: true,
+      onSubmitted: (_) => _save(),
+      decoration: const InputDecoration(labelText: 'API-kulcs'),
+    ),
+    actions: [
+      TextButton(
+        onPressed: () => Navigator.pop(context),
+        child: const Text('Mégse'),
+      ),
+      FilledButton(onPressed: _save, child: const Text('Mentés')),
+    ],
+  );
+}
+
+/// Figyelmeztetés, ha a Windows biztonságos tárolója nem érhető el.
+class _SecureStorageWarning extends StatelessWidget {
+  const _SecureStorageWarning();
+
+  @override
+  Widget build(BuildContext context) => Container(
+    key: const Key('secure-storage-warning'),
+    padding: const EdgeInsets.all(12),
+    decoration: BoxDecoration(
+      color: Colors.orange.shade50,
+      borderRadius: BorderRadius.circular(12),
+      border: Border.all(color: Colors.orange.shade300),
+    ),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(Icons.warning_amber_rounded, color: Colors.orange.shade800),
+        const SizedBox(width: 10),
+        const Expanded(
+          child: Text(
+            'A Windows biztonságos kulcstárolója most nem érhető el. '
+            'Az API-kulcsok ebben a munkamenetben csak a memóriában élnek: '
+            'a korábban mentett kulcsok megmaradnak a helyi állapotfájlban, '
+            'az itt most módosított kulcsok viszont az app bezárásakor '
+            'elvesznek. Indítsd újra az appot, és próbáld újra.',
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+/// A helyi kéréskeret-számláló állása szolgáltatónként, egyszerű szövegként
+/// (például „API-Sports · Ma: 12 / 100 kérés”).
+class _QuotaUsageLines extends StatelessWidget {
+  const _QuotaUsageLines({required this.future});
+
+  final Future<List<QuotaUsage>> future;
+
+  @override
+  Widget build(BuildContext context) => FutureBuilder<List<QuotaUsage>>(
+    future: future,
+    builder: (context, snapshot) {
+      final usages = snapshot.data ?? const <QuotaUsage>[];
+      if (usages.isEmpty) return const SizedBox.shrink();
+      return Padding(
+        key: const Key('quota-usage'),
+        padding: const EdgeInsets.only(top: 14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Helyi kéréskeret',
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
+            ),
+            const SizedBox(height: 4),
+            for (final usage in usages)
+              Text(
+                '${usage.provider} · ${usage.label}',
+                style: const TextStyle(fontSize: 12, color: _muted),
+              ),
+          ],
+        ),
+      );
+    },
+  );
 }
 
 class _SummaryBadge extends StatelessWidget {

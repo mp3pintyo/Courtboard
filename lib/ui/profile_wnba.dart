@@ -122,7 +122,7 @@ class _WnbaBasketballReferenceCard extends StatefulWidget {
 
 class _WnbaBasketballReferenceCardState
     extends State<_WnbaBasketballReferenceCard> {
-  late Future<List<NbaGameLog>> _games;
+  late Future<CachedValue<List<NbaGameLog>>> _games;
 
   @override
   void initState() {
@@ -131,7 +131,7 @@ class _WnbaBasketballReferenceCardState
   }
 
   void _load() {
-    _games = BasketballReferenceRepository().recentGames(
+    _games = BasketballReferenceRepository().recentGamesCached(
       widget.athleteName,
       league: 'wnba',
     );
@@ -144,7 +144,9 @@ class _WnbaBasketballReferenceCardState
   }
 
   @override
-  Widget build(BuildContext context) => FutureBuilder<List<NbaGameLog>>(
+  Widget build(
+    BuildContext context,
+  ) => FutureBuilder<CachedValue<List<NbaGameLog>>>(
     future: _games,
     builder: (context, snapshot) => Container(
       padding: const EdgeInsets.all(18),
@@ -196,12 +198,22 @@ class _WnbaBasketballReferenceCardState
               snapshot.error!,
               onRetry: () => setState(_load),
             )
-          else
+          else ...[
+            if (snapshot.data?.value.isNotEmpty == true)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: FreshnessNote(
+                  fetchedAt: snapshot.data!.fetchedAt,
+                  fromCache: snapshot.data!.fromCache,
+                  stale: snapshot.data!.stale,
+                ),
+              ),
             BasketballReferenceGameList(
-              games: snapshot.data ?? const [],
+              games: snapshot.data?.value ?? const [],
               accent: widget.accent,
               league: 'WNBA',
             ),
+          ],
         ],
       ),
     ),
@@ -242,7 +254,7 @@ class _WnbaRapidApiCardState extends State<_WnbaRapidApiCard> {
   void didUpdateWidget(covariant _WnbaRapidApiCard oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.athleteName != widget.athleteName ||
-        oldWidget.config.rapidApiDartsKey != widget.config.rapidApiDartsKey) {
+        oldWidget.config.rapidApiKey != widget.config.rapidApiKey) {
       _load();
     }
   }
@@ -282,7 +294,7 @@ class _WnbaRapidApiCardState extends State<_WnbaRapidApiCard> {
             ],
           ),
           const SizedBox(height: 12),
-          if (widget.config.rapidApiDartsKey.isEmpty)
+          if (widget.config.rapidApiKey.isEmpty)
             const Text(
               'A RapidAPI-kulcs nincs beállítva.',
               style: TextStyle(color: _muted),
@@ -309,11 +321,20 @@ class _WnbaRapidApiCardState extends State<_WnbaRapidApiCard> {
               'A játékos ESPN-azonosítója nem található.',
               style: TextStyle(color: _muted),
             )
-          else
+          else ...[
+            if (snapshot.data!.fetchedAt != null)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: FreshnessNote(
+                  fetchedAt: snapshot.data!.fetchedAt!,
+                  fromCache: snapshot.data!.fromCache,
+                ),
+              ),
             WnbaRapidProfileFacts(
               profile: snapshot.data!,
               accent: widget.accent,
             ),
+          ],
         ],
       ),
     ),

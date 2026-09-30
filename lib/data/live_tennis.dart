@@ -1,8 +1,8 @@
-import 'dart:convert';
-import 'dart:io';
-
-import 'api_sports.dart' show athleteNamesMatch, findAthleteByName;
+import 'athlete_names.dart';
 import 'file_util.dart';
+import 'http_service.dart';
+import 'json_file_cache.dart';
+import 'json_util.dart';
 import 'sports_api.dart';
 
 typedef TennisApiCall = Future<Map<String, dynamic>> Function(
@@ -36,19 +36,17 @@ class TennisPlayer {
   final Map<String, dynamic> stats;
 
   factory TennisPlayer.fromJson(Map<String, dynamic> json) => TennisPlayer(
-        id: _integer(json['id']) ?? 0,
-        name: _text(json['name']) ?? 'Ismeretlen játékos',
-        tour: _text(json['tour']),
-        country: _text(json['country']),
-        ranking: _integer(json['ranking']),
-        rankingPoints: _integer(json['ranking_points']),
-        rankingMovement: _text(json['ranking_movement']),
-        hand: _text(json['hand']),
-        backhand: _integer(json['backhand']),
-        birthday: DateTime.tryParse(_text(json['birthday']) ?? ''),
-        stats: json['stats'] is Map
-            ? Map<String, dynamic>.from(json['stats'] as Map)
-            : const {},
+        id: jsonIntOrNull(json['id']) ?? 0,
+        name: jsonString(json['name']) ?? 'Ismeretlen játékos',
+        tour: jsonString(json['tour']),
+        country: jsonString(json['country']),
+        ranking: jsonIntOrNull(json['ranking']),
+        rankingPoints: jsonIntOrNull(json['ranking_points']),
+        rankingMovement: jsonString(json['ranking_movement']),
+        hand: jsonString(json['hand']),
+        backhand: jsonIntOrNull(json['backhand']),
+        birthday: DateTime.tryParse(jsonString(json['birthday']) ?? ''),
+        stats: jsonMap(json['stats']),
       );
 
   Map<String, dynamic> toJson() => {
@@ -85,8 +83,8 @@ class TennisScore {
         sets: _intList(json['sets']),
         games: json['games'] is List
             ? (json['games'] as List)
-                .whereType<List>()
-                .map((row) => row.map((value) => _integer(value) ?? 0).toList())
+                .whereType<List<Object?>>()
+                .map((row) => row.map((value) => jsonIntOrNull(value) ?? 0).toList())
                 .toList()
             : const [],
         points: json['points'] is List
@@ -94,7 +92,7 @@ class TennisScore {
                 .map((value) => value == null ? null : '$value')
                 .toList()
             : const [],
-        server: _integer(json['server']),
+        server: jsonIntOrNull(json['server']),
         isTiebreak: json['is_tiebreak'] == true,
       );
 
@@ -148,24 +146,22 @@ class TennisMatch {
   final bool indoor;
 
   factory TennisMatch.fromJson(Map<String, dynamic> json) {
-    final players = json['players'] is Map
-        ? Map<String, dynamic>.from(json['players'] as Map)
-        : const <String, dynamic>{};
-    final p1 = _playerMap(players['p1']);
-    final p2 = _playerMap(players['p2']);
+    final players = jsonMap(json['players']);
+    final p1 = jsonMap(players['p1']);
+    final p2 = jsonMap(players['p2']);
     final rawScore = json['score'];
     return TennisMatch(
-      id: _integer(json['id']) ?? 0,
-      tournament: _text(json['tournament']) ?? 'Ismeretlen verseny',
-      status: _text(json['status']) ?? 'upcoming',
-      player1: _text(p1['name']) ?? 'Ismeretlen játékos',
-      player2: _text(p2['name']) ?? 'Ismeretlen játékos',
-      player1Id: _integer(p1['id']),
-      player2Id: _integer(p2['id']),
-      surface: _text(json['surface']),
-      round: _text(json['round']),
+      id: jsonIntOrNull(json['id']) ?? 0,
+      tournament: jsonString(json['tournament']) ?? 'Ismeretlen verseny',
+      status: jsonString(json['status']) ?? 'upcoming',
+      player1: jsonString(p1['name']) ?? 'Ismeretlen játékos',
+      player2: jsonString(p2['name']) ?? 'Ismeretlen játékos',
+      player1Id: jsonIntOrNull(p1['id']),
+      player2Id: jsonIntOrNull(p2['id']),
+      surface: jsonString(json['surface']),
+      round: jsonString(json['round']),
       scheduledTime:
-          DateTime.tryParse(_text(json['scheduled_time']) ?? '')?.toLocal(),
+          DateTime.tryParse(jsonString(json['scheduled_time']) ?? '')?.toLocal(),
       score: rawScore is Map
           ? TennisScore.fromJson(Map<String, dynamic>.from(rawScore))
           : null,
@@ -207,15 +203,15 @@ class TennisFixture {
   final String? round;
 
   factory TennisFixture.fromJson(Map<String, dynamic> json) => TennisFixture(
-        id: _integer(json['id']) ?? 0,
-        tournament: _text(json['tournament']) ?? 'Ismeretlen verseny',
-        player1: _text(json['player1_name']) ?? 'Ismeretlen játékos',
-        player2: _text(json['player2_name']) ?? 'Ismeretlen játékos',
+        id: jsonIntOrNull(json['id']) ?? 0,
+        tournament: jsonString(json['tournament']) ?? 'Ismeretlen verseny',
+        player1: jsonString(json['player1_name']) ?? 'Ismeretlen játékos',
+        player2: jsonString(json['player2_name']) ?? 'Ismeretlen játékos',
         eventDate:
-            DateTime.tryParse(_text(json['event_date']) ?? '')?.toLocal(),
-        tour: _text(json['tour']),
-        surface: _text(json['surface']),
-        round: _text(json['round']),
+            DateTime.tryParse(jsonString(json['event_date']) ?? '')?.toLocal(),
+        tour: jsonString(json['tour']),
+        surface: jsonString(json['surface']),
+        round: jsonString(json['round']),
       );
 
   bool belongsTo(TennisPlayer player) =>
@@ -233,10 +229,10 @@ class TennisUsage {
   final int? dailyLimit;
 
   factory TennisUsage.fromJson(Map<String, dynamic> json) {
-    final limits = _map(json['limits']);
-    final today = _map(json['today']);
+    final limits = jsonMap(json['limits']);
+    final today = jsonMap(json['today']);
     return TennisUsage(
-      tier: (_text(json['tier']) ?? 'free').toUpperCase(),
+      tier: (jsonString(json['tier']) ?? 'free').toUpperCase(),
       today: _firstInt(today, const ['calls', 'requests', 'count', 'used']),
       dailyLimit: _firstInt(limits, const [
         'per_day',
@@ -256,6 +252,8 @@ class TennisProfileData {
     this.upcomingMatches = const [],
     this.fixtures = const [],
     this.usage,
+    this.fetchedAt,
+    this.fromCache = false,
   });
 
   final TennisPlayer player;
@@ -263,76 +261,100 @@ class TennisProfileData {
   final List<TennisMatch> upcomingMatches;
   final List<TennisFixture> fixtures;
   final TennisUsage? usage;
+
+  /// Az adatcsomag letöltési ideje (gyorsítótárból az eredetié).
+  final DateTime? fetchedAt;
+  final bool fromCache;
 }
 
 class TennisRepository {
-  TennisRepository(this.config,
-      {TennisApiCall? call, this.cacheLifetime = const Duration(minutes: 10)})
-      : _callOverride = call;
+  TennisRepository(
+    this.config, {
+    TennisApiCall? call,
+    this.cacheLifetime = const Duration(minutes: 10),
+    this._http,
+    this._cacheStorage,
+  }) : _callOverride = call;
 
   final SportsApiConfig config;
   final TennisApiCall? _callOverride;
   final Duration cacheLifetime;
+  final HttpService? _http;
+  final CacheStorage? _cacheStorage;
 
+  /// Játékosonként [cacheLifetime] ideig lemezről; a [forceRefresh] kikerüli
+  /// a gyorsítótárat. Hálózati hibánál a lejárt csomag is visszajön.
   Future<TennisProfileData> fetch(String athleteName,
       {bool forceRefresh = false}) async {
     if (config.liveTennisKey.trim().isEmpty && _callOverride == null) {
       throw StateError('Live Tennis API-kulcs nincs beállítva.');
     }
-    final cache = _cacheFile(athleteName);
-    if (!forceRefresh) {
-      final cached = await _readCache(cache);
-      if (cached != null) return parseProfileBundle(cached);
-    }
-
-    final client =
-        _callOverride == null ? SportsApiClient(config: config) : null;
+    final client = SportsApiClient(
+        config: config, http: _http, cacheStorage: _cacheStorage);
     Future<Map<String, dynamic>> call(String path, Map<String, String> query) =>
-        _callOverride?.call(path, query) ?? client!.liveTennis(path, query);
+        _callOverride?.call(path, query) ?? client.liveTennis(path, query);
 
-    try {
-      final search = await call('/players', {
-        'search': athleteName,
-        'limit': '20',
-      });
-      final playerSummary = findPlayer(search, athleteName);
-      if (playerSummary == null || playerSummary.id == 0) {
-        throw StateError('A Live Tennis API nem talált ilyen játékost.');
-      }
-      final playerJson = await call('/players/${playerSummary.id}', const {});
-      final player = TennisPlayer.fromJson(playerJson);
-      final tourQuery = _safeTourFilter(player.tour);
-      final common = <String, String>{'limit': '200'};
-      if (tourQuery != null) common['tour'] = tourQuery;
+    final bundle = await client.cache('live_tennis').getOrFetch<
+        Map<String, dynamic>>(
+      cacheSlug(athleteName),
+      ttl: cacheLifetime,
+      forceRefresh: forceRefresh,
+      fetch: () => _download(athleteName, call),
+      encode: (value) => value,
+      decode: jsonMap,
+    );
+    final data = parseProfileBundle(bundle.value);
+    return TennisProfileData(
+      player: data.player,
+      liveMatches: data.liveMatches,
+      upcomingMatches: data.upcomingMatches,
+      fixtures: data.fixtures,
+      usage: data.usage,
+      fetchedAt: bundle.fetchedAt,
+      fromCache: bundle.fromCache,
+    );
+  }
 
-      final responses = await Future.wait([
-        call('/matches', {...common, 'status': 'live'}),
-        call('/matches', {...common, 'status': 'upcoming'}),
-        call('/fixtures', common),
-        call('/usage', const {}),
-      ]);
-      final bundle = <String, dynamic>{
-        'cached_at': DateTime.now().toUtc().toIso8601String(),
-        'player': playerJson,
-        'live': responses[0],
-        'upcoming': responses[1],
-        'fixtures': responses[2],
-        'usage': responses[3],
-      };
-      await writeFileAtomic(cache, jsonEncode(bundle));
-      return parseProfileBundle(bundle);
-    } finally {
-      client?.close();
+  static Future<Map<String, dynamic>> _download(
+    String athleteName,
+    TennisApiCall call,
+  ) async {
+    final search = await call('/players', {
+      'search': athleteName,
+      'limit': '20',
+    });
+    final playerSummary = findPlayer(search, athleteName);
+    if (playerSummary == null || playerSummary.id == 0) {
+      throw StateError('A Live Tennis API nem talált ilyen játékost.');
     }
+    final playerJson = await call('/players/${playerSummary.id}', const {});
+    final player = TennisPlayer.fromJson(playerJson);
+    final tourQuery = _safeTourFilter(player.tour);
+    final common = <String, String>{'limit': '200'};
+    if (tourQuery != null) common['tour'] = tourQuery;
+
+    final responses = await Future.wait([
+      call('/matches', {...common, 'status': 'live'}),
+      call('/matches', {...common, 'status': 'upcoming'}),
+      call('/fixtures', common),
+      call('/usage', const {}),
+    ]);
+    return <String, dynamic>{
+      'cached_at': DateTime.now().toUtc().toIso8601String(),
+      'player': playerJson,
+      'live': responses[0],
+      'upcoming': responses[1],
+      'fixtures': responses[2],
+      'usage': responses[3],
+    };
   }
 
   static TennisPlayer? findPlayer(
       Map<String, dynamic> payload, String athleteName) {
     final raw = payload['data'];
     if (raw is! List) return null;
-    final players = raw
-        .whereType<Map>()
-        .map((item) => TennisPlayer.fromJson(Map<String, dynamic>.from(item)))
+    final players = jsonMapList(raw)
+        .map(TennisPlayer.fromJson)
         .where((player) => player.id != 0)
         .toList();
     // Nincs névegyezés: `null`, hogy ne egy másik játékos profilja jelenjen meg.
@@ -340,15 +362,15 @@ class TennisRepository {
   }
 
   static TennisProfileData parseProfileBundle(Map<String, dynamic> bundle) {
-    final player = TennisPlayer.fromJson(_map(bundle['player']));
-    final live = _parseMatches(_map(bundle['live']))
+    final player = TennisPlayer.fromJson(jsonMap(bundle['player']));
+    final live = _parseMatches(jsonMap(bundle['live']))
         .where((match) => match.belongsTo(player))
         .toList();
-    final upcoming = _parseMatches(_map(bundle['upcoming']))
+    final upcoming = _parseMatches(jsonMap(bundle['upcoming']))
         .where((match) => match.belongsTo(player))
         .toList()
       ..sort(_matchDateCompare);
-    final fixtures = _parseFixtures(_map(bundle['fixtures']))
+    final fixtures = _parseFixtures(jsonMap(bundle['fixtures']))
         .where((fixture) => fixture.belongsTo(player))
         .toList()
       ..sort((a, b) => _dateCompare(a.eventDate, b.eventDate));
@@ -367,38 +389,17 @@ class TennisRepository {
   static List<TennisMatch> _parseMatches(Map<String, dynamic> payload) {
     final raw = payload['data'];
     if (raw is! List) return const [];
-    return raw
-        .whereType<Map>()
-        .map((item) => TennisMatch.fromJson(Map<String, dynamic>.from(item)))
+    return jsonMapList(raw)
+        .map(TennisMatch.fromJson)
         .toList();
   }
 
   static List<TennisFixture> _parseFixtures(Map<String, dynamic> payload) {
     final raw = payload['data'];
     if (raw is! List) return const [];
-    return raw
-        .whereType<Map>()
-        .map((item) => TennisFixture.fromJson(Map<String, dynamic>.from(item)))
+    return jsonMapList(raw)
+        .map(TennisFixture.fromJson)
         .toList();
-  }
-
-  Future<Map<String, dynamic>?> _readCache(File cache) async {
-    try {
-      if (!await cache.exists() ||
-          DateTime.now().difference(await cache.lastModified()) >=
-              cacheLifetime) {
-        return null;
-      }
-      final decoded = jsonDecode(await cache.readAsString());
-      return decoded is Map ? Map<String, dynamic>.from(decoded) : null;
-    } catch (_) {
-      return null;
-    }
-  }
-
-  static File _cacheFile(String athleteName) {
-    return File('${appDataPath()}/courtboard_cache/live_tennis/'
-        '${cacheSlug(athleteName)}.json');
   }
 }
 
@@ -407,27 +408,13 @@ String? _safeTourFilter(String? tour) {
   return normalized == 'atp' || normalized == 'wta' ? normalized : null;
 }
 
-Map<String, dynamic> _playerMap(dynamic value) =>
-    value is Map ? Map<String, dynamic>.from(value) : const {};
-
-Map<String, dynamic> _map(dynamic value) =>
-    value is Map ? Map<String, dynamic>.from(value) : const {};
-
-String? _text(dynamic value) {
-  final result = '${value ?? ''}'.trim();
-  return result.isEmpty || result == 'null' ? null : result;
-}
-
-int? _integer(dynamic value) =>
-    value is int ? value : int.tryParse('${value ?? ''}');
-
 List<int> _intList(dynamic value) => value is List
-    ? value.map((item) => _integer(item) ?? 0).toList()
+    ? value.map((item) => jsonIntOrNull(item) ?? 0).toList()
     : const [];
 
 int? _firstInt(Map<String, dynamic> map, List<String> keys) {
   for (final key in keys) {
-    final value = _integer(map[key]);
+    final value = jsonIntOrNull(map[key]);
     if (value != null) return value;
   }
   return null;

@@ -48,7 +48,7 @@ class ProviderCatalogEntry {
     ProviderKey.apiSports => config.apiSportsKey.isNotEmpty,
     ProviderKey.ballDontLie => config.balldontlieKey.isNotEmpty,
     ProviderKey.footballData => config.footballDataKey.isNotEmpty,
-    ProviderKey.rapidApi => config.rapidApiDartsKey.isNotEmpty,
+    ProviderKey.rapidApi => config.rapidApiKey.isNotEmpty,
     ProviderKey.liveTennis => config.liveTennisKey.isNotEmpty,
     ProviderKey.youtube => config.youtubeKey.isNotEmpty,
   };
@@ -86,7 +86,7 @@ const providerCatalog = <ProviderCatalogEntry>[
     authentication: 'Saját API-Sports kulcs szükséges.',
     limit: 'Free: 100 kérés/nap és 10 kérés/perc; korlátozott szezonok.',
     cache:
-        'A szolgáltatás eredményei az adott adatfolyam frissítési szabályait követik.',
+        'Lemezcache: státusz 1 óra, játékos- és szezonadat 12 óra, csapatkeresés 7 nap; a napi keretet helyi számláló védi.',
     setup: 'Adatforrások → API-Sports kulcs, vagy API_SPORTS_KEY.',
     fallback:
         'Hiba esetén a többi bekötött szolgáltató és a helyi alapadatok maradnak.',
@@ -106,7 +106,7 @@ const providerCatalog = <ProviderCatalogEntry>[
     ],
     authentication: 'Saját BALLDONTLIE kulcs szükséges.',
     limit: 'Free: 5 kérés/perc.',
-    cache: 'Nincs külön tartós klienscache.',
+    cache: '12 órás lemezcache a játékoskereséshez.',
     setup: 'Adatforrások → BALLDONTLIE kulcs, vagy BALLDONTLIE_KEY.',
     fallback: 'API-Sports és TheSportsDB tölti ki, amit tud.',
     docsUrl: 'https://www.balldontlie.io/',
@@ -131,7 +131,8 @@ const providerCatalog = <ProviderCatalogEntry>[
     authentication:
         'Nem kell saját kulcs; az app a publikus 123 kulcsot használja.',
     limit: 'Free: legfeljebb 30 kérés/perc; egyes lekérdezések korlátozottak.',
-    cache: 'Dartsnál a RapidAPI-réteggel együtt 6 órás cache védi a kvótát.',
+    cache:
+        'A névkeresések 24 órás lemezcache-be kerülnek; dartsnál a RapidAPI-réteg 6 órás cache-e is védi a kvótát.',
     setup: 'Nincs teendő.',
     fallback: 'Kép nélkül monogram; dartsnál a meglévő helyi adatok maradnak.',
     docsUrl: 'https://www.thesportsdb.com/documentation',
@@ -153,7 +154,8 @@ const providerCatalog = <ProviderCatalogEntry>[
     ],
     authentication: 'Ingyenes regisztrációs kulcs szükséges.',
     limit: 'Free: 12 verseny és 10 kérés/perc.',
-    cache: 'A Free csapatkeretek 7 napos tartós lemezcache-be kerülnek.',
+    cache:
+        'A csapatlista és a Free csapatkeretek 7 napos, a sikertelen játékoskeresés 24 órás lemezcache-be kerül.',
     setup: 'Adatforrások → football-data.org kulcs, vagy FOOTBALL_DATA_KEY.',
     fallback:
         'A FotMob adja a szezonstatisztikát; nem támogatott ligánál a TheSportsDB ad klubmérkőzést.',
@@ -178,7 +180,7 @@ const providerCatalog = <ProviderCatalogEntry>[
     authentication: 'Nem kell API-kulcs; nyilvános, nem hivatalos webes feed.',
     limit:
         'Nincs publikált alkalmazási kvóta; best effort forrás, kímélő lekéréssel.',
-    cache: 'Játékosonként 6 órás memóriacache.',
+    cache: 'Játékosonként 6 órás lemezcache.',
     setup: 'Nincs teendő.',
     fallback:
         'Ha nem érhető el, az API-Sports friss szezonadata marad; régi szezont az app nem címkéz aktuálisnak.',
@@ -200,7 +202,8 @@ const providerCatalog = <ProviderCatalogEntry>[
     authentication: 'Nem kell API-kulcs.',
     limit:
         'Nincs apphoz kötött havi kvóta; GitHub release-fájl letöltése történik.',
-    cache: 'A letöltött szezonfájl tartósan megmarad a wnba_cache mappában.',
+    cache:
+        'A letöltött szezonfájl tartósan megmarad a cache/wehoop_wnba mappában.',
     setup: 'Nincs teendő; az első WNBA-lekéréshez internet kell.',
     fallback: 'A már letöltött helyi szezonfájl offline is használható.',
     docsUrl: 'https://github.com/sportsdataverse/sportsdataverse-py',
@@ -263,7 +266,7 @@ const providerCatalog = <ProviderCatalogEntry>[
     authentication: 'RapidAPI előfizetés és X-RapidAPI-Key szükséges.',
     limit: 'Free csomag: 1000 kérés/hó.',
     cache: '6 órás cache.',
-    setup: 'Adatforrások → RapidAPI közös kulcs, vagy RAPIDAPI_DARTS_KEY.',
+    setup: 'Adatforrások → RapidAPI közös kulcs, vagy RAPIDAPI_KEY (a régi RAPIDAPI_DARTS_KEY is működik).',
     fallback:
         'A TheSportsDB profilja és eredményei a RapidAPI nélkül is működnek.',
     docsUrl: 'https://rapidapi.com/sportbex-api-default-api/api/darts-api',
@@ -345,7 +348,7 @@ const providerCatalog = <ProviderCatalogEntry>[
     limit:
         '20 perces automatikus frissítési ablak; a kézi frissítés azonnal lekéri az aktív feedeket.',
     cache:
-        'SQLite-adatbázisban tartós megőrzés, automatikus időalapú törlés nélkül.',
+        'SQLite-adatbázisban tartós megőrzés; a legújabb 5000 cikken túl az egy évnél régebbiek törlődnek.',
     setup:
         'Hírek → Források. A FOX és CBS alapból aktív; ESPN és Guardian opcionális.',
     fallback:

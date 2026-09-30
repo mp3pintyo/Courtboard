@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import 'common_ui.dart';
-import 'data/api_sports.dart' show normalizeAthleteName;
+import 'data/athlete_names.dart' show normalizeAthleteName;
 import 'data/news.dart';
 
 const _newsCanvas = Color(0xFFECE9DF);

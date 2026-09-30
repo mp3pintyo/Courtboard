@@ -1,10 +1,9 @@
-import 'dart:convert';
-import 'dart:io';
-
-import 'api_sports.dart' show athleteNamesMatch, normalizeAthleteName;
+import 'athlete_names.dart';
 import 'file_util.dart';
 import 'football_names.dart';
 import 'fotmob_football.dart';
+import 'json_file_cache.dart';
+import 'json_util.dart';
 import 'sports_api.dart';
 
 class FootballDataPlayerProfile {
@@ -27,20 +26,62 @@ class FootballDataPlayerProfile {
   final String? dateOfBirth;
   final String? nationality;
   final int? shirtNumber;
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'name': name,
+        'teamId': teamId,
+        'team': team,
+        'position': position,
+        'dateOfBirth': dateOfBirth,
+        'nationality': nationality,
+        'shirtNumber': shirtNumber,
+      };
+
+  static FootballDataPlayerProfile? tryFromJson(Object? raw) {
+    final json = jsonMap(raw);
+    final id = jsonIntOrNull(json['id']);
+    final teamId = jsonIntOrNull(json['teamId']);
+    if (id == null || teamId == null) return null;
+    return FootballDataPlayerProfile(
+      id: id,
+      name: '${json['name'] ?? ''}',
+      teamId: teamId,
+      team: '${json['team'] ?? ''}',
+      position: jsonString(json['position']),
+      dateOfBirth: jsonString(json['dateOfBirth']),
+      nationality: jsonString(json['nationality']),
+      shirtNumber: jsonIntOrNull(json['shirtNumber']),
+    );
+  }
 }
 
+/// football-data.org játékosfeloldás a Free csomag csapatkereteiből.
+///
+/// Minden hívás lemezre kerül: a csapatlista és a keretek 7 napig, a
+/// megtalált játékos 7 napig, a „nem található” eredmény 24 óráig (negatív
+/// cache). A percenkénti 10 kéréses korlátot a közös [HttpService] tartja
+/// be sorban állással, így egy hideg, teljes versenyszintű keresés is
+/// legfeljebb egyszer tart kb. egy percig; utána gyorsítótárból fut.
 class FootballDataPlayerRepository {
   FootballDataPlayerRepository(
     this._client, {
-    File? cacheFile,
+    CacheStorage? cacheStorage,
     this.cacheLifetime = const Duration(days: 7),
-    this.rateLimitReset = const Duration(seconds: 61),
-  }) : _cacheFile = cacheFile ?? _defaultCacheFile();
+    this.missLifetime = const Duration(hours: 24),
+    DateTime Function()? clock,
+  }) : _cache = JsonFileCache(
+          'football_data_players',
+          storage: cacheStorage,
+          clock: clock,
+        );
 
   final SportsApiClient _client;
-  final File _cacheFile;
+  final JsonFileCache _cache;
   final Duration cacheLifetime;
-  final Duration rateLimitReset;
+
+  /// A sikertelen keresés ennyi ideig nem ismétlődik.
+  final Duration missLifetime;
 
   static const _competitionPriority = [
     'PL',
@@ -60,71 +101,88 @@ class FootballDataPlayerRepository {
   Future<FootballDataPlayerProfile?> findPlayer(
     String playerName,
     String teamName,
-  ) async {
+  ) async =>
+      (await findPlayerCached(playerName, teamName)).value;
+
+  /// A játékos profilja a letöltés idejével; a „nem található” eredmény is
+  /// gyorsítótárba kerül [missLifetime] ideig.
+  Future<CachedValue<FootballDataPlayerProfile?>> findPlayerCached(
+    String playerName,
+    String teamName, {
+    bool forceRefresh = false,
+  }) async {
     if (_client.config.footballDataKey.trim().isEmpty) {
       throw StateError('FOOTBALL_DATA_KEY nincs beállítva.');
     }
+    return _cache.getOrFetch<FootballDataPlayerProfile?>(
+      'player_${cacheSlug(teamName)}__${cacheSlug(playerName)}',
+      ttl: cacheLifetime,
+      missTtl: missLifetime,
+      forceRefresh: forceRefresh,
+      fetch: () => _resolve(playerName, teamName),
+      encode: (value) => value?.toJson(),
+      decode: FootballDataPlayerProfile.tryFromJson,
+    );
+  }
 
-    final fresh = await _readCache(freshOnly: true);
-    final cached = findInTeams(fresh, playerName, teamName);
-    if (cached != null) return cached;
-    final stale = await _readCache(freshOnly: false);
+  Future<FootballDataPlayerProfile?> _resolve(
+    String playerName,
+    String teamName,
+  ) async {
+    final summaries = await _client.footballDataTeams();
+    final teamId = parseTeamId(summaries, teamName);
+    if (teamId != null) {
+      final team = await _cachedJson(
+        'team_$teamId',
+        () => _client.footballData('/v4/teams/$teamId'),
+      );
+      return findInTeams([team], playerName, teamName);
+    }
 
-    try {
-      final summaries = await _client.footballData('/v4/teams', {
-        'limit': '500',
-      });
-      final teamId = parseTeamId(summaries, teamName);
-      if (teamId != null) {
-        final team = await _client.footballData('/v4/teams/$teamId');
-        final teams = _mergeTeams(stale, [team]);
-        await _writeCache(teams);
-        return findInTeams(teams, playerName, teamName);
-      }
+    final hint = await _fotMobCompetitionHint(playerName);
+    if (hint.$1) {
+      final code = hint.$2;
+      if (code == null) return null;
+      return findInTeams(
+          await _competitionTeams(code), playerName, teamName);
+    }
 
-      final hint = await _fotMobCompetitionHint(playerName);
-      if (hint.$1) {
-        final code = hint.$2;
-        if (code == null) return null;
-        final payload = await _client.footballData(
-          '/v4/competitions/$code/teams',
-        );
-        final teams = _mergeTeams(stale, parseCompetitionTeams(payload));
-        await _writeCache(teams);
-        return findInTeams(teams, playerName, teamName);
-      }
-
-      final competitions = await _client.footballData('/v4/competitions', {
-        'plan': 'TIER_ONE',
-      });
-      final codes = parseFreeCompetitionCodes(competitions);
-      var teams = [...stale];
-      for (var start = 0; start < codes.length; start += 8) {
-        if (start > 0) await Future<void>.delayed(rateLimitReset);
-        final batch = codes.skip(start).take(8);
-        final payloads = await Future.wait(
-          batch.map(
-            (code) => _client.footballData('/v4/competitions/$code/teams'),
-          ),
-        );
-        teams = _mergeTeams(teams, payloads.expand(parseCompetitionTeams));
-        await _writeCache(teams);
-        final found = findInTeams(teams, playerName, teamName);
-        if (found != null) return found;
-      }
-    } catch (_) {
-      final fallback = findInTeams(stale, playerName, teamName);
-      if (fallback != null) return fallback;
-      rethrow;
+    final competitions = await _cachedJson(
+      'competitions_tier_one',
+      () => _client.footballData('/v4/competitions', {'plan': 'TIER_ONE'}),
+    );
+    for (final code in parseFreeCompetitionCodes(competitions)) {
+      final found = findInTeams(
+          await _competitionTeams(code), playerName, teamName);
+      if (found != null) return found;
     }
     return null;
   }
+
+  Future<List<Map<String, dynamic>>> _competitionTeams(String code) async =>
+      parseCompetitionTeams(await _cachedJson(
+        'competition_teams_$code',
+        () => _client.footballData('/v4/competitions/$code/teams'),
+      ));
+
+  Future<Map<String, dynamic>> _cachedJson(
+    String key,
+    Future<Map<String, dynamic>> Function() fetch,
+  ) async =>
+      (await _cache.getOrFetch<Map<String, dynamic>>(
+        key,
+        ttl: cacheLifetime,
+        fetch: fetch,
+        encode: (value) => value,
+        decode: jsonMap,
+      ))
+          .value;
 
   static int? parseTeamId(Map<String, dynamic> payload, String teamName) {
     final teams = payload['teams'];
     if (teams is! List) return null;
     final expected = _normalizeTeam(teamName);
-    for (final team in teams.whereType<Map>()) {
+    for (final team in jsonMapList(teams)) {
       final names = [
         '${team['name'] ?? ''}',
         '${team['shortName'] ?? ''}',
@@ -140,8 +198,7 @@ class FootballDataPlayerRepository {
   static List<String> parseFreeCompetitionCodes(Map<String, dynamic> payload) {
     final competitions = payload['competitions'];
     if (competitions is! List) return const [];
-    final available = competitions
-        .whereType<Map>()
+    final available = jsonMapList(competitions)
         .where((item) => '${item['plan'] ?? ''}' == 'TIER_ONE')
         .map((item) => '${item['code'] ?? ''}'.trim())
         .where((code) => code.isNotEmpty)
@@ -179,9 +236,7 @@ class FootballDataPlayerRepository {
   ) {
     final teams = payload['teams'];
     if (teams is! List) return const [];
-    return teams
-        .whereType<Map>()
-        .map((team) => Map<String, dynamic>.from(team))
+    return jsonMapList(teams)
         .toList(growable: false);
   }
 
@@ -200,7 +255,7 @@ class FootballDataPlayerRepository {
       if (!names.any((name) => _normalizeTeam(name) == expectedTeam)) continue;
       final squad = team['squad'];
       if (squad is! List) return null;
-      for (final player in squad.whereType<Map>()) {
+      for (final player in jsonMapList(squad)) {
         final name = '${player['name'] ?? ''}'.trim();
         if (!athleteNamesMatch(name, normalizeAthleteName(playerName))) {
           continue;
@@ -213,9 +268,9 @@ class FootballDataPlayerRepository {
           name: name,
           teamId: teamId,
           team: '${team['name'] ?? teamName}',
-          position: _nonEmpty(player['position']),
-          dateOfBirth: _nonEmpty(player['dateOfBirth']),
-          nationality: _nonEmpty(player['nationality']),
+          position: jsonString(player['position']),
+          dateOfBirth: jsonString(player['dateOfBirth']),
+          nationality: jsonString(player['nationality']),
           shirtNumber: int.tryParse('${player['shirtNumber'] ?? ''}'),
         );
       }
@@ -224,39 +279,8 @@ class FootballDataPlayerRepository {
     return null;
   }
 
-  Future<List<Map<String, dynamic>>> _readCache({
-    required bool freshOnly,
-  }) async {
-    try {
-      if (!await _cacheFile.exists()) return const [];
-      if (freshOnly) {
-        final age = DateTime.now().difference(await _cacheFile.lastModified());
-        if (age.isNegative || age > cacheLifetime) return const [];
-      }
-      final decoded = jsonDecode(await _cacheFile.readAsString());
-      final teams = decoded is Map ? decoded['teams'] : null;
-      if (teams is! List) return const [];
-      return teams
-          .whereType<Map>()
-          .map((team) => Map<String, dynamic>.from(team))
-          .toList();
-    } catch (_) {
-      return const [];
-    }
-  }
-
-  Future<void> _writeCache(List<Map<String, dynamic>> teams) async {
-    await writeFileAtomic(
-      _cacheFile,
-      jsonEncode({
-        'savedAt': DateTime.now().toUtc().toIso8601String(),
-        'teams': teams,
-      }),
-    );
-  }
-
   Future<(bool, String?)> _fotMobCompetitionHint(String playerName) async {
-    final repository = FotMobFootballRepository();
+    final repository = FotMobFootballRepository(cacheStorage: _cache.storage);
     try {
       final summary = await repository.fetchSeasonSummary(playerName);
       if (summary == null) return (false, null);
@@ -267,28 +291,6 @@ class FootballDataPlayerRepository {
       repository.close();
     }
   }
-
-  static List<Map<String, dynamic>> _mergeTeams(
-    Iterable<Map<String, dynamic>> existing,
-    Iterable<Map<String, dynamic>> incoming,
-  ) {
-    final byId = <String, Map<String, dynamic>>{};
-    for (final team in [...existing, ...incoming]) {
-      final id = '${team['id'] ?? ''}';
-      if (id.isNotEmpty) byId[id] = Map<String, dynamic>.from(team);
-    }
-    return byId.values.toList(growable: false);
-  }
-
-  static File _defaultCacheFile() {
-    return File(
-        '${appDataPath()}/courtboard_cache/football_data/free_players.json');
-  }
 }
 
 String _normalizeTeam(String value) => normalizeFootballTeamName(value);
-
-String? _nonEmpty(dynamic value) {
-  final text = '${value ?? ''}'.trim();
-  return text.isEmpty ? null : text;
-}

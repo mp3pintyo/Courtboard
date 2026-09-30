@@ -5,6 +5,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:courtboard/common_ui.dart';
+import 'package:courtboard/data/api_key_id.dart';
+import 'package:courtboard/data/api_key_store.dart';
+import 'package:courtboard/data/secret_store.dart';
 import 'package:courtboard/data/http_util.dart';
 import 'package:courtboard/data/local_state.dart';
 import 'package:courtboard/data/multi_provider.dart';
@@ -52,9 +55,6 @@ class _FailingNewsStore extends NewsStore {
 }
 
 void main() {
-  setUpAll(() => BasketballReferenceRepository.networkEnabled = false);
-  tearDownAll(() => BasketballReferenceRepository.networkEnabled = true);
-
   test('athlete sorting and team visibility follow the saved preferences', () {
     Athlete athlete(String name, String sport, String team) => Athlete(
           name: name,
@@ -387,6 +387,72 @@ void main() {
     await tester.tap(find.text('football-data.org').last);
     await tester.pumpAndSettle();
     expect(find.textContaining('nincs beégetett Liverpool-azonosító'),
+        findsOneWidget);
+  });
+
+  Future<void> saveLiveTennisKey(WidgetTester tester, String value) async {
+    await tester.tap(find.text('Adatforrások'));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('secure-storage-warning')), findsNothing);
+    await tester.tap(find.byKey(const Key('api-key-button-liveTennis')));
+    await tester.pumpAndSettle();
+    expect(find.text('Live Tennis API-kulcs'), findsOneWidget);
+    await tester.enterText(
+        find.descendant(
+            of: find.byType(AlertDialog), matching: find.byType(TextField)),
+        value);
+    await tester.tap(find.text('Mentés'));
+    await tester.pumpAndSettle();
+  }
+
+  testWidgets('API keys are saved to the secret store', (tester) async {
+    _desktopView(tester);
+    final secrets = MemorySecretStore();
+    await tester.pumpWidget(CourtboardApp(
+      apiKeyStore: ApiKeyStore(secrets: secrets),
+    ));
+
+    await saveLiveTennisKey(tester, '  lt-secret  ');
+
+    expect(secrets.values, {ApiKeyId.liveTennis.secretName: 'lt-secret'});
+    expect(find.byKey(const Key('secure-storage-warning')), findsNothing);
+  });
+
+  testWidgets('secret store failure keeps the key and shows a warning',
+      (tester) async {
+    _desktopView(tester);
+    await tester.pumpWidget(CourtboardApp(
+      apiKeyStore: ApiKeyStore(secrets: MemorySecretStore(failing: true)),
+    ));
+
+    await saveLiveTennisKey(tester, 'lt-secret');
+
+    expect(find.byKey(const Key('secure-storage-warning')), findsOneWidget);
+    expect(find.textContaining('nem menthető a biztonságos tárolóba'),
+        findsOneWidget);
+    // A kulcs memóriában él: az újranyitott szerkesztő már ezt mutatja.
+    await tester.pump(const Duration(seconds: 5));
+    await tester.tap(find.byKey(const Key('api-key-button-liveTennis')));
+    await tester.pumpAndSettle();
+    final field = tester.widget<TextField>(find.descendant(
+        of: find.byType(AlertDialog), matching: find.byType(TextField)));
+    expect(field.controller?.text, 'lt-secret');
+  });
+
+  testWidgets('startup secure storage failure is shown on Data Sources',
+      (tester) async {
+    _desktopView(tester);
+    await tester.pumpWidget(const CourtboardApp(
+      secureStorageAvailable: false,
+      initialState: CourtboardLocalState(
+        legacyApiKeys: {ApiKeyId.liveTennis: 'legacy-secret'},
+      ),
+    ));
+    await tester.tap(find.text('Adatforrások'));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('secure-storage-warning')), findsOneWidget);
+    expect(find.textContaining('Windows biztonságos kulcstárolója'),
         findsOneWidget);
   });
 

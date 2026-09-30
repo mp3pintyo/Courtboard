@@ -1,7 +1,10 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'api_key_id.dart';
+import 'app_paths.dart';
 import 'file_util.dart';
+import 'json_util.dart';
 
 class CustomAthlete {
   const CustomAthlete({
@@ -40,11 +43,7 @@ class CourtboardLocalState {
     this.notes = const {},
     this.alerts = const {},
     this.removedAthleteNames = const {},
-    this.footballDataKey = '',
-    this.apiSportsKey = '',
-    this.balldontlieKey = '',
-    this.rapidApiDartsKey = '',
-    this.liveTennisKey = '',
+    this.legacyApiKeys = const {},
     this.customAthletes = const [],
     this.theme = 'green',
     this.overviewSort = 'custom',
@@ -55,11 +54,13 @@ class CourtboardLocalState {
   final Map<String, String> notes;
   final Map<String, bool> alerts;
   final Set<String> removedAthleteNames;
-  final String footballDataKey;
-  final String apiSportsKey;
-  final String balldontlieKey;
-  final String rapidApiDartsKey;
-  final String liveTennisKey;
+
+  /// A 0.9.0 előtt titkosítatlanul mentett API-kulcsok (csak a nem üresek).
+  ///
+  /// Indításkor átkerülnek a biztonságos tárolóba, és sikeres visszaolvasás
+  /// után kikerülnek a JSON-ból. Csak akkor maradnak itt, ha a biztonságos
+  /// tároló nem érhető el: így a kulcsok akkor sem vesznek el.
+  final Map<ApiKeyId, String> legacyApiKeys;
   final List<CustomAthlete> customAthletes;
   final String theme;
   final String overviewSort;
@@ -68,15 +69,26 @@ class CourtboardLocalState {
   /// A „Saját sorrend” szerinti névsor; üres lista esetén az alapsorrend él.
   final List<String> athleteOrder;
 
+  /// Másolat, amelyben a régi, titkosítatlan kulcsok helyén [keys] áll.
+  CourtboardLocalState withLegacyApiKeys(Map<ApiKeyId, String> keys) =>
+      CourtboardLocalState(
+        notes: notes,
+        alerts: alerts,
+        removedAthleteNames: removedAthleteNames,
+        legacyApiKeys: keys,
+        customAthletes: customAthletes,
+        theme: theme,
+        overviewSort: overviewSort,
+        athleteSort: athleteSort,
+        athleteOrder: athleteOrder,
+      );
+
   Map<String, dynamic> toJson() => {
         'notes': notes,
         'alerts': alerts,
         'removedAthleteNames': removedAthleteNames.toList(),
-        'footballDataKey': footballDataKey,
-        'apiSportsKey': apiSportsKey,
-        'balldontlieKey': balldontlieKey,
-        'rapidApiDartsKey': rapidApiDartsKey,
-        'liveTennisKey': liveTennisKey,
+        for (final MapEntry(key: id, :value) in legacyApiKeys.entries)
+          if (value.isNotEmpty) id.legacyJsonField: value,
         'customAthletes':
             customAthletes.map((athlete) => athlete.toJson()).toList(),
         'theme': theme,
@@ -101,16 +113,15 @@ class CourtboardLocalState {
       removedAthleteNames: rawRemoved is List
           ? rawRemoved.whereType<String>().toSet()
           : const {},
-      footballDataKey: json['footballDataKey'] as String? ?? '',
-      apiSportsKey: json['apiSportsKey'] as String? ?? '',
-      balldontlieKey: json['balldontlieKey'] as String? ?? '',
-      rapidApiDartsKey: json['rapidApiDartsKey'] as String? ?? '',
-      liveTennisKey: json['liveTennisKey'] as String? ?? '',
+      legacyApiKeys: {
+        for (final id in ApiKeyId.values)
+          if (json[id.legacyJsonField] case final String key
+              when key.trim().isNotEmpty)
+            id: key.trim(),
+      },
       customAthletes: rawAthletes is List
-          ? rawAthletes
-              .whereType<Map>()
-              .map((item) =>
-                  CustomAthlete.fromJson(Map<String, dynamic>.from(item)))
+          ? jsonMapList(rawAthletes)
+              .map(CustomAthlete.fromJson)
               .toList()
           : const [],
       theme: json['theme'] as String? ?? 'green',
@@ -132,7 +143,7 @@ class LocalStateStore {
   /// és a sorrend megegyezik a hívások sorrendjével (az utolsó állapot nyer).
   Future<void> _saveChain = Future<void>.value();
 
-  static File _defaultFile() => File('${appDataPath()}/courtboard_state.json');
+  static File _defaultFile() => File(AppPaths.stateFile);
 
   /// Az utolsó [load] során félretett sérült állapotfájl, ha volt ilyen.
   File? lastCorruptBackup;

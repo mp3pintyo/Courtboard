@@ -78,14 +78,18 @@ Egyetlen kulcs sem kötelező az app indulásához.
 | API-Sports | NBA-profil, foci, korlátozott NFL-integráció | API-Sports | `API_SPORTS_KEY` | 100 kérés/nap, 10/perc; korlátozott szezonok |
 | BALLDONTLIE | NBA-profil kiegészítés | BALLDONTLIE | `BALLDONTLIE_KEY` | 5 kérés/perc |
 | football-data.org | Free ligák focistáinak alapadatai és támogatott klubok mérkőzései | football-data.org | `FOOTBALL_DATA_KEY` | 12 verseny, 10 kérés/perc |
-| RapidAPI Darts API | darts versenylista | RapidAPI · Darts + WNBA | `RAPIDAPI_DARTS_KEY` | 1000 kérés/hó |
-| RapidAPI WNBA API | Player Bio és Advanced Statistics | ugyanaz a RapidAPI kulcs | `RAPIDAPI_DARTS_KEY` | 100 kérés/hó |
+| RapidAPI Darts API | darts versenylista | RapidAPI (Darts + WNBA) | `RAPIDAPI_KEY` (régi név: `RAPIDAPI_DARTS_KEY`) | 1000 kérés/hó |
+| RapidAPI WNBA API | Player Bio és Advanced Statistics | ugyanaz a RapidAPI kulcs | `RAPIDAPI_KEY` (régi név: `RAPIDAPI_DARTS_KEY`) | 100 kérés/hó |
 | Live Tennis API | teniszprofil, ranglista, élő és közelgő mérkőzések | Live Tennis API | `LIVE_TENNIS_API_KEY` | 30 kérés/perc, 1000/nap |
 | YouTube Data API v3 | előkészített, még nem aktív automatikus kereső | nincs külön mező | `YOUTUBE_DATA_KEY` | Google-projektkvóta |
 
 A Darts és a WNBA RapidAPI ugyanazt az alkalmazáskulcsot kapja, de a RapidAPI oldalán **mindkét API Free csomagjára külön fel kell iratkozni**.
 
-Az appban elmentett kulcsok a helyi `%APPDATA%\courtboard_state.json` fájlba kerülnek. Publikált vagy többfelhasználós kiadásnál kliensbe mentett titkok helyett backend proxyt érdemes használni.
+Az appban elmentett kulcsok a Windows Hitelesítőadat-kezelőbe (Credential Manager) kerülnek, `Courtboard/courtboard.api_key.…` néven: a Windows ezeket a felhasználói fiókhoz kötve, titkosítva (DPAPI) tárolja, így nem szerepelnek a `%APPDATA%\courtboard_state.json` állapotfájlban. A mentett kulcsok a **Vezérlőpult → Hitelesítőadat-kezelő → Windows hitelesítő adatok** alatt meg is tekinthetők és törölhetők. Ha az appban mentett kulcs hiányzik, a fenti környezeti változó érvényes.
+
+A 0.9.0 előtti verziók a kulcsokat titkosítatlanul az állapotfájlba írták. Az első indításkor az app ezeket átköltözteti a biztonságos tárolóba, visszaolvasással ellenőrzi, és csak ezután törli őket a JSON-ból. Ha a biztonságos tároló nem érhető el, a kulcsok a régi helyükön maradnak, az app memóriából használja őket, az **Adatforrások** oldal pedig figyelmeztetést mutat.
+
+Publikált vagy többfelhasználós kiadásnál kliensbe mentett titkok helyett backend proxyt érdemes használni.
 
 ## Adatforrás-mátrix
 

@@ -1,13 +1,16 @@
-import 'dart:convert';
 import 'dart:io';
+import 'dart:isolate';
 
 import 'package:html/dom.dart' as dom;
 import 'package:html/parser.dart' as html_parser;
 
-import 'api_sports.dart';
+import 'athlete_names.dart';
 import 'basketball_season.dart';
 import 'file_util.dart';
+import 'http_service.dart';
 import 'http_util.dart';
+import 'json_file_cache.dart';
+import 'json_util.dart';
 
 typedef BasketballReferenceHtmlFetcher = Future<String> Function(Uri uri);
 
@@ -74,34 +77,53 @@ class NbaGameLog {
         opponent: '${json['opponent'] ?? 'Ismeretlen'}',
         outcome: '${json['outcome'] ?? ''}'.toUpperCase(),
         location: '${json['location'] ?? ''}'.toUpperCase(),
-        minutes: _asDouble(json['minutes']),
-        points: _asInt(json['points']),
-        rebounds: _asInt(json['rebounds']),
-        assists: _asInt(json['assists']),
-        steals: _asInt(json['steals']),
-        blocks: _asInt(json['blocks']),
-        turnovers: _asInt(json['turnovers']),
-        fieldGoalsMade: _asInt(json['field_goals_made']),
-        fieldGoalsAttempted: _asInt(json['field_goals_attempted']),
+        minutes: jsonDouble(json['minutes']),
+        points: jsonInt(json['points']),
+        rebounds: jsonInt(json['rebounds']),
+        assists: jsonInt(json['assists']),
+        steals: jsonInt(json['steals']),
+        blocks: jsonInt(json['blocks']),
+        turnovers: jsonInt(json['turnovers']),
+        fieldGoalsMade: jsonInt(json['field_goals_made']),
+        fieldGoalsAttempted: jsonInt(json['field_goals_attempted']),
         plusMinus:
-            json['plus_minus'] == null ? null : _asInt(json['plus_minus']),
+            json['plus_minus'] == null ? null : jsonInt(json['plus_minus']),
         gameScore:
-            json['game_score'] == null ? null : _asDouble(json['game_score']),
-        score: _nonEmpty(json['score']),
+            json['game_score'] == null ? null : jsonDouble(json['game_score']),
+        score: jsonString(json['score']),
       );
 }
 
 class BasketballReferenceRepository {
+  /// A [cacheDirectory] (tesztekhez) vagy a [cacheStorage] felülírja a közös
+  /// gyorsítótárat. [networkEnabled] alapértelmezése a [HttpService]
+  /// beállítása; saját [fetchHtml] esetén mindig engedélyezett.
   BasketballReferenceRepository({
     this.cacheLifetime = const Duration(hours: 6),
     BasketballReferenceHtmlFetcher? fetchHtml,
-    this._cacheDirectory,
-  }) : _fetchHtml = fetchHtml ?? _downloadHtml;
+    Directory? cacheDirectory,
+    CacheStorage? cacheStorage,
+    HttpService? http,
+    bool? networkEnabled,
+    DateTime Function()? clock,
+  })  : _http = http ?? HttpService.shared,
+        _fetchOverride = fetchHtml,
+        networkEnabled = networkEnabled ??
+            (fetchHtml != null || (http ?? HttpService.shared).networkEnabled),
+        _cache = JsonFileCache(
+          'basketball_reference',
+          storage: cacheStorage,
+          directory: cacheDirectory,
+          clock: clock,
+        );
 
-  static bool networkEnabled = true;
+  /// `false` esetén a lekérdezések üres eredményt adnak, hálózat és lemez
+  /// érintése nélkül (widget-tesztek, offline futtatás).
+  final bool networkEnabled;
   final Duration cacheLifetime;
-  final BasketballReferenceHtmlFetcher _fetchHtml;
-  final Directory? _cacheDirectory;
+  final HttpService _http;
+  final BasketballReferenceHtmlFetcher? _fetchOverride;
+  final JsonFileCache _cache;
 
   static const _host = 'www.basketball-reference.com';
 
@@ -109,8 +131,19 @@ class BasketballReferenceRepository {
     String athleteName, {
     DateTime? now,
     String league = 'nba',
+  }) async =>
+      (await recentGamesCached(athleteName, now: now, league: league)).value;
+
+  /// A legutóbbi meccsek a letöltés idejével és gyorsítótár-jelzéssel.
+  Future<CachedValue<List<NbaGameLog>>> recentGamesCached(
+    String athleteName, {
+    DateTime? now,
+    String league = 'nba',
+    bool forceRefresh = false,
   }) async {
-    if (!networkEnabled) return const [];
+    if (!networkEnabled) {
+      return CachedValue(const <NbaGameLog>[], fetchedAt: DateTime.now());
+    }
     final normalizedLeague = league.toLowerCase();
     if (normalizedLeague != 'nba' && normalizedLeague != 'wnba') {
       throw ArgumentError.value(league, 'league', 'Csak nba vagy wnba lehet.');
@@ -119,21 +152,17 @@ class BasketballReferenceRepository {
     final season = normalizedLeague == 'wnba'
         ? effectiveNow.year
         : seasonEndYear(effectiveNow);
-    final cache = await _cacheFile(athleteName, season, normalizedLeague);
-    final cached = await _readCache(cache, effectiveNow, freshOnly: true);
-    if (cached != null) return parseGames(cached);
-
-    try {
-      final payload = normalizedLeague == 'wnba'
-          ? await _fetchWnba(athleteName, season)
-          : await _fetchNba(athleteName, season);
-      await writeFileAtomic(cache, jsonEncode(payload));
-      return parseGames(payload);
-    } catch (_) {
-      final stale = await _readCache(cache, effectiveNow, freshOnly: false);
-      if (stale != null) return parseGames(stale);
-      rethrow;
-    }
+    final payload = await _cache.getOrFetch<Map<String, dynamic>>(
+      '${normalizedLeague}_${cacheSlug(athleteName)}_$season',
+      ttl: cacheLifetime,
+      forceRefresh: forceRefresh,
+      fetch: () => normalizedLeague == 'wnba'
+          ? _fetchWnba(athleteName, season)
+          : _fetchNba(athleteName, season),
+      encode: (value) => value,
+      decode: jsonMap,
+    );
+    return payload.map(parseGames);
   }
 
   /// Az NBA alapszakasz október második felében indul: szeptemberben még az
@@ -144,36 +173,49 @@ class BasketballReferenceRepository {
   Future<BasketballSeasonStat?> seasonSummary(
     String athleteName, {
     DateTime? now,
+  }) async =>
+      (await seasonSummaryCached(athleteName, now: now))?.value;
+
+  /// NBA szezonösszesítő a letöltés idejével; kikapcsolt hálózatnál `null`.
+  Future<CachedValue<BasketballSeasonStat>?> seasonSummaryCached(
+    String athleteName, {
+    DateTime? now,
+    bool forceRefresh = false,
   }) async {
     if (!networkEnabled) return null;
     final effectiveNow = now ?? DateTime.now();
     final season = seasonEndYear(effectiveNow);
-    final cache = await _cacheFile(athleteName, season, 'nba_summary');
-    final cached = await _readCache(cache, effectiveNow, freshOnly: true);
-    if (cached != null) {
-      return BasketballSeasonStat.fromJson(cached);
-    }
-
-    try {
-      final player = await _findPlayer(athleteName, league: 'nba');
-      final html = await _fetchHtml(Uri.https(_host, player.$2));
-      final summary = parseNbaSeasonSummaryHtml(
-        html,
-        preferredSeasonEndYear: season,
-      );
-      if (summary == null) {
-        throw StateError(
-          'A Basketball Reference nem adott NBA szezonösszesítőt: $athleteName',
+    return _cache.getOrFetch<BasketballSeasonStat>(
+      'nba_summary_${cacheSlug(athleteName)}_$season',
+      ttl: cacheLifetime,
+      forceRefresh: forceRefresh,
+      fetch: () async {
+        final player = await _findPlayer(athleteName, league: 'nba');
+        final html = await _fetch(Uri.https(_host, player.$2));
+        final summary = await parseNbaSeasonSummaryHtmlAsync(
+          html,
+          preferredSeasonEndYear: season,
         );
-      }
-      await writeFileAtomic(cache, jsonEncode(summary.toJson()));
-      return summary;
-    } catch (_) {
-      final stale = await _readCache(cache, effectiveNow, freshOnly: false);
-      if (stale != null) return BasketballSeasonStat.fromJson(stale);
-      rethrow;
-    }
+        if (summary == null) {
+          throw StateError(
+            'A Basketball Reference nem adott NBA szezonösszesítőt: $athleteName',
+          );
+        }
+        return summary;
+      },
+      encode: (value) => value.toJson(),
+      decode: (json) => BasketballSeasonStat.fromJson(jsonMap(json)),
+    );
   }
+
+  /// [parseNbaSeasonSummaryHtml] külön isolate-ban (a nagy HTML-oldal
+  /// feldolgozása ne akassza meg a felületet).
+  static Future<BasketballSeasonStat?> parseNbaSeasonSummaryHtmlAsync(
+    String html, {
+    int? preferredSeasonEndYear,
+  }) =>
+      Isolate.run(() => parseNbaSeasonSummaryHtml(html,
+          preferredSeasonEndYear: preferredSeasonEndYear));
 
   static BasketballSeasonStat? parseNbaSeasonSummaryHtml(
     String html, {
@@ -202,12 +244,12 @@ class BasketballReferenceRepository {
       final aTotal = RegExp(r'^\d+TM$').hasMatch(a.team) ? 1 : 0;
       final bTotal = RegExp(r'^\d+TM$').hasMatch(b.team) ? 1 : 0;
       if (aTotal != bTotal) return bTotal.compareTo(aTotal);
-      return _asInt(_statText(b.row, 'games'))
-          .compareTo(_asInt(_statText(a.row, 'games')));
+      return jsonInt(_statText(b.row, 'games'))
+          .compareTo(jsonInt(_statText(a.row, 'games')));
     });
     final selected = candidates.first;
     final row = selected.row;
-    double? number(String stat) => _nullableDouble(_statText(row, stat));
+    double? number(String stat) => jsonDoubleOrNull(_statText(row, stat));
     final fieldGoal = number('fg_pct');
     final team = RegExp(r'^\d+TM$').hasMatch(selected.team)
         ? 'Több csapat'
@@ -217,7 +259,7 @@ class BasketballReferenceRepository {
       season: '${selected.year - 1}/${selected.year}',
       team: team,
       source: 'Basketball Reference',
-      games: _asInt(_statText(row, 'games')),
+      games: jsonInt(_statText(row, 'games')),
       minutesPerGame: number('mp_per_g'),
       pointsPerGame: number('pts_per_g'),
       reboundsPerGame: number('trb_per_g'),
@@ -233,11 +275,8 @@ class BasketballReferenceRepository {
     if (payload['error'] != null) {
       throw StateError('Basketball Reference hiba: ${payload['error']}');
     }
-    final games = payload['games'];
-    if (games is! List) return const [];
-    final parsed = games
-        .whereType<Map>()
-        .map((game) => NbaGameLog.tryFromJson(Map<String, dynamic>.from(game)))
+    final parsed = jsonMapList(payload['games'])
+        .map(NbaGameLog.tryFromJson)
         .whereType<NbaGameLog>()
         .toList();
     parsed.sort((a, b) => b.date.compareTo(a.date));
@@ -258,6 +297,58 @@ class BasketballReferenceRepository {
         'games': _parseGameTables(html, const {'last5'}, _wnbaTeams)
       });
 
+  /// [parseNbaGameLogHtml] külön isolate-ban.
+  static Future<List<NbaGameLog>> parseNbaGameLogHtmlAsync(String html) =>
+      Isolate.run(() => parseNbaGameLogHtml(html));
+
+  /// [parseWnbaLastFiveHtml] külön isolate-ban.
+  static Future<List<NbaGameLog>> parseWnbaLastFiveHtmlAsync(String html) =>
+      Isolate.run(() => parseWnbaLastFiveHtml(html));
+
+  /// A keresőoldal játékoslinkjei (`(név, útvonal)`), duplikátumok nélkül.
+  static List<(String, String)> parseSearchCandidates(
+    String html, {
+    required String league,
+  }) {
+    final document = html_parser.parse(html);
+    final prefix = league == 'wnba' ? '/wnba/players/' : '/players/';
+    final candidates = <(String, String)>[];
+    for (final anchor in document.querySelectorAll('a[href]')) {
+      final href = anchor.attributes['href'] ?? '';
+      if (!href.startsWith(prefix) || !href.endsWith('.html')) continue;
+      final name = anchor.text.trim().split(' (').first.trim();
+      if (name.isEmpty) continue;
+      final candidate = (name, href);
+      if (!candidates.any((item) => item.$2 == href)) candidates.add(candidate);
+    }
+    return candidates;
+  }
+
+  /// [parseSearchCandidates] külön isolate-ban.
+  static Future<List<(String, String)>> parseSearchCandidatesAsync(
+    String html, {
+    required String league,
+  }) =>
+      Isolate.run(() => parseSearchCandidates(html, league: league));
+
+  Future<String> _fetch(Uri uri) {
+    final override = _fetchOverride;
+    if (override != null) return override(uri);
+    return _http.getText(
+      uri,
+      provider: 'Basketball Reference',
+      allowMalformed: true,
+      timeout: const Duration(seconds: 30),
+      headers: {
+        HttpHeaders.userAgentHeader:
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
+                'AppleWebKit/537.36 Chrome/126.0 Safari/537.36 Courtboard/0.1',
+        HttpHeaders.acceptLanguageHeader: 'en-US,en;q=0.9',
+        HttpHeaders.acceptHeader: 'text/html,application/xhtml+xml',
+      },
+    );
+  }
+
   Future<Map<String, dynamic>> _fetchNba(String athleteName, int season) async {
     final player = await _findPlayer(athleteName, league: 'nba');
     final identifier = player.$2.split('/').last.replaceAll('.html', '');
@@ -273,12 +364,12 @@ class BasketballReferenceRepository {
       );
       final String html;
       try {
-        html = await _fetchHtml(uri);
+        html = await _fetch(uri);
       } on CourtboardHttpException catch (error) {
         if (error.isNotFound && candidate == season) continue;
         rethrow;
       }
-      final games = parseNbaGameLogHtml(html).take(5).toList();
+      final games = (await parseNbaGameLogHtmlAsync(html)).take(5).toList();
       if (games.isEmpty && candidate == season) continue;
       return _payload(
         provider: 'Basketball Reference',
@@ -297,8 +388,8 @@ class BasketballReferenceRepository {
   ) async {
     final player = await _findPlayer(athleteName, league: 'wnba');
     final uri = Uri.https(_host, player.$2);
-    final html = await _fetchHtml(uri);
-    final games = parseWnbaLastFiveHtml(html).take(5).toList();
+    final html = await _fetch(uri);
+    final games = (await parseWnbaLastFiveHtmlAsync(html)).take(5).toList();
     return _payload(
       provider: 'Basketball Reference WNBA',
       player: player.$1,
@@ -317,17 +408,10 @@ class BasketballReferenceRepository {
       '/search/search.fcgi',
       {'search': athleteName},
     );
-    final document = html_parser.parse(await _fetchHtml(searchUri));
-    final prefix = league == 'wnba' ? '/wnba/players/' : '/players/';
-    final candidates = <(String, String)>[];
-    for (final anchor in document.querySelectorAll('a[href]')) {
-      final href = anchor.attributes['href'] ?? '';
-      if (!href.startsWith(prefix) || !href.endsWith('.html')) continue;
-      final name = anchor.text.trim().split(' (').first.trim();
-      if (name.isEmpty) continue;
-      final candidate = (name, href);
-      if (!candidates.any((item) => item.$2 == href)) candidates.add(candidate);
-    }
+    final candidates = await parseSearchCandidatesAsync(
+      await _fetch(searchUri),
+      league: league,
+    );
     if (candidates.isEmpty) {
       throw StateError(
         'Nem található Basketball Reference $league játékos: $athleteName',
@@ -363,55 +447,8 @@ class BasketballReferenceRepository {
         'season_end_year': season,
         'fetched_at': DateTime.now().toUtc().toIso8601String(),
         'games': games.map(_gameToJson).toList(),
-        'warnings': const [],
+        'warnings': const <String>[],
       };
-
-  Future<Map<String, dynamic>?> _readCache(
-    File file,
-    DateTime now, {
-    required bool freshOnly,
-  }) async {
-    try {
-      if (!await file.exists()) return null;
-      if (freshOnly) {
-        final age = now.difference(await file.lastModified());
-        if (age > cacheLifetime || age.isNegative) return null;
-      }
-      final decoded = jsonDecode(await file.readAsString());
-      return decoded is Map ? Map<String, dynamic>.from(decoded) : null;
-    } catch (_) {
-      return null;
-    }
-  }
-
-  Future<File> _cacheFile(String athleteName, int season, String league) async {
-    final directory = _cacheDirectory ??
-        Directory('${appDataPath()}/courtboard_cache/basketball_reference');
-    return File(
-        '${directory.path}/${league}_${cacheSlug(athleteName)}_$season.json');
-  }
-
-  static Future<String> _downloadHtml(Uri uri) async {
-    final client = createHttpClient();
-    try {
-      return await httpGetText(
-        client,
-        uri,
-        provider: 'Basketball Reference',
-        allowMalformed: true,
-        timeout: const Duration(seconds: 30),
-        headers: {
-          HttpHeaders.userAgentHeader:
-              'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
-                  'AppleWebKit/537.36 Chrome/126.0 Safari/537.36 Courtboard/0.1',
-          HttpHeaders.acceptLanguageHeader: 'en-US,en;q=0.9',
-          HttpHeaders.acceptHeader: 'text/html,application/xhtml+xml',
-        },
-      );
-    } finally {
-      client.close(force: true);
-    }
-  }
 
   static List<Map<String, dynamic>> _parseGameTables(
     String html,
@@ -449,7 +486,7 @@ class BasketballReferenceRepository {
         final opponentCode = cells['opp_name_abbr'] ?? cells['opp_id'] ?? '';
         final result = cells['game_result'] ?? '';
         final score = result.contains(',')
-            ? _nonEmpty(result.split(',').skip(1).join(',').trim())
+            ? jsonString(result.split(',').skip(1).join(',').trim())
             : null;
         final game = <String, dynamic>{
           'date': date,
@@ -457,18 +494,18 @@ class BasketballReferenceRepository {
           'outcome': result.toUpperCase().startsWith('W') ? 'WIN' : 'LOSS',
           'location': cells['game_location'] == '@' ? 'AWAY' : 'HOME',
           'minutes': _minutes(cells['mp']),
-          'points': _asInt(cells['pts']),
+          'points': jsonInt(cells['pts']),
           'rebounds': cells['trb']?.isNotEmpty == true
-              ? _asInt(cells['trb'])
-              : _asInt(cells['orb']) + _asInt(cells['drb']),
-          'assists': _asInt(cells['ast']),
-          'steals': _asInt(cells['stl']),
-          'blocks': _asInt(cells['blk']),
-          'turnovers': _asInt(cells['tov']),
-          'field_goals_made': _asInt(cells['fg']),
-          'field_goals_attempted': _asInt(cells['fga']),
-          'plus_minus': _nullableInt(cells['plus_minus']),
-          'game_score': _nullableDouble(cells['game_score']),
+              ? jsonInt(cells['trb'])
+              : jsonInt(cells['orb']) + jsonInt(cells['drb']),
+          'assists': jsonInt(cells['ast']),
+          'steals': jsonInt(cells['stl']),
+          'blocks': jsonInt(cells['blk']),
+          'turnovers': jsonInt(cells['tov']),
+          'field_goals_made': jsonInt(cells['fg']),
+          'field_goals_attempted': jsonInt(cells['fga']),
+          'plus_minus': jsonIntOrNull(cells['plus_minus']),
+          'game_score': jsonDoubleOrNull(cells['game_score']),
           'score': score,
         };
         final key = '$date|$opponentCode|${score ?? ''}';
@@ -559,28 +596,8 @@ String _cleanText(String value) => value.replaceAll(RegExp(r'\s+'), ' ').trim();
 
 double _minutes(String? value) {
   final text = value?.trim() ?? '';
-  if (!text.contains(':')) return _asDouble(text);
+  if (!text.contains(':')) return jsonDouble(text);
   final parts = text.split(':');
   if (parts.length != 2) return 0;
-  return _asDouble(parts[0]) + (_asDouble(parts[1]) / 60);
-}
-
-int _asInt(dynamic value) => value is int ? value : int.tryParse('$value') ?? 0;
-
-int? _nullableInt(dynamic value) {
-  final text = '${value ?? ''}'.trim().replaceFirst('+', '');
-  return text.isEmpty ? null : int.tryParse(text);
-}
-
-double _asDouble(dynamic value) =>
-    value is num ? value.toDouble() : double.tryParse('$value') ?? 0;
-
-double? _nullableDouble(dynamic value) {
-  final text = '${value ?? ''}'.trim();
-  return text.isEmpty ? null : double.tryParse(text);
-}
-
-String? _nonEmpty(dynamic value) {
-  final text = '${value ?? ''}'.trim();
-  return text.isEmpty || text == 'null' ? null : text;
+  return jsonDouble(parts[0]) + (jsonDouble(parts[1]) / 60);
 }

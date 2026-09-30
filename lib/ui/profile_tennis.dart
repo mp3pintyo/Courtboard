@@ -114,9 +114,20 @@ class _TennisDataCardState extends State<_TennisDataCard> {
                   onRetry: () => setState(() => _load(force: true)),
                 );
               }
-              return TennisProfileFacts(
-                data: snapshot.data!,
-                accent: widget.accent,
+              final data = snapshot.data!;
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (data.fetchedAt != null)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: FreshnessNote(
+                        fetchedAt: data.fetchedAt!,
+                        fromCache: data.fromCache,
+                      ),
+                    ),
+                  TennisProfileFacts(data: data, accent: widget.accent),
+                ],
               );
             },
           ),

@@ -1,4 +1,5 @@
 import 'football_names.dart';
+import 'json_util.dart';
 import 'sports_api.dart';
 
 enum FootballResult { win, draw, loss, unknown }
@@ -40,7 +41,7 @@ class FootballDataRepository {
   FootballDataRepository(this._client);
   final SportsApiClient _client;
 
-  /// A belső HTTP-kliens lezárása; a repository ezután nem használható.
+  /// Visszafelé kompatibilis: a közös HTTP-klienst nem zárja le.
   void close() => _client.close();
 
   /// Visszafelé kompatibilis nézet: csak a lejátszott mérkőzések.
@@ -51,7 +52,8 @@ class FootballDataRepository {
     final warnings = <String>[];
     if (_client.config.footballDataKey.isNotEmpty) {
       try {
-        final teams = await _client.footballData('/v4/teams', {'limit': '500'});
+        // A Free csapatlista 7 napig közös gyorsítótárból jön.
+        final teams = await _client.footballDataTeams();
         final id = parseFootballDataTeamId(teams, teamName);
         if (id == null) {
           throw StateError('A csapat nem található a Free listában.');
@@ -106,7 +108,7 @@ class FootballDataRepository {
     final teams = data['teams'];
     if (teams is! List) return null;
     final expected = normalizeFootballTeamName(teamName);
-    for (final team in teams.whereType<Map>()) {
+    for (final team in jsonMapList(teams)) {
       final names = [
         '${team['name'] ?? ''}',
         '${team['shortName'] ?? ''}',
@@ -126,7 +128,7 @@ class FootballDataRepository {
     final teams = data['teams'];
     if (teams is! List) return null;
     final expected = normalizeFootballTeamName(teamName);
-    for (final team in teams.whereType<Map>()) {
+    for (final team in jsonMapList(teams)) {
       if ('${team['strSport'] ?? ''}'.toLowerCase() != 'soccer') continue;
       final names = <String>[
         '${team['strTeam'] ?? ''}',
@@ -147,7 +149,7 @@ class FootballDataRepository {
     final rawEvents = data['results'] ?? data['events'];
     if (rawEvents is! List) return const [];
     final games = <FootballGame>[];
-    for (final raw in rawEvents.whereType<Map>()) {
+    for (final raw in jsonMapList(rawEvents)) {
       final date = parseTheSportsDbEventTime(
         '${raw['dateEvent'] ?? ''}',
         '${raw['strTime'] ?? ''}',
@@ -217,18 +219,16 @@ class FootballDataRepository {
     }
 
     final games = <FootballGame>[];
-    for (final raw in matches.whereType<Map>()) {
-      final home = Map<String, dynamic>.from(raw['homeTeam'] as Map? ?? {});
-      final away = Map<String, dynamic>.from(raw['awayTeam'] as Map? ?? {});
+    for (final raw in jsonMapList(matches)) {
+      final home = jsonMap(raw['homeTeam']);
+      final away = jsonMap(raw['awayTeam']);
       final date = DateTime.tryParse('${raw['utcDate'] ?? ''}');
       if (date == null) continue;
       final homeName = '${home['name'] ?? ''}';
       final awayName = '${away['name'] ?? ''}';
       final isHome = isTeam(home) || !isTeam(away);
-      final score = Map<String, dynamic>.from(raw['score'] as Map? ?? {});
-      final fullTime = Map<String, dynamic>.from(
-        score['fullTime'] as Map? ?? {},
-      );
+      final score = jsonMap(raw['score']);
+      final fullTime = jsonMap(score['fullTime']);
       final homeScore = fullTime['home'] ?? 0;
       final awayScore = fullTime['away'] ?? 0;
       final winner = '${score['winner'] ?? ''}';

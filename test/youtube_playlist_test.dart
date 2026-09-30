@@ -39,7 +39,7 @@ void main() {
           'thumbnailUrl': 'https://i.ytimg.com/vi/x/hqdefault.jpg',
         },
       ],
-      'unassigned': [],
+      'unassigned': <Object?>[],
     });
     final legacy = AthleteVideoPlaylist.fromJson(['dQw4w9WgXcQ', 'bad id']);
 

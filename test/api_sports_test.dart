@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:courtboard/data/api_sports.dart';
 import 'package:courtboard/data/football_names.dart';
+import 'package:courtboard/data/json_file_cache.dart';
 
 void main() {
   test('status parser reports the remaining daily quota', () {
@@ -156,4 +157,45 @@ void main() {
     expect(findFootballTeamByName(['Everton'], 'Liverpool', (name) => name),
         isNull);
   });
+
+  test('API-Sports responses are disk-cached and share one status call',
+      () async {
+    final repository = _CountingApiSports();
+
+    final first = await repository.nbaPlayer('Nikola Jokić');
+    final second = await repository.nbaPlayer('Nikola Jokic');
+    final plans = await Future.wait([
+      repository.status('v3.football.api-sports.io'),
+      repository.status('v3.football.api-sports.io'),
+    ]);
+
+    expect(first?.name, 'Nikola Jokic');
+    expect(second?.name, 'Nikola Jokic');
+    expect(plans.first.remaining, 88);
+    expect(repository.calls, ['/players', '/status']);
+  });
+}
+
+class _CountingApiSports extends ApiSportsRepository {
+  _CountingApiSports() : super('key', cacheStorage: MemoryCacheStorage());
+
+  final calls = <String>[];
+
+  @override
+  Future<Map<String, dynamic>> get(String host, String path,
+      [Map<String, String> query = const {}]) async {
+    calls.add(path);
+    if (path == '/status') {
+      return {
+        'response': {
+          'requests': {'current': 12, 'limit_day': 100},
+        },
+      };
+    }
+    return {
+      'response': [
+        {'id': 279, 'firstname': 'Nikola', 'lastname': 'Jokic'},
+      ],
+    };
+  }
 }

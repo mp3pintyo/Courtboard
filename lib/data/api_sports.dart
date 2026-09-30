@@ -1,8 +1,14 @@
 import 'dart:convert';
 
+import 'athlete_names.dart';
+import 'file_util.dart';
 import 'football_names.dart';
 import 'football_season.dart';
-import 'http_util.dart';
+import 'http_service.dart';
+import 'json_file_cache.dart';
+import 'json_util.dart';
+
+export 'athlete_names.dart';
 
 class ApiSportsQuota {
   const ApiSportsQuota({required this.used, required this.limit});
@@ -10,13 +16,10 @@ class ApiSportsQuota {
   final int limit;
   int get remaining => (limit - used).clamp(0, limit);
   factory ApiSportsQuota.fromStatus(Map<String, dynamic> payload) {
-    final response = payload['response'];
-    final requests = response is Map && response['requests'] is Map
-        ? response['requests'] as Map
-        : const {};
+    final requests = jsonMap(jsonMap(payload['response'])['requests']);
     return ApiSportsQuota(
-        used: _asInt(requests['current']),
-        limit: _asInt(requests['limit_day'], fallback: 100));
+        used: jsonInt(requests['current']),
+        limit: jsonInt(requests['limit_day'], fallback: 100));
   }
 }
 
@@ -57,105 +60,146 @@ class ApiSportsPlayer {
   final String? college;
   final bool? active;
 
-  factory ApiSportsPlayer.fromJson(Map<dynamic, dynamic> raw) {
-    final birth = raw['birth'] is Map ? raw['birth'] as Map : const {};
-    final height = raw['height'] is Map ? raw['height'] as Map : const {};
-    final weight = raw['weight'] is Map ? raw['weight'] as Map : const {};
-    final leagues = raw['leagues'] is Map ? raw['leagues'] as Map : const {};
-    final standard =
-        leagues['standard'] is Map ? leagues['standard'] as Map : const {};
+  factory ApiSportsPlayer.fromJson(Map<String, dynamic> raw) {
+    final birth = jsonMap(raw['birth']);
+    final height = jsonMap(raw['height']);
+    final weight = jsonMap(raw['weight']);
+    final standard = jsonMap(jsonMap(raw['leagues'])['standard']);
     final firstName = '${raw['firstname'] ?? ''}'.trim();
     final lastName = '${raw['lastname'] ?? ''}'.trim();
     return ApiSportsPlayer(
-      id: _asInt(raw['id']),
+      id: jsonInt(raw['id']),
       name: '$firstName $lastName'.trim(),
-      country: _nonEmpty(birth['country']),
-      birthDate: _nonEmpty(birth['date']),
+      country: jsonString(birth['country']),
+      birthDate: jsonString(birth['date']),
       height: _withUnit(height['meters'], 'm'),
       weight: _withUnit(weight['kilograms'], 'kg'),
-      position: _nonEmpty(standard['pos']),
-      jersey: _nonEmpty(standard['jersey']),
-      college: _nonEmpty(raw['college']),
-      active: standard['active'] is bool ? standard['active'] as bool : null,
+      position: jsonString(standard['pos']),
+      jersey: jsonString(standard['jersey']),
+      college: jsonString(raw['college']),
+      active: switch (standard['active']) {
+        final bool active => active,
+        _ => null,
+      },
     );
   }
 }
 
 class ApiSportsRepository {
-  ApiSportsRepository(this.apiKey);
+  ApiSportsRepository(
+    this.apiKey, {
+    HttpService? http,
+    CacheStorage? cacheStorage,
+    DateTime Function()? clock,
+  })  : _http = http ?? HttpService.shared,
+        _cache =
+            JsonFileCache('api_sports', storage: cacheStorage, clock: clock);
+
   final String apiKey;
-  /// Kulcsonként egyetlen `/status` hívás: az egyidejű első hívók ugyanazt a
-  /// Future-t kapják, hiba esetén a bejegyzés törlődik, így később újrapróbálható.
-  static final Map<String, Future<bool>> _freePlanByKey = {};
+  final HttpService _http;
+  final JsonFileCache _cache;
+
+  /// Kvótavédő gyorsítótár-élettartamok (Free csomag: napi 100 kérés).
+  static const statusCacheLifetime = Duration(hours: 1);
+  static const playerCacheLifetime = Duration(hours: 12);
+  static const teamCacheLifetime = Duration(days: 7);
+  static const fixtureCacheLifetime = Duration(hours: 6);
+
+  /// Közvetlen (gyorsítótár nélküli) hívás. Az API-Sports hibát 200-as
+  /// válaszban, `errors` mezőben is jelezhet: ezt [StateError]-ként dobjuk,
+  /// így az ilyen válasz nem kerül gyorsítótárba.
   Future<Map<String, dynamic>> get(String host, String path,
       [Map<String, String> query = const {}]) async {
     if (apiKey.trim().isEmpty) {
       throw StateError('API-Sports kulcs nincs beállítva.');
     }
-    final client = createHttpClient();
-    try {
-      final body = await httpGetText(client, Uri.https(host, path, query),
-          provider: 'API-Sports', headers: {'x-apisports-key': apiKey});
-      final payload = Map<String, dynamic>.from(jsonDecode(body) as Map);
-      final errors = payload['errors'];
-      if (errors is Map && errors.isNotEmpty) {
-        throw StateError('API-Sports hiba: ${errors.values.join(', ')}');
-      }
-      return payload;
-    } finally {
-      client.close(force: true);
+    final body = await _http.getText(Uri.https(host, path, query),
+        provider: 'API-Sports', headers: {'x-apisports-key': apiKey});
+    final payload = jsonMap(jsonDecode(body));
+    final errors = payload['errors'];
+    if (errors is Map && errors.isNotEmpty) {
+      throw StateError('API-Sports hiba: ${errors.values.join(', ')}');
     }
+    return payload;
+  }
+
+  /// Lemezre gyorsítótárazott hívás: friss bejegyzésnél nem fogy a keret,
+  /// hibánál a lejárt példány is visszajön. Az egyidejű azonos hívások
+  /// ugyanazt a kérést kapják.
+  Future<CachedValue<Map<String, dynamic>>> getCached(
+    String host,
+    String path,
+    Map<String, String> query, {
+    required Duration ttl,
+    bool keyDependent = false,
+  }) async {
+    if (apiKey.trim().isEmpty) {
+      throw StateError('API-Sports kulcs nincs beállítva.');
+    }
+    final keys = query.keys.toList()..sort();
+    final cacheKey = [
+      host,
+      path,
+      for (final name in keys) '$name=${query[name]}',
+      // A csomagtól függő válasz (például /status) kulcsonként külön él.
+      if (keyDependent) 'key=${fnv1a32Hex(apiKey.trim())}',
+    ].join('|').toLowerCase();
+    return _cache.getOrFetch<Map<String, dynamic>>(
+      cacheKey,
+      ttl: ttl,
+      fetch: () => get(host, path, query),
+      encode: (value) => value,
+      decode: jsonMap,
+    );
   }
 
   Future<ApiSportsQuota> status(String host) async =>
-      ApiSportsQuota.fromStatus(await get(host, '/status'));
+      ApiSportsQuota.fromStatus((await getCached(host, '/status', const {},
+              ttl: statusCacheLifetime, keyDependent: true))
+          .value);
 
-  Future<bool> _usesFreePlan(String host) {
-    final cacheKey = '$host|$apiKey';
-    final cached = _freePlanByKey[cacheKey];
-    if (cached != null) return cached;
-    final future = () async {
-      final payload = await get(host, '/status');
-      final response = payload['response'];
-      final subscription = response is Map && response['subscription'] is Map
-          ? response['subscription'] as Map
-          : const {};
-      return '${subscription['plan'] ?? ''}'.toLowerCase() == 'free';
-    }();
-    _freePlanByKey[cacheKey] = future;
-    future.catchError((Object _) {
-      if (identical(_freePlanByKey[cacheKey], future)) {
-        _freePlanByKey.remove(cacheKey);
-      }
-      return false;
-    });
-    return future;
+  /// A `/status` 1 órás gyorsítótárból; az egyidejű első hívók a
+  /// gyorsítótár közös Future-jét kapják, hiba esetén később újrapróbálható.
+  Future<bool> _usesFreePlan(String host) async {
+    final payload = (await getCached(host, '/status', const {},
+            ttl: statusCacheLifetime, keyDependent: true))
+        .value;
+    final subscription =
+        jsonMap(jsonMap(payload['response'])['subscription']);
+    return '${subscription['plan'] ?? ''}'.toLowerCase() == 'free';
   }
 
   Future<List<ApiSportsGame>> footballRecent(String team) async {
     const host = 'v3.football.api-sports.io';
     final search = footballTeamSearchTerm(team);
-    final teams = await get(host, '/teams', {'search': search});
-    final items = teams['response'] as List? ?? const [];
+    final teams = (await getCached(host, '/teams', {'search': search},
+            ttl: teamCacheLifetime))
+        .value;
+    final items = jsonMapList(teams['response']);
     if (items.isEmpty) return const [];
-    final first = findFootballTeamByName(items.whereType<Map>(), team, (item) {
-      final rawTeam = item['team'];
-      return rawTeam is Map ? '${rawTeam['name'] ?? ''}' : '';
-    });
+    final first = findFootballTeamByName(
+        items, team, (item) => '${jsonMap(item['team'])['name'] ?? ''}');
     // Nincs névegyezés: inkább üres lista, mint egy másik csapat meccsei.
     if (first == null) return const [];
-    final id =
-        _asInt(first['team'] is Map ? (first['team'] as Map)['id'] : null);
+    final id = jsonInt(jsonMap(first['team'])['id']);
     if (id == 0) return const [];
     final query = footballFixtureQuery(
         teamId: id, now: DateTime.now(), freePlan: await _usesFreePlan(host));
-    final games = parseFootballFixtures(await get(host, '/fixtures', query), id,
-        completedOnly: true);
+    final fixtures =
+        (await getCached(host, '/fixtures', query, ttl: fixtureCacheLifetime))
+            .value;
+    final games = parseFootballFixtures(fixtures, id, completedOnly: true);
     games.sort((a, b) => b.date.compareTo(a.date));
     return games.take(5).toList();
   }
 
   Future<List<FootballSeasonStat>> footballSeasonStats(String playerName,
+          {DateTime? now}) async =>
+      (await footballSeasonStatsCached(playerName, now: now)).value;
+
+  /// Szezonstatisztikák a (gyorsítótárbeli) letöltés idejével.
+  Future<CachedValue<List<FootballSeasonStat>>> footballSeasonStatsCached(
+      String playerName,
       {DateTime? now}) async {
     const host = 'v3.football.api-sports.io';
     if (await _usesFreePlan(host)) {
@@ -171,35 +215,30 @@ class ApiSportsRepository {
     // Az európai szezon júliusban indul: január–június között a naptári év
     // még az előző évben kezdődött szezonhoz tartozik.
     final currentSeason = clock.month >= 7 ? clock.year : clock.year - 1;
+    CachedValue<Map<String, dynamic>>? last;
     for (final season in [currentSeason, currentSeason - 1]) {
-      final payload =
-          await get(host, '/players', {'search': search, 'season': '$season'});
-      final parsed = parseFootballPlayerStats(payload, playerName);
-      if (parsed.isNotEmpty) return parsed;
+      final payload = last = await getCached(
+          host, '/players', {'search': search, 'season': '$season'},
+          ttl: playerCacheLifetime);
+      final parsed = parseFootballPlayerStats(payload.value, playerName);
+      if (parsed.isNotEmpty) return payload.map((_) => parsed);
     }
-    return const [];
+    return last!.map((_) => const <FootballSeasonStat>[]);
   }
 
   static List<FootballSeasonStat> parseFootballPlayerStats(
       Map<String, dynamic> payload, String playerName) {
-    final response = payload['response'];
-    if (response is! List) return const [];
-    final entries = response.whereType<Map>().toList();
-    final entry = findAthleteByName(entries, playerName, (candidate) {
-      final player = candidate['player'];
-      return player is Map ? '${player['name'] ?? ''}' : '';
-    });
+    final entries = jsonMapList(payload['response']);
+    final entry = findAthleteByName(entries, playerName,
+        (candidate) => '${jsonMap(candidate['player'])['name'] ?? ''}');
     if (entry == null) return const [];
-    final statistics = entry['statistics'];
-    if (statistics is! List) return const [];
-    return statistics
-        .whereType<Map>()
+    return jsonMapList(entry['statistics'])
         .map((raw) {
-          final team = raw['team'] is Map ? raw['team'] as Map : const {};
-          final league = raw['league'] is Map ? raw['league'] as Map : const {};
-          final games = raw['games'] is Map ? raw['games'] as Map : const {};
-          final goals = raw['goals'] is Map ? raw['goals'] as Map : const {};
-          final cards = raw['cards'] is Map ? raw['cards'] as Map : const {};
+          final team = jsonMap(raw['team']);
+          final league = jsonMap(raw['league']);
+          final games = jsonMap(raw['games']);
+          final goals = jsonMap(raw['goals']);
+          final cards = jsonMap(raw['cards']);
           final rating = double.tryParse('${games['rating'] ?? ''}');
           return FootballSeasonStat(
             season: '${league['season'] ?? ''}',
@@ -207,11 +246,11 @@ class ApiSportsRepository {
             competition: '${league['name'] ?? ''}',
             source: 'API-Sports',
             rating: rating,
-            appearances: _asNullableInt(games['appearences']),
-            goals: _asNullableInt(goals['total']),
-            assists: _asNullableInt(goals['assists']),
-            yellowCards: _asNullableInt(cards['yellow']),
-            redCards: _asNullableInt(cards['red']),
+            appearances: jsonIntOrNull(games['appearences']),
+            goals: jsonIntOrNull(goals['total']),
+            assists: jsonIntOrNull(goals['assists']),
+            yellowCards: jsonIntOrNull(cards['yellow']),
+            redCards: jsonIntOrNull(cards['red']),
           );
         })
         .where((item) => item.hasUsefulData())
@@ -239,50 +278,48 @@ class ApiSportsRepository {
     final normalizedName = normalizeAthleteName(name);
     final parts = normalizedName.split(' ').where((part) => part.isNotEmpty);
     final search = parts.isEmpty ? normalizedName : parts.last;
-    final payload =
-        await get('v2.nba.api-sports.io', '/players', {'search': search});
+    final payload = (await getCached(
+            'v2.nba.api-sports.io', '/players', {'search': search},
+            ttl: playerCacheLifetime))
+        .value;
     return parseNbaPlayer(payload, name);
   }
 
   static ApiSportsPlayer? parseNbaPlayer(
       Map<String, dynamic> payload, String name) {
-    final response = payload['response'];
-    if (response is! List) return null;
-    final players = response
-        .whereType<Map>()
+    final players = jsonMapList(payload['response'])
         .map(ApiSportsPlayer.fromJson)
         .where((player) => player.name.isNotEmpty)
         .toList();
     return findAthleteByName(players, name, (player) => player.name);
   }
 
-  Future<Map<String, dynamic>> nflPlayer(String name) =>
-      get('v1.american-football.api-sports.io', '/players', {'search': name});
+  Future<Map<String, dynamic>> nflPlayer(String name) async =>
+      (await getCached('v1.american-football.api-sports.io', '/players',
+              {'search': name},
+              ttl: playerCacheLifetime))
+          .value;
   static List<ApiSportsGame> parseFootballFixtures(
       Map<String, dynamic> payload, int teamId,
       {bool completedOnly = false}) {
-    final response = payload['response'];
-    if (response is! List) return const [];
-    return response.whereType<Map>().where((raw) {
+    return jsonMapList(payload['response']).where((raw) {
       if (!completedOnly) return true;
-      final fixture = raw['fixture'];
-      final status = fixture is Map && fixture['status'] is Map
-          ? '${(fixture['status'] as Map)['short'] ?? ''}'
-          : '';
+      final status =
+          '${jsonMap(jsonMap(raw['fixture'])['status'])['short'] ?? ''}';
       return status.isEmpty || const {'FT', 'AET', 'PEN'}.contains(status);
     }).map((raw) {
-      final teams = raw['teams'] is Map ? raw['teams'] as Map : const {};
-      final home = teams['home'] is Map ? teams['home'] as Map : const {};
-      final away = teams['away'] is Map ? teams['away'] as Map : const {};
-      final isHome = _asInt(home['id']) == teamId;
+      final teams = jsonMap(raw['teams']);
+      final home = jsonMap(teams['home']);
+      final away = jsonMap(teams['away']);
+      final isHome = jsonInt(home['id']) == teamId;
       final own = isHome ? home : away;
       final opponent = isHome ? away : home;
-      final goals = raw['goals'] is Map ? raw['goals'] as Map : const {};
-      final ownGoals = _asInt(isHome ? goals['home'] : goals['away']);
-      final otherGoals = _asInt(isHome ? goals['away'] : goals['home']);
+      final goals = jsonMap(raw['goals']);
+      final ownGoals = jsonInt(isHome ? goals['home'] : goals['away']);
+      final otherGoals = jsonInt(isHome ? goals['away'] : goals['home']);
       final won = own['winner'];
       return ApiSportsGame(
-          date: DateTime.tryParse('${(raw['fixture'] as Map?)?['date']}') ??
+          date: DateTime.tryParse('${jsonMap(raw['fixture'])['date']}') ??
               DateTime(1970),
           opponent: '${opponent['name'] ?? 'Ismeretlen'}',
           score: '$ownGoals–$otherGoals',
@@ -295,168 +332,7 @@ class ApiSportsRepository {
   }
 }
 
-String normalizeAthleteName(String value) {
-  const replacements = {
-    'á': 'a',
-    'à': 'a',
-    'â': 'a',
-    'ä': 'a',
-    'ã': 'a',
-    'å': 'a',
-    'č': 'c',
-    'ć': 'c',
-    'ç': 'c',
-    'đ': 'd',
-    'ð': 'd',
-    'ď': 'd',
-    'é': 'e',
-    'è': 'e',
-    'ê': 'e',
-    'ë': 'e',
-    'ğ': 'g',
-    'í': 'i',
-    'ì': 'i',
-    'î': 'i',
-    'ï': 'i',
-    'ı': 'i',
-    'ľ': 'l',
-    'ĺ': 'l',
-    'ł': 'l',
-    'ń': 'n',
-    'ň': 'n',
-    'ñ': 'n',
-    'ó': 'o',
-    'ò': 'o',
-    'ô': 'o',
-    'ö': 'o',
-    'õ': 'o',
-    'ő': 'o',
-    'ø': 'o',
-    'ř': 'r',
-    'š': 's',
-    'ś': 's',
-    'ş': 's',
-    'ș': 's',
-    'ť': 't',
-    'ț': 't',
-    'ú': 'u',
-    'ù': 'u',
-    'û': 'u',
-    'ü': 'u',
-    'ű': 'u',
-    'ý': 'y',
-    'ž': 'z',
-    'ź': 'z',
-    'ż': 'z',
-    'ą': 'a',
-    'ā': 'a',
-    'ă': 'a',
-    'ę': 'e',
-    'ė': 'e',
-    'ē': 'e',
-    'ě': 'e',
-    'ī': 'i',
-    'į': 'i',
-    'ķ': 'k',
-    'ļ': 'l',
-    'ņ': 'n',
-    'ō': 'o',
-    'ŕ': 'r',
-    'ţ': 't',
-    'ū': 'u',
-    'ů': 'u',
-    'ų': 'u',
-    'ÿ': 'y',
-    'æ': 'ae',
-    'œ': 'oe',
-    'ß': 'ss',
-  };
-  final lower = value.toLowerCase().trim();
-  final buffer = StringBuffer();
-  for (final rune in lower.runes) {
-    final character = String.fromCharCode(rune);
-    buffer.write(replacements[character] ?? character);
-  }
-  return buffer
-      .toString()
-      .replaceAll(RegExp(r'[^a-z0-9 ]'), '')
-      .replaceAll(RegExp(r'\s+'), ' ')
-      .trim();
-}
-
-bool athleteNamesMatch(String first, String second) {
-  final firstName = normalizeAthleteName(first);
-  final secondName = normalizeAthleteName(second);
-  if (firstName == secondName) return true;
-  final firstParts = firstName.split(' ')..sort();
-  final secondParts = secondName.split(' ')..sort();
-  return firstParts.length == secondParts.length &&
-      List.generate(firstParts.length, (index) => index)
-          .every((index) => firstParts[index] == secondParts[index]);
-}
-
-/// Laza, de nem „első találat” jellegű névegyezés külső keresőtalálatokhoz.
-///
-/// Elfogadja, ha a normalizált nevek egyeznek; ha ugyanazok a szavak más
-/// sorrendben szerepelnek (`Juhász Dorka` ~ `Dorka Juhasz`); ha a jelölt a
-/// keresett név minden szavát tartalmazza (középső név, második vezetéknév);
-/// ha a keresett név tartalmazza a legalább kétszavas jelölt minden szavát;
-/// vagy ha a vezetéknév egyezik és az egyik keresztnév csak kezdőbetű
-/// (`N. Jokic` ~ `Nikola Jokic`).
-bool athleteNameMatches(String query, String candidate) {
-  final queryTokens = _nameTokens(query);
-  final candidateTokens = _nameTokens(candidate);
-  if (queryTokens.isEmpty || candidateTokens.isEmpty) return false;
-  final querySet = queryTokens.toSet();
-  final candidateSet = candidateTokens.toSet();
-  if (candidateSet.containsAll(querySet)) return true;
-  if (candidateSet.length >= 2 && querySet.containsAll(candidateSet)) {
-    return true;
-  }
-  if (queryTokens.length >= 2 && candidateTokens.length >= 2) {
-    final queryFirst = queryTokens.first;
-    final candidateFirst = candidateTokens.first;
-    return queryTokens.last == candidateTokens.last &&
-        (queryFirst.length == 1 || candidateFirst.length == 1) &&
-        queryFirst[0] == candidateFirst[0];
-  }
-  return false;
-}
-
-/// A [query] névhez legjobban illő elem: először pontos (sorrendfüggetlen)
-/// egyezést keres, aztán [athleteNameMatches] szerinti lazábbat. Ha egyik
-/// sem illik, `null` – soha nem az első találat.
-T? findAthleteByName<T>(
-  Iterable<T> items,
-  String query,
-  String Function(T item) nameOf,
-) {
-  for (final item in items) {
-    if (athleteNamesMatch(nameOf(item), query)) return item;
-  }
-  for (final item in items) {
-    if (athleteNameMatches(query, nameOf(item))) return item;
-  }
-  return null;
-}
-
-List<String> _nameTokens(String value) => normalizeAthleteName(value)
-    .split(' ')
-    .where((token) => token.isNotEmpty)
-    .toList();
-
-String? _nonEmpty(dynamic value) {
-  final text = '${value ?? ''}'.trim();
-  return text.isEmpty || text == 'null' ? null : text;
-}
-
-String? _withUnit(dynamic value, String unit) {
-  final text = _nonEmpty(value);
+String? _withUnit(Object? value, String unit) {
+  final text = jsonString(value);
   return text == null ? null : '$text $unit';
 }
-
-int _asInt(dynamic value, {int fallback = 0}) =>
-    value is int ? value : int.tryParse('$value') ?? fallback;
-
-int? _asNullableInt(dynamic value) =>
-    value == null ? null : (value is int ? value : int.tryParse('$value'));

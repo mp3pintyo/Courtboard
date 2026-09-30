@@ -1,37 +1,54 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'api_sports.dart' show findAthleteByName, normalizeAthleteName;
+import 'athlete_names.dart';
 import 'football_season.dart';
-import 'http_util.dart';
+import 'http_service.dart';
+import 'json_file_cache.dart';
+import 'json_util.dart';
 
 class FotMobFootballRepository {
-  FotMobFootballRepository({HttpClient? client})
-      : _client = client ?? createHttpClient();
+  FotMobFootballRepository({
+    HttpService? http,
+    CacheStorage? cacheStorage,
+    DateTime Function()? clock,
+  })  : _http = http ?? HttpService.shared,
+        _cache = JsonFileCache('fotmob', storage: cacheStorage, clock: clock);
 
-  final HttpClient _client;
-  static final Map<String, _CachedFootballStat> _cache = {};
-  static const _cacheDuration = Duration(hours: 6);
+  final HttpService _http;
+  final JsonFileCache _cache;
+
+  /// Játékosonként ennyi ideig lemezről jön az összesítő (a „nincs adat”
+  /// eredmény is), így a nem kulcsos, de nem hivatalos API-t kímélve.
+  static const cacheDuration = Duration(hours: 6);
 
   Future<FootballSeasonStat?> fetchSeasonSummary(String athleteName,
-      {DateTime? now}) async {
-    final clock = now ?? DateTime.now();
-    final cacheKey = normalizeAthleteName(athleteName);
-    final cached = _cache[cacheKey];
-    if (cached != null && clock.difference(cached.savedAt) < _cacheDuration) {
-      return cached.value;
-    }
+          {DateTime? now}) async =>
+      (await fetchSeasonSummaryCached(athleteName, now: now)).value;
 
-    final playerId = await _findPlayerId(athleteName);
-    if (playerId == null) return null;
-
-    final player = await _get(Uri.https(
-        'www.fotmob.com', '/api/data/playerData', {'id': '$playerId'}));
-    final value = parseSeasonSummary(player, now: clock);
-    if (value != null) {
-      _cache[cacheKey] = _CachedFootballStat(clock, value);
-    }
-    return value;
+  /// Szezonösszesítő a letöltés idejével; a `null` (nincs friss szezon vagy
+  /// nincs találat) is gyorsítótárba kerül.
+  Future<CachedValue<FootballSeasonStat?>> fetchSeasonSummaryCached(
+    String athleteName, {
+    DateTime? now,
+  }) {
+    final key = normalizeAthleteName(athleteName).replaceAll(' ', '_');
+    return _cache.getOrFetch<FootballSeasonStat?>(
+      key.isEmpty ? 'empty' : key,
+      ttl: cacheDuration,
+      missTtl: cacheDuration,
+      fetch: () async {
+        final clock = now ?? DateTime.now();
+        final playerId = await _findPlayerId(athleteName);
+        if (playerId == null) return null;
+        final player = await _get(Uri.https(
+            'www.fotmob.com', '/api/data/playerData', {'id': '$playerId'}));
+        return parseSeasonSummary(player, now: clock);
+      },
+      encode: (value) => value?.toJson(),
+      decode: (json) =>
+          json == null ? null : FootballSeasonStat.fromJson(jsonMap(json)),
+    );
   }
 
   Future<int?> _findPlayerId(String athleteName) async {
@@ -55,7 +72,7 @@ class FotMobFootballRepository {
   }
 
   Future<Map<String, dynamic>> _get(Uri uri) async {
-    final body = await httpGetText(_client, uri, provider: 'FotMob', headers: {
+    final body = await _http.getText(uri, provider: 'FotMob', headers: {
       HttpHeaders.userAgentHeader: 'Courtboard/1.0',
       HttpHeaders.acceptHeader: 'application/json',
     });
@@ -68,16 +85,16 @@ class FotMobFootballRepository {
   static int? parsePlayerId(Map<String, dynamic> payload, String athleteName) {
     final suggestions = payload['squadMemberSuggest'];
     if (suggestions is! List) return null;
-    final candidates = <Map>[];
-    for (final group in suggestions.whereType<Map>()) {
+    final candidates = <Map<String, dynamic>>[];
+    for (final group in jsonMapList(suggestions)) {
       final options = group['options'];
-      if (options is List) candidates.addAll(options.whereType<Map>());
+      if (options is List) candidates.addAll(jsonMapList(options));
     }
     final exact = findAthleteByName(candidates, athleteName,
         (candidate) => '${candidate['text'] ?? ''}'.split('|').first);
     if (exact == null) return null;
     final payloadMap = exact['payload'];
-    return _asInt(payloadMap is Map ? payloadMap['id'] : null);
+    return jsonIntOrNull(payloadMap is Map ? payloadMap['id'] : null);
   }
 
   static FootballSeasonStat? parseSeasonSummary(Map<String, dynamic> payload,
@@ -90,7 +107,7 @@ class FotMobFootballRepository {
     final values = <String, dynamic>{};
     final stats = mainLeague['stats'];
     if (stats is List) {
-      for (final stat in stats.whereType<Map>()) {
+      for (final stat in jsonMapList(stats)) {
         final key =
             '${stat['localizedTitleId'] ?? stat['title'] ?? ''}'.toLowerCase();
         values[key] = stat['value'];
@@ -101,28 +118,17 @@ class FotMobFootballRepository {
       team: '${primaryTeam['teamName'] ?? ''}'.trim(),
       competition: '${mainLeague['leagueName'] ?? ''}'.trim(),
       source: 'FotMob',
-      rating: _asDouble(values['rating']),
-      appearances: _asInt(values['matches_uppercase'] ?? values['matches']),
-      goals: _asInt(values['goals']),
-      assists: _asInt(values['assists']),
-      yellowCards: _asInt(values['yellow_cards']),
-      redCards: _asInt(values['red_cards']),
+      rating: jsonDoubleOrNull(values['rating']),
+      appearances:
+          jsonIntOrNull(values['matches_uppercase'] ?? values['matches']),
+      goals: jsonIntOrNull(values['goals']),
+      assists: jsonIntOrNull(values['assists']),
+      yellowCards: jsonIntOrNull(values['yellow_cards']),
+      redCards: jsonIntOrNull(values['red_cards']),
     );
     return result.hasUsefulData() ? result : null;
   }
 
-  void close() => _client.close(force: true);
+  /// Visszafelé kompatibilis no-op: a közös [HttpService] kliense nyitva marad.
+  void close() {}
 }
-
-class _CachedFootballStat {
-  const _CachedFootballStat(this.savedAt, this.value);
-  final DateTime savedAt;
-  final FootballSeasonStat value;
-}
-
-int? _asInt(dynamic value) =>
-    value == null ? null : (value is int ? value : int.tryParse('$value'));
-
-double? _asDouble(dynamic value) => value == null
-    ? null
-    : (value is num ? value.toDouble() : double.tryParse('$value'));

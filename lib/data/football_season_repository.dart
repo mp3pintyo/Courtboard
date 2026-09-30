@@ -1,22 +1,37 @@
 import 'api_sports.dart';
 import 'football_season.dart';
 import 'fotmob_football.dart';
+import 'http_service.dart';
+import 'json_file_cache.dart';
 import 'sports_api.dart';
 
 /// Szezonstatisztikák a forrásonkénti hibaüzenetekkel együtt.
 class FootballSeasonResult {
-  const FootballSeasonResult({this.stats = const [], this.errors = const []});
+  const FootballSeasonResult({
+    this.stats = const [],
+    this.errors = const [],
+    this.fetchedAt,
+    this.fromCache = false,
+  });
 
   final List<FootballSeasonStat> stats;
 
   /// Kulcsmentes, forrás-előtaggal ellátott hibaüzenetek (például
   /// „API-Sports: kvóta vagy kéréslimit túllépve (HTTP 429)”).
   final List<String> errors;
+
+  /// Az adatot adó források közül a legrégebbi letöltés ideje.
+  final DateTime? fetchedAt;
+
+  /// Igaz, ha minden adatot adó forrás gyorsítótárból jött.
+  final bool fromCache;
 }
 
 class FootballSeasonRepository {
-  FootballSeasonRepository(this.config);
+  FootballSeasonRepository(this.config, {this._http, this._cacheStorage});
   final SportsApiConfig config;
+  final HttpService? _http;
+  final CacheStorage? _cacheStorage;
 
   /// Visszafelé kompatibilis nézet: ha egyik forrás sem adott adatot, a
   /// forrásonkénti hibákat tartalmazó [StateError]-t dob.
@@ -36,23 +51,27 @@ class FootballSeasonRepository {
       String athleteName, String teamName) async {
     final errors = <String>[];
     final apiSports = config.apiSportsKey.trim().isEmpty
-        ? Future.value(const <FootballSeasonStat>[])
+        ? Future.value(const _Captured())
         : _capture(
             'API-Sports',
             errors,
-            () => ApiSportsRepository(config.apiSportsKey)
-                .footballSeasonStats(athleteName));
-    final fotMob = _capture('FotMob', errors, () async {
-      final repository = FotMobFootballRepository();
-      try {
-        return await repository.fetchSeasonSummary(athleteName);
-      } finally {
-        repository.close();
-      }
-    });
+            () => ApiSportsRepository(config.apiSportsKey,
+                    http: _http, cacheStorage: _cacheStorage)
+                .footballSeasonStatsCached(athleteName));
+    final fotMob = _capture(
+        'FotMob',
+        errors,
+        () => FotMobFootballRepository(
+                http: _http, cacheStorage: _cacheStorage)
+            .fetchSeasonSummaryCached(athleteName));
     final results = await Future.wait([apiSports, fotMob]);
-    final items = results.expand((result) => result).toList();
+    final items = results.expand((result) => result.stats).toList();
     if (items.isEmpty) return FootballSeasonResult(errors: errors);
+    final sources = results.where((result) => result.stats.isNotEmpty);
+    final fetchedAt = sources
+        .map((result) => result.fetchedAt!)
+        .reduce((a, b) => a.isBefore(b) ? a : b);
+    final fromCache = sources.every((result) => result.fromCache);
 
     final newestSeason =
         items.map((item) => item.seasonStart).reduce((a, b) => a > b ? a : b);
@@ -63,7 +82,12 @@ class FootballSeasonRepository {
       merged[key] = merged[key]?.merge(item) ?? item;
     }
     final output = merged.values.toList()..sort(compareForTeam(teamName));
-    return FootballSeasonResult(stats: output, errors: errors);
+    return FootballSeasonResult(
+      stats: output,
+      errors: errors,
+      fetchedAt: fetchedAt,
+      fromCache: fromCache,
+    );
   }
 
   /// Teljes rendezés: előbb a megadott csapat sorai, aztán a több
@@ -79,15 +103,24 @@ class FootballSeasonRepository {
     };
   }
 
-  Future<List<FootballSeasonStat>> _capture(
+  Future<_Captured> _capture(
     String provider,
     List<String> errors,
-    Future<dynamic> Function() operation,
+    Future<CachedValue<Object?>> Function() operation,
   ) async {
     try {
-      final value = await operation();
-      if (value is FootballSeasonStat) return [value];
-      if (value is List<FootballSeasonStat>) return value;
+      final result = await operation();
+      final value = result.value;
+      final stats = value is FootballSeasonStat
+          ? [value]
+          : value is List<FootballSeasonStat>
+              ? value
+              : const <FootballSeasonStat>[];
+      return _Captured(
+        stats: stats,
+        fetchedAt: result.fetchedAt,
+        fromCache: result.fromCache,
+      );
     } catch (error) {
       // A két forrás egymástól független: egyik hibája nem rejti el a másikat,
       // de az üzenetet (kulcs nélkül) továbbadjuk a felületnek.
@@ -96,8 +129,20 @@ class FootballSeasonRepository {
           .trim();
       errors.add(text.startsWith(provider) ? text : '$provider: $text');
     }
-    return const [];
+    return const _Captured();
   }
+}
+
+class _Captured {
+  const _Captured({
+    this.stats = const [],
+    this.fetchedAt,
+    this.fromCache = false,
+  });
+
+  final List<FootballSeasonStat> stats;
+  final DateTime? fetchedAt;
+  final bool fromCache;
 }
 
 String _normalize(String value) => normalizeAthleteName(value);

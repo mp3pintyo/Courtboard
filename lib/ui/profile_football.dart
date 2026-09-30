@@ -105,6 +105,14 @@ class _FootballSeasonSummaryCardState
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              if (result.fetchedAt != null)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: FreshnessNote(
+                    fetchedAt: result.fetchedAt!,
+                    fromCache: result.fromCache,
+                  ),
+                ),
               ...result.stats.map(
                 (item) => Padding(
                   padding: const EdgeInsets.only(bottom: 12),

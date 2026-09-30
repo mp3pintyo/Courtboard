@@ -1,4 +1,4 @@
-import 'api_sports.dart' show athleteNameMatches, normalizeAthleteName;
+import 'athlete_names.dart' show athleteNameMatches, normalizeAthleteName;
 
 const _clubTokens = {'fc', 'cf', 'afc', 'sc', 'ac'};
 

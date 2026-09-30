@@ -52,7 +52,7 @@ void main() {
           'ranking_points': 8000,
           'hand': 'R',
           'backhand': 2,
-          'stats': {'season': {}}
+          'stats': {'season': <String, Object?>{}}
         };
       }
       if (path == '/matches' && query['status'] == 'live') {
@@ -87,7 +87,7 @@ void main() {
           ]
         };
       }
-      if (path == '/matches') return {'data': []};
+      if (path == '/matches') return {'data': <Object?>[]};
       if (path == '/fixtures') {
         return {
           'data': [

@@ -32,7 +32,7 @@ class _DartsDataCardState extends State<_DartsDataCard> {
   void didUpdateWidget(covariant _DartsDataCard oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.athleteName != widget.athleteName ||
-        oldWidget.config.rapidApiDartsKey != widget.config.rapidApiDartsKey) {
+        oldWidget.config.rapidApiKey != widget.config.rapidApiKey) {
       _load();
     }
   }
@@ -80,8 +80,14 @@ class _DartsDataCardState extends State<_DartsDataCard> {
               snapshot.error!,
               onRetry: () => setState(_load),
             )
-          else
+          else ...[
+            if (snapshot.data!.fetchedAt != null)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: FreshnessNote(fetchedAt: snapshot.data!.fetchedAt!),
+              ),
             DartsProfileFacts(data: snapshot.data!, accent: widget.accent),
+          ],
         ],
       ),
     ),
@@ -131,7 +137,7 @@ class DartsProfileFacts extends StatelessWidget {
                   data.rapidApiError ??
                   (data.rapidApiConfigured
                       ? 'Verseny- és eseményfeed'
-                      : 'RAPIDAPI_DARTS_KEY nincs beállítva'),
+                      : 'RapidAPI kulcs nincs beállítva'),
             ),
           ],
         ),
@@ -233,7 +239,7 @@ class DartsProfileFacts extends StatelessWidget {
         const SizedBox(height: 8),
         if (!data.rapidApiConfigured)
           const Text(
-            'A RapidAPI darts kulcs az Adatforrások oldalon adható meg.',
+            'A közös RapidAPI kulcs az Adatforrások oldalon adható meg.',
             style: TextStyle(color: _muted),
           )
         else if (data.competitions.isEmpty)

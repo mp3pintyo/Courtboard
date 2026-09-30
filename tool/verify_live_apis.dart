@@ -11,23 +11,12 @@ import 'package:courtboard/data/sports_api.dart';
 
 Future<void> main(List<String> arguments) async {
   final athleteName = arguments.isEmpty ? 'Nikola Jokić' : arguments.join(' ');
+  // A Flutter-motor nélküli script nem éri el a Windows biztonságos
+  // tárolóját: a kulcsok környezeti változóból (vagy egy még át nem
+  // költöztetett, régi állapotfájlból) jönnek.
   final saved = await LocalStateStore().load();
-  final environment = SportsApiConfig.fromEnvironment();
-  final config = SportsApiConfig(
-    apiSportsKey: saved.apiSportsKey.isNotEmpty
-        ? saved.apiSportsKey
-        : environment.apiSportsKey,
-    balldontlieKey: saved.balldontlieKey.isNotEmpty
-        ? saved.balldontlieKey
-        : environment.balldontlieKey,
-    footballDataKey: saved.footballDataKey.isNotEmpty
-        ? saved.footballDataKey
-        : environment.footballDataKey,
-    youtubeKey: environment.youtubeKey,
-    rapidApiDartsKey: saved.rapidApiDartsKey.isNotEmpty
-        ? saved.rapidApiDartsKey
-        : environment.rapidApiDartsKey,
-  );
+  final config =
+      SportsApiConfig.fromEnvironment().withKeys(saved.legacyApiKeys);
 
   final data =
       await MultiProviderAthleteRepository(config).fetchNbaPlayer(athleteName);
@@ -96,7 +85,7 @@ Future<void> main(List<String> arguments) async {
     throw StateError('Az ESPN esp.w.1 nem adott Barcelona-meccseket.');
   }
 
-  if (config.rapidApiDartsKey.isNotEmpty) {
+  if (config.rapidApiKey.isNotEmpty) {
     final rapidWnba =
         await WnbaRapidApiRepository(config).playerProfile('Caitlin Clark');
     print('RapidAPI WNBA ellenőrzés: '

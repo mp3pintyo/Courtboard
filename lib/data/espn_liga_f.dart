@@ -1,3 +1,4 @@
+import 'json_util.dart';
 import 'sports_api.dart';
 
 class LigaFGame {
@@ -29,7 +30,7 @@ class LigaFRepository {
 
   final SportsApiClient _client;
 
-  /// A belső HTTP-kliens lezárása; a repository ezután nem használható.
+  /// Visszafelé kompatibilis: a közös HTTP-klienst nem zárja le.
   void close() => _client.close();
 
   /// A Barcelona legutóbbi lejátszott Liga F mérkőzései.
@@ -57,12 +58,10 @@ class LigaFRepository {
 
   static List<LigaFGame> parseGames(
       Map<String, dynamic> payload, String teamName) {
-    final events = payload['events'];
-    if (events is! List) return const [];
     final games = <LigaFGame>[];
-    for (final rawEvent in events.whereType<Map>()) {
-      final competitions = rawEvent['competitions'];
-      if (competitions is! List || competitions.isEmpty) continue;
+    for (final rawEvent in jsonMapList(payload['events'])) {
+      final competitions = jsonList(rawEvent['competitions']);
+      if (competitions.isEmpty) continue;
       final competition = competitions.first;
       if (competition is! Map) continue;
       final status = competition['status'];
@@ -70,14 +69,13 @@ class LigaFRepository {
       if (statusType is Map && statusType['completed'] != true) continue;
       final competitors = competition['competitors'];
       if (competitors is! List) continue;
-      final entries = competitors.whereType<Map>().toList();
-      Map? team;
-      Map? opponent;
+      final entries = jsonMapList(competitors);
+      Map<String, dynamic>? team;
+      Map<String, dynamic>? opponent;
       for (final entry in entries) {
-        final rawTeam = entry['team'];
-        final displayName = rawTeam is Map
-            ? '${rawTeam['displayName'] ?? rawTeam['name'] ?? ''}'
-            : '';
+        final rawTeam = jsonMap(entry['team']);
+        final displayName =
+            '${rawTeam['displayName'] ?? rawTeam['name'] ?? ''}';
         if (_teamName(displayName).contains(_teamName(teamName))) {
           team = entry;
         }

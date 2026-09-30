@@ -16,7 +16,7 @@ void main() {
 
   test('catalog configuration state follows the shared RapidAPI key', () {
     const empty = SportsApiConfig();
-    const configured = SportsApiConfig(rapidApiDartsKey: 'secret');
+    const configured = SportsApiConfig(rapidApiKey: 'secret');
     final rapidEntries = providerCatalog
         .where((entry) => entry.key == ProviderKey.rapidApi)
         .toList();

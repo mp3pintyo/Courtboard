@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'api_sports.dart' show normalizeAthleteName;
+import 'athlete_names.dart' show normalizeAthleteName;
 
 /// A Courtboard által írt fájlok gyökere.
 ///

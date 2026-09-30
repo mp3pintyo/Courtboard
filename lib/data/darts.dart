@@ -1,8 +1,7 @@
-import 'dart:convert';
-import 'dart:io';
-
-import 'file_util.dart';
 import 'friendly_error.dart';
+import 'http_service.dart';
+import 'json_file_cache.dart';
+import 'json_util.dart';
 import 'sports_api.dart';
 
 class DartsResult {
@@ -32,7 +31,7 @@ class DartsResult {
         event: '${json['strEvent'] ?? 'Ismeretlen esemény'}',
         detail: '${json['strDetail'] ?? json['strResult'] ?? '—'}',
         position: int.tryParse('${json['intPosition'] ?? ''}'),
-        country: _text(json['strCountry']),
+        country: jsonString(json['strCountry']),
       );
 }
 
@@ -50,6 +49,9 @@ class DartsProfileData {
     this.theSportsDbError,
     this.rapidApiError,
     required this.rapidApiConfigured,
+    this.fetchedAt,
+    this.rapidApiFetchedAt,
+    this.rapidApiFromCache = false,
   });
 
   final Map<String, dynamic>? player;
@@ -58,28 +60,46 @@ class DartsProfileData {
   final String? theSportsDbError;
   final String? rapidApiError;
   final bool rapidApiConfigured;
+
+  /// A TheSportsDB-adatok lekérésének ideje.
+  final DateTime? fetchedAt;
+
+  /// A RapidAPI versenylista letöltési ideje (gyorsítótárból érkezve az
+  /// eredeti letöltésé).
+  final DateTime? rapidApiFetchedAt;
+  final bool rapidApiFromCache;
 }
 
 class DartsRepository {
-  DartsRepository(this.config,
-      {this.rapidCacheLifetime = const Duration(hours: 6)});
+  DartsRepository(
+    this.config, {
+    this.rapidCacheLifetime = const Duration(hours: 6),
+    this._http,
+    this._cacheStorage,
+  });
 
   final SportsApiConfig config;
   final Duration rapidCacheLifetime;
+  final HttpService? _http;
+  final CacheStorage? _cacheStorage;
 
   Future<DartsProfileData> fetch(String athleteName) async {
-    final client = SportsApiClient(config: config);
+    final client = SportsApiClient(
+        config: config, http: _http, cacheStorage: _cacheStorage);
+    final fetchedAt = DateTime.now();
     Map<String, dynamic>? player;
     var results = <DartsResult>[];
     var competitions = <DartsCompetition>[];
     String? theSportsDbError;
     String? rapidApiError;
+    DateTime? rapidFetchedAt;
+    var rapidFromCache = false;
 
     final sportsDbFuture = () async {
       try {
         player = await client.findTheSportsDbPlayer(athleteName);
         if (player == null) return;
-        final id = _text(player!['idPlayer']);
+        final id = jsonString(player!['idPlayer']);
         if (id == null) return;
         final payload =
             await client.theSportsDb('/playerresults.php', {'id': id});
@@ -90,10 +110,12 @@ class DartsRepository {
     }();
 
     final rapidFuture = () async {
-      if (config.rapidApiDartsKey.trim().isEmpty) return;
+      if (config.rapidApiKey.trim().isEmpty) return;
       try {
         final payload = await _rapidCompetitions(client);
-        competitions = parseCompetitions(payload);
+        competitions = parseCompetitions(payload.value);
+        rapidFetchedAt = payload.fetchedAt;
+        rapidFromCache = payload.fromCache;
       } catch (error) {
         rapidApiError = friendlyError(error);
       }
@@ -110,38 +132,28 @@ class DartsRepository {
       competitions: competitions,
       theSportsDbError: theSportsDbError,
       rapidApiError: rapidApiError,
-      rapidApiConfigured: config.rapidApiDartsKey.trim().isNotEmpty,
+      rapidApiConfigured: config.rapidApiKey.trim().isNotEmpty,
+      fetchedAt: fetchedAt,
+      rapidApiFetchedAt: rapidFetchedAt,
+      rapidApiFromCache: rapidFromCache,
     );
   }
 
-  Future<Map<String, dynamic>> _rapidCompetitions(
-      SportsApiClient client) async {
-    final cache = _rapidCacheFile();
-    try {
-      if (await cache.exists() &&
-          DateTime.now().difference(await cache.lastModified()) <
-              rapidCacheLifetime) {
-        final decoded = jsonDecode(await cache.readAsString());
-        if (decoded is Map) return Map<String, dynamic>.from(decoded);
-      }
-    } catch (_) {}
-
-    final payload = await client.rapidApiDarts('/competitions/3503');
-    await writeFileAtomic(cache, jsonEncode(payload));
-    return payload;
-  }
-
-  static File _rapidCacheFile() {
-    return File(
-        '${appDataPath()}/courtboard_cache/rapidapi_darts/competitions.json');
-  }
+  /// A RapidAPI versenylista a havi 1000 kérés védelmében
+  /// [rapidCacheLifetime] ideig lemezről jön; hibánál a lejárt példány is.
+  Future<CachedValue<Map<String, dynamic>>> _rapidCompetitions(
+          SportsApiClient client) =>
+      client.cache('rapidapi_darts').getOrFetch<Map<String, dynamic>>(
+            'competitions_3503',
+            ttl: rapidCacheLifetime,
+            fetch: () => client.rapidApiDarts('/competitions/3503'),
+            encode: (value) => value,
+            decode: jsonMap,
+          );
 
   static List<DartsResult> parseResults(Map<String, dynamic> payload) {
-    final raw = payload['results'];
-    if (raw is! List) return const [];
-    final parsed = raw
-        .whereType<Map>()
-        .map((item) => DartsResult.tryFromJson(Map<String, dynamic>.from(item)))
+    final parsed = jsonMapList(payload['results'])
+        .map(DartsResult.tryFromJson)
         .whereType<DartsResult>()
         .toList();
     parsed.sort((a, b) => b.date.compareTo(a.date));
@@ -150,33 +162,26 @@ class DartsRepository {
 
   static List<DartsCompetition> parseCompetitions(
       Map<String, dynamic> payload) {
-    dynamic raw = payload['data'] ??
+    Object? raw = payload['data'] ??
         payload['competitions'] ??
         payload['response'] ??
         payload['result'];
     if (raw is Map) {
       raw = raw['data'] ?? raw['competitions'] ?? raw['items'];
     }
-    if (raw is! List) return const [];
-    return raw
-        .whereType<Map>()
+    return jsonMapList(raw)
         .map((item) {
-          final name = _text(item['competitionName'] ??
+          final name = jsonString(item['competitionName'] ??
                   item['name'] ??
                   item['competition'] ??
                   item['title']) ??
               'Ismeretlen verseny';
           return DartsCompetition(
               name: name,
-              id: _text(
+              id: jsonString(
                   item['competitionId'] ?? item['id'] ?? item['eventTypeId']));
         })
         .take(8)
         .toList();
   }
-}
-
-String? _text(dynamic value) {
-  final result = '${value ?? ''}'.trim();
-  return result.isEmpty || result == 'null' ? null : result;
 }

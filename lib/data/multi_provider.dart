@@ -1,6 +1,9 @@
 import 'api_sports.dart';
 import 'basketball_reference.dart';
 import 'friendly_error.dart';
+import 'http_service.dart';
+import 'json_file_cache.dart';
+import 'json_util.dart';
 import 'sports_api.dart';
 
 class AthleteFact {
@@ -42,46 +45,44 @@ class UnifiedAthleteData {
 }
 
 class MultiProviderAthleteRepository {
-  MultiProviderAthleteRepository(this.config);
+  MultiProviderAthleteRepository(this.config, {this._http, this._cacheStorage});
 
   final SportsApiConfig config;
+  final HttpService? _http;
+  final CacheStorage? _cacheStorage;
 
   Future<UnifiedAthleteData> fetchNbaPlayer(String athleteName) async {
+    final client = SportsApiClient(
+        config: config, http: _http, cacheStorage: _cacheStorage);
     final apiSports = _capture(
       'API-Sports',
       config.apiSportsKey.trim().isNotEmpty,
-      () => ApiSportsRepository(config.apiSportsKey).nbaPlayer(athleteName),
+      () => ApiSportsRepository(config.apiSportsKey,
+              http: _http, cacheStorage: _cacheStorage)
+          .nbaPlayer(athleteName),
     );
+    // A BALLDONTLIE-keresés 12, a TheSportsDB-keresés 24 órás gyorsítótárból
+    // jön, így a profil újranyitása nem fogyasztja a percenkénti keretet.
     final ballDontLie = _capture(
       'BALLDONTLIE',
       config.balldontlieKey.trim().isNotEmpty,
       () async {
-        final client = SportsApiClient(config: config);
-        try {
-          final payload = await client.ballDontLieNba(
-              '/v1/players', {'search': athleteName, 'per_page': '25'});
-          return _findBallDontLiePlayer(payload, athleteName);
-        } finally {
-          client.close();
-        }
+        final payload = await client.ballDontLieNba(
+            '/v1/players', {'search': athleteName, 'per_page': '25'});
+        return _findBallDontLiePlayer(payload, athleteName);
       },
     );
     final sportsDb = _capture(
       'TheSportsDB',
       true,
-      () async {
-        final client = SportsApiClient(config: config);
-        try {
-          return await client.findTheSportsDbPlayer(athleteName);
-        } finally {
-          client.close();
-        }
-      },
+      () => client.findTheSportsDbPlayer(athleteName),
     );
     final basketballReference = _capture(
       'Basketball Reference',
       true,
-      () => BasketballReferenceRepository().recentGames(athleteName),
+      () => BasketballReferenceRepository(
+              http: _http, cacheStorage: _cacheStorage)
+          .recentGames(athleteName),
     );
 
     final results = await Future.wait(
@@ -113,9 +114,7 @@ class MultiProviderAthleteRepository {
 
     final bdlPlayer = results[1].data;
     if (bdlPlayer is Map<String, dynamic>) {
-      final team = bdlPlayer['team'] is Map
-          ? Map<String, dynamic>.from(bdlPlayer['team'] as Map)
-          : const <String, dynamic>{};
+      final team = jsonMap(bdlPlayer['team']);
       add(
           'Név',
           '${bdlPlayer['first_name'] ?? ''} ${bdlPlayer['last_name'] ?? ''}',
@@ -155,9 +154,7 @@ class MultiProviderAthleteRepository {
       Map<String, dynamic> payload, String athleteName) {
     final data = payload['data'];
     if (data is! List) return null;
-    final players = data
-        .whereType<Map>()
-        .map((player) => Map<String, dynamic>.from(player))
+    final players = jsonMapList(data)
         .toList();
     return findAthleteByName(
         players,

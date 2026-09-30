@@ -93,10 +93,24 @@ class CourtboardApp extends StatefulWidget {
     this.initialState = const CourtboardLocalState(),
     this.stateStore,
     this.playlistFile,
+    this.apiKeys = const {},
+    this.apiKeyStore,
+    this.secureStorageAvailable = true,
   });
 
   /// A futtatás előtt egyszer betöltött helyi állapot.
   final CourtboardLocalState initialState;
+
+  /// A biztonságos tárolóból (vagy annak hibájakor a régi állapotfájlból)
+  /// betöltött API-kulcsok; a környezeti változókat felülírják.
+  final Map<ApiKeyId, String> apiKeys;
+
+  /// Az appban módosított kulcsok mentési helye; `null` esetén a közös
+  /// [SecretStore.shared]-re épülő tároló.
+  final ApiKeyStore? apiKeyStore;
+
+  /// Hamis, ha indításkor a biztonságos tároló nem volt elérhető.
+  final bool secureStorageAvailable;
 
   /// Az állapot mentésének helye; `null` esetén (például widget-tesztben)
   /// az alkalmazás semmit nem ír a lemezre.
@@ -134,6 +148,9 @@ class _CourtboardAppState extends State<CourtboardApp> {
         initialState: widget.initialState,
         stateStore: widget.stateStore,
         playlistFile: widget.playlistFile,
+        apiKeys: widget.apiKeys,
+        apiKeyStore: widget.apiKeyStore,
+        secureStorageAvailable: widget.secureStorageAvailable,
         onThemeChanged: (value) => setState(() => _theme = value),
       ),
     );

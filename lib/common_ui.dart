@@ -125,3 +125,47 @@ class CourtboardNote extends StatelessWidget {
     ),
   );
 }
+
+/// Rövid frissességi felirat, például „Frissítve: 14:32 · gyorsítótárból”.
+/// Nem mai adatnál a dátum is megjelenik (`09.28. 14:32`).
+String freshnessLabel(
+  DateTime fetchedAt, {
+  bool fromCache = false,
+  bool stale = false,
+  DateTime? now,
+}) {
+  final local = fetchedAt.toLocal();
+  final today = (now ?? DateTime.now()).toLocal();
+  String two(int value) => value.toString().padLeft(2, '0');
+  final time = '${two(local.hour)}:${two(local.minute)}';
+  final sameDay = local.year == today.year &&
+      local.month == today.month &&
+      local.day == today.day;
+  final when = sameDay ? time : '${two(local.month)}.${two(local.day)}. $time';
+  final origin = stale
+      ? ' · régebbi mentett adat'
+      : fromCache
+          ? ' · gyorsítótárból'
+          : '';
+  return 'Frissítve: $when$origin';
+}
+
+/// Apró, halvány frissességi sor kártyafejlécek alá.
+class FreshnessNote extends StatelessWidget {
+  const FreshnessNote({
+    super.key,
+    required this.fetchedAt,
+    this.fromCache = false,
+    this.stale = false,
+  });
+
+  final DateTime fetchedAt;
+  final bool fromCache;
+  final bool stale;
+
+  @override
+  Widget build(BuildContext context) => Text(
+        freshnessLabel(fetchedAt, fromCache: fromCache, stale: stale),
+        style: const TextStyle(fontSize: 11, color: _commonMuted),
+      );
+}

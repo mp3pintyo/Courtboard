@@ -2,12 +2,18 @@ import 'dart:async';
 import 'dart:io';
 
 import 'http_util.dart';
+import 'rate_limit.dart';
 
 /// Felhasználónak szóló, rövid magyar hibaüzenet tetszőleges kivételből.
 ///
 /// Soha nem ad vissza nyers kivételszöveget, URI-t vagy kérésparamétert,
 /// így API-kulcs sem kerülhet a felületre.
 String friendlyError(Object error) {
+  if (error is QuotaExhaustedException) {
+    return error.period == QuotaPeriod.day
+        ? 'Elérted a napi keretet (${error.used}/${error.limit}) – holnap újra elérhető.'
+        : 'Elérted a havi keretet (${error.used}/${error.limit}) – jövő hónapban újra elérhető.';
+  }
   if (error is CourtboardHttpException) {
     if (error.timedOut) return 'A szolgáltató nem válaszolt időben.';
     if (error.isAuthError) return 'Hibás vagy hiányzó API-kulcs.';

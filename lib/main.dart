@@ -6,7 +6,10 @@ import 'package:flutter/material.dart';
 
 import 'common_ui.dart';
 
+import 'data/api_key_id.dart';
+import 'data/api_key_store.dart';
 import 'data/api_sports.dart';
+import 'data/app_paths.dart';
 import 'data/basketball_reference.dart';
 import 'data/basketball_season.dart';
 import 'data/darts.dart';
@@ -16,12 +19,16 @@ import 'data/football_data_players.dart';
 import 'data/football_season.dart';
 import 'data/football_season_repository.dart';
 import 'data/file_util.dart';
+import 'data/http_service.dart';
+import 'data/json_file_cache.dart';
 import 'data/local_state.dart';
 import 'data/live_tennis.dart';
 import 'data/multi_provider.dart';
 import 'data/news.dart';
 import 'data/provider_catalog.dart';
+import 'data/rate_limit.dart';
 import 'data/rapidapi_wnba.dart';
+import 'data/secret_store.dart';
 import 'data/sports_api.dart';
 import 'data/wehoop_wnba.dart';
 import 'data/youtube_playlist.dart';
@@ -48,13 +55,21 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   // Az állapotot egyszer, a futtatás előtt töltjük be, hogy a mentett téma
   // már az első képkockán érvényes legyen (nincs zöld villanás).
+  // A 0.9.0 előtti, szétszórt gyorsítótár-könyvtárak egyszeri rendbetétele.
+  unawaited(AppPaths.migrateLegacyCaches());
   final store = LocalStateStore();
-  final state = await store.load();
+  // Az API-kulcsok a Windows biztonságos tárolójából jönnek; a régi,
+  // titkosítatlan JSON-kulcsok itt költöznek át (lásd [ApiKeyStore.load]).
+  final keyStore = ApiKeyStore();
+  final keys = await keyStore.load(await store.load(), stateStore: store);
   runApp(
     CourtboardApp(
-      initialState: state,
+      initialState: keys.state,
       stateStore: store,
-      playlistFile: File('${appDataPath()}/courtboard_playlist.json'),
+      playlistFile: File(AppPaths.playlistFile),
+      apiKeys: keys.keys,
+      apiKeyStore: keyStore,
+      secureStorageAvailable: keys.secureStorageAvailable,
     ),
   );
 }

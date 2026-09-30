@@ -6,6 +6,9 @@ class CourtboardShell extends StatefulWidget {
     this.initialState = const CourtboardLocalState(),
     this.stateStore,
     this.playlistFile,
+    this.apiKeys = const {},
+    this.apiKeyStore,
+    this.secureStorageAvailable = true,
     required this.onThemeChanged,
   });
 
@@ -17,6 +20,13 @@ class CourtboardShell extends StatefulWidget {
 
   /// `null` esetén a videólista nem töltődik be és nem mentődik.
   final File? playlistFile;
+
+  /// Indításkor betöltött API-kulcsok (lásd [CourtboardApp.apiKeys]).
+  final Map<ApiKeyId, String> apiKeys;
+
+  /// `null` esetén a közös [SecretStore.shared]-re épülő tároló.
+  final ApiKeyStore? apiKeyStore;
+  final bool secureStorageAvailable;
   final ValueChanged<String> onThemeChanged;
 
   @override
@@ -38,6 +48,15 @@ class _CourtboardShellState extends State<CourtboardShell> {
   Map<String, bool> _alerts = {};
   Set<String> _removedAthleteNames = {};
   SportsApiConfig _apiConfig = SportsApiConfig.fromEnvironment();
+  late final ApiKeyStore _apiKeyStore = widget.apiKeyStore ?? ApiKeyStore();
+
+  /// Hamis, ha a biztonságos tároló indításkor vagy egy mentéskor hibázott:
+  /// ilyenkor az Adatforrások oldal figyelmeztetést mutat.
+  late bool _secureStorageAvailable = widget.secureStorageAvailable;
+
+  /// A régi állapotfájlban maradt kulcsok (csak tárolóhiba esetén nem
+  /// üres); a mentések változatlanul visszaírják őket, hogy ne vesszenek el.
+  Map<ApiKeyId, String> _legacyApiKeys = const {};
   String _overviewSort = 'custom';
   String _athleteSort = 'custom';
   String _selectedTheme = 'green';
@@ -131,24 +150,12 @@ class _CourtboardShellState extends State<CourtboardShell> {
   void _applyState(CourtboardLocalState state) {
     _notes = {...state.notes};
     _alerts = {...state.alerts};
-    _apiConfig = SportsApiConfig(
-      apiSportsKey: state.apiSportsKey.isNotEmpty
-          ? state.apiSportsKey
-          : _apiConfig.apiSportsKey,
-      balldontlieKey: state.balldontlieKey.isNotEmpty
-          ? state.balldontlieKey
-          : _apiConfig.balldontlieKey,
-      footballDataKey: state.footballDataKey.isNotEmpty
-          ? state.footballDataKey
-          : _apiConfig.footballDataKey,
-      youtubeKey: _apiConfig.youtubeKey,
-      rapidApiDartsKey: state.rapidApiDartsKey.isNotEmpty
-          ? state.rapidApiDartsKey
-          : _apiConfig.rapidApiDartsKey,
-      liveTennisKey: state.liveTennisKey.isNotEmpty
-          ? state.liveTennisKey
-          : _apiConfig.liveTennisKey,
-    );
+    // Elsőbbség: mentett kulcs > régi JSON-kulcs > környezeti változó.
+    _legacyApiKeys = state.legacyApiKeys;
+    _apiConfig = _apiConfig.withKeys({
+      ...state.legacyApiKeys,
+      ...widget.apiKeys,
+    });
     _removedAthleteNames = {...state.removedAthleteNames};
     _overviewSort = state.overviewSort;
     _athleteSort = state.athleteSort;
@@ -202,11 +209,7 @@ class _CourtboardShellState extends State<CourtboardShell> {
     notes: _notes,
     alerts: _alerts,
     removedAthleteNames: _removedAthleteNames,
-    footballDataKey: _apiConfig.footballDataKey,
-    apiSportsKey: _apiConfig.apiSportsKey,
-    balldontlieKey: _apiConfig.balldontlieKey,
-    rapidApiDartsKey: _apiConfig.rapidApiDartsKey,
-    liveTennisKey: _apiConfig.liveTennisKey,
+    legacyApiKeys: _legacyApiKeys,
     theme: _selectedTheme,
     overviewSort: _overviewSort,
     athleteSort: _athleteSort,
@@ -328,43 +331,39 @@ class _CourtboardShellState extends State<CourtboardShell> {
     if (mounted) setState(() => _playlist = updated);
   }
 
-  void _openAddVideo(Athlete athlete) {
-    showDialog<void>(
-      context: context,
-      builder: (_) =>
-          _AddVideoDialog(athleteName: athlete.name, onSave: _addVideo),
-    );
-  }
+  Future<void> _openAddVideo(Athlete athlete) => showDialog<void>(
+    context: context,
+    builder: (_) =>
+        _AddVideoDialog(athleteName: athlete.name, onSave: _addVideo),
+  );
 
-  void _confirmDeleteAthlete(Athlete athlete) {
-    showDialog<void>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Sportoló törlése'),
-        content: Text(
-          'Biztosan törlöd őt a követettek közül?\n\n${athlete.name}',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Mégse'),
-          ),
-          FilledButton(
-            onPressed: () {
-              setState(() {
-                _removedAthleteNames.add(athlete.name);
-                _athletes.removeWhere((item) => item.name == athlete.name);
-                _openAthlete = null;
-              });
-              _saveLocalState();
-              Navigator.pop(dialogContext);
-            },
-            child: const Text('Törlés'),
-          ),
-        ],
+  Future<void> _confirmDeleteAthlete(Athlete athlete) => showDialog<void>(
+    context: context,
+    builder: (dialogContext) => AlertDialog(
+      title: const Text('Sportoló törlése'),
+      content: Text(
+        'Biztosan törlöd őt a követettek közül?\n\n${athlete.name}',
       ),
-    );
-  }
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(dialogContext),
+          child: const Text('Mégse'),
+        ),
+        FilledButton(
+          onPressed: () {
+            setState(() {
+              _removedAthleteNames.add(athlete.name);
+              _athletes.removeWhere((item) => item.name == athlete.name);
+              _openAthlete = null;
+            });
+            _saveLocalState();
+            Navigator.pop(dialogContext);
+          },
+          child: const Text('Törlés'),
+        ),
+      ],
+    ),
+  );
 
   /// A profil „Vissza” gombjának felirata a megnyitás helye szerint.
   String get _backLabel => switch (_activeNav) {
@@ -402,8 +401,9 @@ class _CourtboardShellState extends State<CourtboardShell> {
                       alertEnabled: _alerts[_openAthlete!.name] ?? false,
                       onBack: () => setState(() => _openAthlete = null),
                       onToggleClip: _toggleVideo,
-                      onAddVideo: () => _openAddVideo(_openAthlete!),
-                      onDelete: () => _confirmDeleteAthlete(_openAthlete!),
+                      onAddVideo: () => unawaited(_openAddVideo(_openAthlete!)),
+                      onDelete: () =>
+                          unawaited(_confirmDeleteAthlete(_openAthlete!)),
                       onSaveNote: _setNote,
                       onToggleAlert: _toggleAlert,
                     )
@@ -452,11 +452,8 @@ class _CourtboardShellState extends State<CourtboardShell> {
     ),
     5 => _DataStatusPage(
       config: _apiConfig,
-      onSaveFootballKey: _saveFootballKey,
-      onSaveApiSportsKey: _saveApiSportsKey,
-      onSaveBallDontLieKey: _saveBallDontLieKey,
-      onSaveRapidApiDartsKey: _saveRapidApiDartsKey,
-      onSaveLiveTennisKey: _saveLiveTennisKey,
+      secureStorageAvailable: _secureStorageAvailable,
+      onSaveKey: (id, value) => unawaited(_saveApiKey(id, value)),
     ),
     _ => _SettingsPage(
       theme: _selectedTheme,
@@ -484,74 +481,27 @@ class _CourtboardShellState extends State<CourtboardShell> {
     _saveLocalState();
   }
 
-  void _saveFootballKey(String key) {
-    setState(
-      () => _apiConfig = SportsApiConfig(
-        apiSportsKey: _apiConfig.apiSportsKey,
-        balldontlieKey: _apiConfig.balldontlieKey,
-        footballDataKey: key.trim(),
-        youtubeKey: _apiConfig.youtubeKey,
-        rapidApiDartsKey: _apiConfig.rapidApiDartsKey,
-        liveTennisKey: _apiConfig.liveTennisKey,
-      ),
-    );
-    _saveLocalState();
-  }
-
-  void _saveApiSportsKey(String key) {
-    setState(
-      () => _apiConfig = SportsApiConfig(
-        apiSportsKey: key.trim(),
-        balldontlieKey: _apiConfig.balldontlieKey,
-        footballDataKey: _apiConfig.footballDataKey,
-        youtubeKey: _apiConfig.youtubeKey,
-        rapidApiDartsKey: _apiConfig.rapidApiDartsKey,
-        liveTennisKey: _apiConfig.liveTennisKey,
-      ),
-    );
-    _saveLocalState();
-  }
-
-  void _saveBallDontLieKey(String key) {
-    setState(
-      () => _apiConfig = SportsApiConfig(
-        apiSportsKey: _apiConfig.apiSportsKey,
-        balldontlieKey: key.trim(),
-        footballDataKey: _apiConfig.footballDataKey,
-        youtubeKey: _apiConfig.youtubeKey,
-        rapidApiDartsKey: _apiConfig.rapidApiDartsKey,
-        liveTennisKey: _apiConfig.liveTennisKey,
-      ),
-    );
-    _saveLocalState();
-  }
-
-  void _saveRapidApiDartsKey(String key) {
-    setState(
-      () => _apiConfig = SportsApiConfig(
-        apiSportsKey: _apiConfig.apiSportsKey,
-        balldontlieKey: _apiConfig.balldontlieKey,
-        footballDataKey: _apiConfig.footballDataKey,
-        youtubeKey: _apiConfig.youtubeKey,
-        rapidApiDartsKey: key.trim(),
-        liveTennisKey: _apiConfig.liveTennisKey,
-      ),
-    );
-    _saveLocalState();
-  }
-
-  void _saveLiveTennisKey(String key) {
-    setState(
-      () => _apiConfig = SportsApiConfig(
-        apiSportsKey: _apiConfig.apiSportsKey,
-        balldontlieKey: _apiConfig.balldontlieKey,
-        footballDataKey: _apiConfig.footballDataKey,
-        youtubeKey: _apiConfig.youtubeKey,
-        rapidApiDartsKey: _apiConfig.rapidApiDartsKey,
-        liveTennisKey: key.trim(),
-      ),
-    );
-    _saveLocalState();
+  /// Egy API-kulcs mentése: azonnal érvényes, és a biztonságos tárolóba
+  /// kerül (soha nem a JSON-állapotfájlba). Ha a tároló hibázik, a kulcs az
+  /// app bezárásáig memóriában él, és az Adatforrások oldal figyelmeztet.
+  Future<void> _saveApiKey(ApiKeyId id, String value) async {
+    setState(() => _apiConfig = _apiConfig.withKey(id, value));
+    try {
+      await _apiKeyStore.save(id, value);
+      // Egy korábban a JSON-ban rekedt régi érték a következő induláskor
+      // felülírná az újat, ezért azt most kivesszük.
+      if (_legacyApiKeys.containsKey(id)) {
+        _legacyApiKeys = {..._legacyApiKeys}..remove(id);
+        _saveLocalState();
+      }
+    } on Object {
+      if (!mounted) return;
+      setState(() => _secureStorageAvailable = false);
+      _showSnack(
+        'A(z) ${id.label} kulcs nem menthető a biztonságos tárolóba; '
+        'az app bezárásáig érvényes.',
+      );
+    }
   }
 
   /// „Saját sorrend” módosítása húzással (a teljes, szűretlen listán).

@@ -1,3 +1,5 @@
+import 'json_util.dart';
+
 class BasketballSeasonStat {
   const BasketballSeasonStat({
     required this.league,
@@ -58,20 +60,13 @@ class BasketballSeasonStat {
         season: '${json['season'] ?? ''}',
         team: '${json['team'] ?? ''}',
         source: '${json['source'] ?? ''}',
-        games: _asInt(json['games']),
-        minutesPerGame: _asDouble(json['minutes_per_game']),
-        pointsPerGame: _asDouble(json['points_per_game']),
-        reboundsPerGame: _asDouble(json['rebounds_per_game']),
-        assistsPerGame: _asDouble(json['assists_per_game']),
-        stealsPerGame: _asDouble(json['steals_per_game']),
-        turnoversPerGame: _asDouble(json['turnovers_per_game']),
-        fieldGoalPercentage: _asDouble(json['field_goal_percentage']),
+        games: jsonInt(json['games']),
+        minutesPerGame: jsonDoubleOrNull(json['minutes_per_game']),
+        pointsPerGame: jsonDoubleOrNull(json['points_per_game']),
+        reboundsPerGame: jsonDoubleOrNull(json['rebounds_per_game']),
+        assistsPerGame: jsonDoubleOrNull(json['assists_per_game']),
+        stealsPerGame: jsonDoubleOrNull(json['steals_per_game']),
+        turnoversPerGame: jsonDoubleOrNull(json['turnovers_per_game']),
+        fieldGoalPercentage: jsonDoubleOrNull(json['field_goal_percentage']),
       );
-}
-
-int _asInt(dynamic value) => int.tryParse('$value') ?? 0;
-
-double? _asDouble(dynamic value) {
-  if (value == null || '$value'.trim().isEmpty) return null;
-  return double.tryParse('$value');
 }

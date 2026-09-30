@@ -1,3 +1,5 @@
+import 'json_util.dart';
+
 class FootballSeasonStat {
   const FootballSeasonStat({
     required this.season,
@@ -22,6 +24,33 @@ class FootballSeasonStat {
   final int? assists;
   final int? yellowCards;
   final int? redCards;
+
+  Map<String, dynamic> toJson() => {
+        'season': season,
+        'team': team,
+        'competition': competition,
+        'source': source,
+        'rating': rating,
+        'appearances': appearances,
+        'goals': goals,
+        'assists': assists,
+        'yellowCards': yellowCards,
+        'redCards': redCards,
+      };
+
+  factory FootballSeasonStat.fromJson(Map<String, dynamic> json) =>
+      FootballSeasonStat(
+        season: '${json['season'] ?? ''}',
+        team: '${json['team'] ?? ''}',
+        competition: '${json['competition'] ?? ''}',
+        source: '${json['source'] ?? ''}',
+        rating: jsonDoubleOrNull(json['rating']),
+        appearances: jsonIntOrNull(json['appearances']),
+        goals: jsonIntOrNull(json['goals']),
+        assists: jsonIntOrNull(json['assists']),
+        yellowCards: jsonIntOrNull(json['yellowCards']),
+        redCards: jsonIntOrNull(json['redCards']),
+      );
 
   int get seasonStart =>
       int.tryParse(RegExp(r'\d{4}').firstMatch(season)?.group(0) ?? '') ?? 0;

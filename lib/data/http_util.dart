@@ -109,13 +109,68 @@ Future<String> httpGetText(
   Duration timeout = httpRequestTimeout,
   bool allowMalformed = false,
   bool followRedirects = true,
+}) async =>
+    (await httpGetResponse(
+      client,
+      uri,
+      provider: provider,
+      headers: headers,
+      timeout: timeout,
+      allowMalformed: allowMalformed,
+      followRedirects: followRedirects,
+    ))
+        .body;
+
+/// Egy sikeres (2xx vagy engedélyezett 304) GET válasz szövege és a
+/// feltételes kérésekhez szükséges validátor-fejlécek.
+class HttpTextResponse {
+  const HttpTextResponse({
+    required this.statusCode,
+    required this.body,
+    this.etag,
+    this.lastModified,
+  });
+
+  final int statusCode;
+  final String body;
+  final String? etag;
+  final String? lastModified;
+
+  bool get notModified => statusCode == HttpStatus.notModified;
+}
+
+/// GET kérés a teljes válasszal. [allowNotModified] esetén a 304 válasz
+/// üres törzzsel sikeresnek számít (feltételes `If-None-Match` /
+/// `If-Modified-Since` kérésekhez); minden más nem 2xx státusz
+/// [CourtboardHttpException].
+Future<HttpTextResponse> httpGetResponse(
+  HttpClient client,
+  Uri uri, {
+  required String provider,
+  Map<String, String> headers = const {},
+  Duration timeout = httpRequestTimeout,
+  bool allowMalformed = false,
+  bool followRedirects = true,
+  bool allowNotModified = false,
 }) async {
-  Future<String> run() async {
+  Future<HttpTextResponse> run() async {
     final request = await client.getUrl(uri);
     request.followRedirects = followRedirects;
     headers.forEach(request.headers.set);
     final response = await request.close();
     final code = response.statusCode;
+    final etag = response.headers.value(HttpHeaders.etagHeader);
+    final lastModified =
+        response.headers.value(HttpHeaders.lastModifiedHeader);
+    if (allowNotModified && code == HttpStatus.notModified) {
+      await response.drain<void>().catchError((_) {});
+      return HttpTextResponse(
+        statusCode: code,
+        body: '',
+        etag: etag,
+        lastModified: lastModified,
+      );
+    }
     if (code < 200 || code >= 300) {
       // A törzset el kell dobni, hogy a kapcsolat felszabaduljon.
       await response.drain<void>().catchError((_) {});
@@ -129,7 +184,15 @@ Future<String> httpGetText(
             : null,
       );
     }
-    return response.transform(Utf8Decoder(allowMalformed: allowMalformed)).join();
+    final body = await response
+        .transform(Utf8Decoder(allowMalformed: allowMalformed))
+        .join();
+    return HttpTextResponse(
+      statusCode: code,
+      body: body,
+      etag: etag,
+      lastModified: lastModified,
+    );
   }
 
   try {
@@ -157,6 +220,11 @@ Future<Map<String, dynamic>> httpGetJson(
 }) async {
   final body = await httpGetText(client, uri,
       provider: provider, headers: headers, timeout: timeout);
+  return decodeJsonObject(body);
+}
+
+/// JSON-szöveg objektumként; nem objektum gyökér esetén `{'data': ...}`.
+Map<String, dynamic> decodeJsonObject(String body) {
   final decoded = jsonDecode(body);
   return decoded is Map
       ? Map<String, dynamic>.from(decoded)

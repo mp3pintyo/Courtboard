@@ -1,6 +1,7 @@
 import 'dart:convert';
 
-import 'http_util.dart';
+import 'http_service.dart';
+import 'json_util.dart';
 import 'url_safety.dart';
 import 'youtube_video_id.dart';
 
@@ -58,21 +59,16 @@ class YouTubeOEmbed {
     if (validId == null) {
       throw FormatException('Érvénytelen YouTube-azonosító: $videoId');
     }
-    final client = createHttpClient();
-    try {
-      final payload = jsonDecode(
-          await httpGetText(client, url, provider: 'YouTube oEmbed'));
-      final map = Map<String, dynamic>.from(payload as Map);
-      return SavedYouTubeVideo(
-          videoId: validId,
-          athleteName: athleteName,
-          title: '${map['title'] ?? 'YouTube-videó'}',
-          thumbnailUrl: SavedYouTubeVideo.safeThumbnailUrl(
-              '${map['thumbnail_url'] ?? ''}', validId),
-          savedAt: DateTime.now());
-    } finally {
-      client.close(force: true);
-    }
+    final payload = jsonDecode(await HttpService.shared
+        .getText(url, provider: 'YouTube oEmbed'));
+    final map = Map<String, dynamic>.from(payload as Map);
+    return SavedYouTubeVideo(
+        videoId: validId,
+        athleteName: athleteName,
+        title: '${map['title'] ?? 'YouTube-videó'}',
+        thumbnailUrl: SavedYouTubeVideo.safeThumbnailUrl(
+            '${map['thumbnail_url'] ?? ''}', validId),
+        savedAt: DateTime.now());
   }
 }
 
@@ -115,10 +111,8 @@ class AthleteVideoPlaylist {
     final map =
         raw is Map ? Map<String, dynamic>.from(raw) : <String, dynamic>{};
     List<SavedYouTubeVideo> parse(dynamic value) => value is List
-        ? value
-            .whereType<Map>()
-            .map((v) =>
-                SavedYouTubeVideo.tryFromJson(Map<String, dynamic>.from(v)))
+        ? jsonMapList(value)
+            .map(SavedYouTubeVideo.tryFromJson)
             .whereType<SavedYouTubeVideo>()
             .toList()
         : const [];
