@@ -22,6 +22,7 @@ import 'package:courtboard/data/update_checker.dart';
 import 'package:courtboard/desktop/desktop_integration.dart';
 import 'package:courtboard/desktop/startup_registration.dart';
 import 'package:courtboard/desktop/toast_notifications.dart';
+import 'package:courtboard/desktop/windows_notifications.dart';
 import 'package:courtboard/shared/format.dart';
 import 'package:courtboard/shared/images.dart';
 
@@ -51,13 +52,25 @@ Future<void> main(List<String> arguments) async {
           closeToTray: keys.state.closeToTray,
         )
       : null;
-  final NotificationService notifications = Platform.isWindows
-      ? ToastNotificationService.lazy(
-          fallback: desktop != null && desktop.trayAvailable
-              ? TrayBalloonNotificationService(desktop.windowHandle)
-              : null,
-        )
-      : const DisabledNotificationService();
+  // Értesítések: `flutter_local_notifications` (gombokkal, kattintásra
+  // navigálva), hibájakor a tálcaikon buborékja. Az inicializálás itt
+  // történik, hogy az értesítésre kattintva indított app is megkapja a
+  // kattintás adatait (a shell a kezelő beállításakor kézbesíti).
+  final NotificationService notifications;
+  if (Platform.isWindows) {
+    final toast = FlutterLocalNotificationService(
+      fallback: desktop != null && desktop.trayAvailable
+          ? TrayBalloonNotificationService(desktop.windowHandle)
+          : null,
+    );
+    await toast.initialize().timeout(
+      const Duration(seconds: 5),
+      onTimeout: () => false,
+    );
+    notifications = toast;
+  } else {
+    notifications = const DisabledNotificationService();
+  }
   final services = AppServices(
     stateStore: store,
     playlistFile: File(AppPaths.playlistFile),

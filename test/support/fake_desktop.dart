@@ -19,23 +19,30 @@ class FakeNotificationService implements NotificationService {
   bool succeeds;
 
   final List<CourtboardNotification> shown = [];
-  void Function(CourtboardNotification notification)? _onClick;
+  int clearCount = 0;
+  void Function(NotificationActivation activation)? _onActivated;
 
   @override
   bool get supportsClick => true;
 
   @override
+  bool get supportsActions => true;
+
+  @override
   String get description => 'Teszt-értesítés';
 
   @override
-  set onClick(void Function(CourtboardNotification notification)? handler) =>
-      _onClick = handler;
+  set onActivated(void Function(NotificationActivation activation)? handler) =>
+      _onActivated = handler;
 
-  bool get hasClickHandler => _onClick != null;
+  bool get hasClickHandler => _onActivated != null;
 
-  /// Kattintás a [notification]-re (ahogy a Windows jelezné).
-  void click(CourtboardNotification notification) =>
-      _onClick?.call(notification);
+  /// Kattintás a [notification]-re vagy annak [action] gombjára (ahogy a
+  /// Windows jelezné).
+  void click(
+    CourtboardNotification notification, {
+    NotificationAction action = NotificationAction.open,
+  }) => _onActivated?.call(NotificationActivation(notification, action));
 
   @override
   Future<bool> show(CourtboardNotification notification) async {
@@ -43,6 +50,9 @@ class FakeNotificationService implements NotificationService {
     shown.add(notification);
     return true;
   }
+
+  @override
+  Future<void> clearAll() async => clearCount++;
 }
 
 /// Hálózat nélküli figyelő-adatforrás; a hívásokat naplózza.

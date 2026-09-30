@@ -240,6 +240,7 @@ class _DataSourcesRoute extends ConsumerWidget {
     return DataSourcesPage(
       config: app.apiConfig,
       secureStorageAvailable: app.secureStorageAvailable,
+      keyStorageFallback: app.keyStorageFallback,
       onSaveKey: (id, value) => unawaited(app.saveApiKey(id, value)),
     );
   }

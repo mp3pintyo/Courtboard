@@ -103,7 +103,7 @@ class _CourtboardShellState extends ConsumerState<CourtboardShell>
     implements ShellActions {
   StreamSubscription<String>? _messages;
   StreamSubscription<String>? _desktopMessages;
-  StreamSubscription<CourtboardNotification>? _notificationClicks;
+  StreamSubscription<NotificationActivation>? _notificationClicks;
 
   /// Billentyűparancsok jelzései a látható oldal felé.
   final CourtboardCommands _commands = CourtboardCommands();
@@ -232,8 +232,13 @@ class _CourtboardShellState extends ConsumerState<CourtboardShell>
   }
 
   /// Értesítésre kattintva: a sportoló profilja (hírösszesítőnél a Hírek).
-  void _onNotificationOpened(CourtboardNotification notification) {
+  void _onNotificationOpened(NotificationActivation activation) {
     if (!mounted) return;
+    if (activation.action == NotificationAction.openNews) {
+      open(AppPage.news);
+      return;
+    }
+    final notification = activation.notification;
     final name = notification.athleteName;
     final athlete = name == null
         ? null

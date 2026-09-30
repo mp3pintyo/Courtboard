@@ -65,8 +65,10 @@ class NotificationSettingsCard extends StatefulWidget {
   final DateTime? pausedUntil;
   final VoidCallback? onResume;
 
-  /// `null`, ha az értesítések nem érhetők el (például tesztben).
-  final Future<bool> Function()? onTest;
+  /// A tesztértesítés küldése; a ténylegesen használt megjelenítési mód
+  /// nevét adja vissza (`null`: nem sikerült). `null`, ha az értesítések nem
+  /// érhetők el (például tesztben).
+  final Future<String?> Function()? onTest;
 
   @override
   State<NotificationSettingsCard> createState() =>
@@ -81,13 +83,13 @@ class _NotificationSettingsCardState extends State<NotificationSettingsCard> {
     if (test == null || _testing) return;
     setState(() => _testing = true);
     try {
-      final ok = await test();
+      final via = await test();
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            ok
-                ? 'Teszt értesítés elküldve.'
+            via != null
+                ? 'Teszt értesítés elküldve ($via).'
                 : 'Az értesítés nem jeleníthető meg. Ellenőrizd a Windows '
                       'értesítési beállításait.',
           ),

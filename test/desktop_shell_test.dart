@@ -162,6 +162,99 @@ void main() {
     expect(notifications.hasClickHandler, isFalse);
   });
 
+  testWidgets('„Némítás 1 órára” gomb: szünet, ablak és navigáció nélkül', (
+    tester,
+  ) async {
+    await pumpApp(tester);
+    expect(desktop.trayPaused, isFalse);
+    notifications.click(
+      const CourtboardNotification(
+        id: 'result:x',
+        kind: CourtboardNotificationKind.result,
+        title: 'Új eredmény: Nikola Jokić',
+        body: 'Győzelem',
+        athleteName: 'Nikola Jokić',
+      ),
+      action: NotificationAction.pauseOneHour,
+    );
+    await tester.pumpAndSettle();
+    expect(desktop.log, isNot(contains('show')));
+    expect(find.byKey(const Key('profile-hero')), findsNothing);
+    expect(desktop.trayPaused, isTrue);
+    expect(store.last!.notificationsPausedUntil, isNotNull);
+    expect(find.text('Értesítések szüneteltetve 1 órára.'), findsOneWidget);
+    await openSettingsAt(tester, const Key('notifications-paused'));
+    expect(find.byKey(const Key('notifications-paused')), findsOneWidget);
+    await unmount(tester);
+  });
+
+  testWidgets('„Profil megnyitása” és „Hírek megnyitása” gomb', (tester) async {
+    await pumpApp(tester);
+    const news = CourtboardNotification(
+      id: 'news:Nikola Jokić',
+      kind: CourtboardNotificationKind.news,
+      title: 'Új hír: Nikola Jokić',
+      body: '…',
+      athleteName: 'Nikola Jokić',
+    );
+    notifications.click(news, action: NotificationAction.openProfile);
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('profile-hero')), findsOneWidget);
+
+    // A sportolós hírnél is a Hírek oldal nyílik, ha a gombot nyomták.
+    notifications.click(news, action: NotificationAction.openNews);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
+    expect(find.byKey(const Key('profile-hero')), findsNothing);
+    expect(desktop.log.where((entry) => entry == 'show'), hasLength(2));
+    await unmount(tester);
+  });
+
+  testWidgets('a fő kapcsoló kikapcsolása törli a látható értesítéseket', (
+    tester,
+  ) async {
+    await pumpApp(tester);
+    await openSettingsAt(tester, const Key('notifications-enabled-setting'));
+    expect(notifications.clearCount, 0);
+    await _tapSetting(
+      tester,
+      find.byKey(const Key('notifications-enabled-setting')),
+    );
+    expect(store.last!.notifications.enabled, isFalse);
+    expect(notifications.clearCount, 1);
+    await unmount(tester);
+  });
+
+  testWidgets('az értesítés a sportoló fotójának URL-jét is viszi', (
+    tester,
+  ) async {
+    source.results['Nikola Jokić'] = const [];
+    await pumpApp(
+      tester,
+      state: const CourtboardLocalState(alerts: {'Nikola Jokić': true}),
+    );
+    // Az első futás csak megjegyzi az eredményeket; a második már jelez.
+    desktop.handlers.onRefreshNow!();
+    await tester.pumpAndSettle();
+    source.results['Nikola Jokić'] = [
+      WatchedResult(
+        key: 'g1',
+        date: DateTime.now().subtract(const Duration(hours: 2)),
+        opponent: 'Lakers',
+        outcome: 'W',
+        score: '112–104',
+      ),
+    ];
+    desktop.handlers.onRefreshNow!();
+    await tester.pumpAndSettle();
+    final shown = notifications.shown.where(
+      (n) => n.kind == CourtboardNotificationKind.result,
+    );
+    expect(shown, isNotEmpty);
+    expect(shown.first.imageUrl, startsWith('http'));
+    await unmount(tester);
+  });
+
   testWidgets('az Értesítések kártya ment és tesztértesítést küld', (
     tester,
   ) async {
@@ -171,7 +264,10 @@ void main() {
 
     await _tapSetting(tester, find.byKey(const Key('notification-test')));
     expect(notifications.shown.single.kind, CourtboardNotificationKind.test);
-    expect(find.text('Teszt értesítés elküldve.'), findsOneWidget);
+    expect(
+      find.text('Teszt értesítés elküldve (Teszt-értesítés).'),
+      findsOneWidget,
+    );
 
     await _tapSetting(tester, find.text('60 perc'));
     expect(store.last!.notifications.intervalMinutes, 60);

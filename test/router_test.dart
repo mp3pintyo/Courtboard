@@ -283,6 +283,34 @@ void main() {
     expect(appLocation(tester), '/sportolok/caitlin-clark?from=hirek');
     expect(find.byKey(const Key('profile-hero')), findsOneWidget);
 
+    // A „Hírek megnyitása” gomb a sportolós értesítésnél is a Hírek oldal.
+    notifications.click(
+      const CourtboardNotification(
+        id: 'z',
+        kind: CourtboardNotificationKind.news,
+        title: 'Új hír: Caitlin Clark',
+        body: '',
+        athleteName: 'Caitlin Clark',
+      ),
+      action: NotificationAction.openNews,
+    );
+    await pumpFrames(tester);
+    expect(appLocation(tester), '/hirek');
+
+    // „Profil megnyitása”: a sportoló útvonala.
+    notifications.click(
+      const CourtboardNotification(
+        id: 'z',
+        kind: CourtboardNotificationKind.news,
+        title: 'Új hír: Caitlin Clark',
+        body: '',
+        athleteName: 'Caitlin Clark',
+      ),
+      action: NotificationAction.openProfile,
+    );
+    await pumpFrames(tester);
+    expect(appLocation(tester), '/sportolok/caitlin-clark?from=hirek');
+
     // Hírösszesítő sportoló nélkül: a Hírek oldal.
     notifications.click(
       const CourtboardNotification(

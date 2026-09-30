@@ -344,6 +344,7 @@ class AthleteWatcher {
   AthleteWatcher({
     required this.source,
     required this.notifications,
+    this.photoUrlFor,
     WatcherMemoryStore? memoryStore,
     DateTime Function()? clock,
     this.leadTime = const Duration(minutes: 15),
@@ -355,6 +356,11 @@ class AthleteWatcher {
 
   final WatcherDataSource source;
   final NotificationService notifications;
+
+  /// A sportoló fotójának URL-je (az értesítés képéhez); `null` vagy üres
+  /// esetén az értesítés kép nélkül jelenik meg.
+  final String? Function(String athleteName)? photoUrlFor;
+
   final WatcherMemoryStore _memoryStore;
   final DateTime Function() _clock;
 
@@ -589,7 +595,7 @@ class AthleteWatcher {
       report.suppressed += pending.length;
     } else {
       for (final notification in pending) {
-        if (await notifications.show(notification)) {
+        if (await _show(notification)) {
           report.shown.add(notification);
         }
       }
@@ -641,7 +647,18 @@ class AthleteWatcher {
     memory.notifiedEvents[uid] = event.start;
     await _memoryStore.save(memory);
     if (_suppressedAt(_clock())) return;
-    await notifications.show(matchStartNotification(event, uid));
+    await _show(matchStartNotification(event, uid));
+  }
+
+  /// Megjelenítés a sportoló fotójával (ha ismert).
+  Future<bool> _show(CourtboardNotification notification) {
+    final name = notification.athleteName;
+    final url = name == null ? null : photoUrlFor?.call(name);
+    return notifications.show(
+      url == null || url.isEmpty
+          ? notification
+          : notification.withImageUrl(url),
+    );
   }
 
   CourtboardNotification? _considerResults(

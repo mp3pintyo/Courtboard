@@ -44,15 +44,16 @@ class DesktopCoordinator extends ChangeNotifier {
   final WatcherMemoryStore? watcherMemoryStore;
 
   final StreamController<String> _messages = StreamController.broadcast();
-  final StreamController<CourtboardNotification> _opened =
+  final StreamController<NotificationActivation> _opened =
       StreamController.broadcast();
 
   /// Rövid üzenetek a felhasználónak (a shell SnackBarként mutatja).
   Stream<String> get messages => _messages.stream;
 
-  /// Egy értesítésre kattintás (az ablak már előkerült): a shell a
-  /// sportoló profilját vagy a Hírek oldalt nyitja meg.
-  Stream<CourtboardNotification> get notificationOpened => _opened.stream;
+  /// Egy értesítésre vagy annak gombjára kattintás (az ablak már
+  /// előkerült): a shell a sportoló profilját vagy a Hírek oldalt nyitja
+  /// meg. A „Némítás 1 órára” gomb nem kerül ide (a koordinátor kezeli).
+  Stream<NotificationActivation> get notificationOpened => _opened.stream;
 
   void showMessage(String message) {
     if (!_disposed) _messages.add(message);
@@ -67,6 +68,7 @@ class DesktopCoordinator extends ChangeNotifier {
   /// Az első tálcára rejtés után a következő megjelenéskor SnackBar-tipp.
   bool _trayHintPending = false;
   bool? _trayMenuPaused;
+  bool? _notificationsEnabled;
   bool _disposed = false;
 
   bool get launchAtStartup => _launchAtStartup;
@@ -85,15 +87,19 @@ class DesktopCoordinator extends ChangeNotifier {
     _started = true;
     final notifications = this.notifications;
     if (notifications != null) {
-      notifications.onClick = _onNotificationClick;
+      _notificationsEnabled = app.notificationSettings.enabled;
       final watcher = AthleteWatcher(
         source: watcherSource,
         notifications: notifications,
+        photoUrlFor: (name) => app.athleteNamed(name)?.photoUrl,
         memoryStore: watcherMemoryStore,
       );
       _watcher = watcher;
       _syncWatcher();
       watcher.start();
+      // Utoljára: a még a kezelő előtt érkezett (például az appot indító)
+      // kattintás most kézbesül.
+      notifications.onActivated = _onNotificationActivated;
     }
     final desktop = this.desktop;
     if (desktop != null) {
@@ -122,6 +128,12 @@ class DesktopCoordinator extends ChangeNotifier {
   /// eljut a háttérfigyelőhöz és a tálcához.
   void _appChanged() {
     _syncWatcher();
+    // A fő kapcsoló kikapcsolásakor a még látható értesítések is eltűnnek.
+    final enabled = app.notificationSettings.enabled;
+    if (_notificationsEnabled == true && !enabled) {
+      unawaited(notifications?.clearAll());
+    }
+    if (notifications != null) _notificationsEnabled = enabled;
     final desktop = this.desktop;
     if (desktop == null) return;
     if (desktop.closeToTray != app.closeToTray) {
@@ -182,11 +194,18 @@ class DesktopCoordinator extends ChangeNotifier {
     await app.flush();
   }
 
-  /// Értesítésre kattintva: ablak előhozása, majd a megfelelő oldal.
-  void _onNotificationClick(CourtboardNotification notification) {
-    unawaited(desktop?.showWindow());
+  /// Értesítésre / gombra kattintva: „Némítás 1 órára” esetén az
+  /// értesítések szüneteltetése (az ablak marad, ahol volt); egyébként az
+  /// ablak előhozása, majd a megfelelő oldal.
+  void _onNotificationActivated(NotificationActivation activation) {
     if (_disposed) return;
-    _opened.add(notification);
+    if (!activation.action.showsWindow) {
+      app.pauseNotificationsFor(const Duration(hours: 1));
+      showMessage('Értesítések szüneteltetve 1 órára.');
+      return;
+    }
+    unawaited(desktop?.showWindow());
+    _opened.add(activation);
   }
 
   Future<void> _loadStartupState() async {
@@ -227,10 +246,13 @@ class DesktopCoordinator extends ChangeNotifier {
     }
   }
 
-  Future<bool> sendTestNotification() async {
+  /// A Beállítások „Teszt értesítés” gombja: a ténylegesen használt
+  /// megvalósításon (Windows-értesítés, hibájakor tálcabuborék) át küld, és
+  /// annak nevét adja vissza; `null`, ha nem sikerült.
+  Future<String?> sendTestNotification() async {
     final service = notifications;
-    if (service == null) return false;
-    return service.show(
+    if (service == null) return null;
+    final shown = await service.show(
       const CourtboardNotification(
         id: 'test',
         kind: CourtboardNotificationKind.test,
@@ -240,6 +262,7 @@ class DesktopCoordinator extends ChangeNotifier {
             'új eredménynél és új hírnél.',
       ),
     );
+    return shown ? service.description : null;
   }
 
   @override
@@ -247,7 +270,7 @@ class DesktopCoordinator extends ChangeNotifier {
     _disposed = true;
     app.removeListener(_appChanged);
     _watcher?.dispose();
-    notifications?.onClick = null;
+    notifications?.onActivated = null;
     desktop?.attach(const DesktopHandlers());
     unawaited(_messages.close());
     unawaited(_opened.close());

@@ -18,12 +18,17 @@ class DataSourcesPage extends ConsumerStatefulWidget {
     required this.config,
     required this.onSaveKey,
     this.secureStorageAvailable = true,
+    this.keyStorageFallback = false,
   });
   final SportsApiConfig config;
   final void Function(ApiKeyId id, String value) onSaveKey;
 
   /// Hamis esetén figyelmeztetés: a kulcsok nem a biztonságos tárolóban vannak.
   final bool secureStorageAvailable;
+
+  /// Igaz esetén tájékoztatás: a kulcsok a tartalék tárolóban (Windows
+  /// Hitelesítőadat-kezelő) vannak, mert az elsődleges nem érhető el.
+  final bool keyStorageFallback;
 
   @override
   ConsumerState<DataSourcesPage> createState() => _DataStatusPageState();
@@ -141,8 +146,8 @@ class _DataStatusPageState extends ConsumerState<DataSourcesPage> {
                 Text('API-kulcsok', style: context.text.titleLarge),
                 const SizedBox(height: 5),
                 Text(
-                  'Mind opcionális. A kulcsok a Windows biztonságos tárolójában '
-                  '(Hitelesítőadat-kezelő, titkosítva) kerülnek mentésre. '
+                  'Mind opcionális. A kulcsok titkosítva, a Windows-fiókodhoz '
+                  'kötve (DPAPI) kerülnek mentésre, soha nem az állapotfájlba. '
                   'A közös RapidAPI kulcsot a Darts és a WNBA API is használja, '
                   'de mindkét API-ra külön fel kell iratkozni.',
                   style: context.text.bodyMedium?.copyWith(color: cb.textMuted),
@@ -150,6 +155,15 @@ class _DataStatusPageState extends ConsumerState<DataSourcesPage> {
                 if (!widget.secureStorageAvailable) ...[
                   const SizedBox(height: 12),
                   const _SecureStorageWarning(),
+                ] else if (widget.keyStorageFallback) ...[
+                  const SizedBox(height: 12),
+                  const CourtboardNote(
+                    'A titkosított kulcsfájl most nem érhető el, ezért a '
+                    'kulcsok a Windows Hitelesítőadat-kezelőjében (tartalék '
+                    'tároló) vannak. A következő indításkor az app újra '
+                    'megpróbálja áthelyezni őket.',
+                    key: Key('key-storage-fallback'),
+                  ),
                 ],
                 const SizedBox(height: 12),
                 Wrap(

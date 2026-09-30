@@ -130,6 +130,10 @@ class AppController extends ChangeNotifier {
   /// Hamis, ha a biztonságos tároló indításkor vagy egy mentéskor hibázott.
   bool get secureStorageAvailable => _secureStorageAvailable;
 
+  /// Igaz, ha a kulcsok a tartalék tárolóban (Windows Hitelesítőadat-kezelő)
+  /// élnek, mert a `flutter_secure_storage` nem érhető el.
+  bool get keyStorageFallback => _apiKeyStore.usingFallbackStore;
+
   String get overviewSort => _overviewSort;
   String get athleteSort => _athleteSort;
   String get theme => _theme;
@@ -497,6 +501,14 @@ class AppController extends ChangeNotifier {
     _notificationsPausedUntil = notificationsPaused
         ? null
         : _clock().add(const Duration(hours: 1));
+    _schedulePauseExpiry();
+    _changed();
+  }
+
+  /// Az értesítés „Némítás 1 órára” gombja: szüneteltetés [duration]
+  /// hosszan mostantól (egy futó szünetet is erre állít).
+  void pauseNotificationsFor(Duration duration) {
+    _notificationsPausedUntil = _clock().add(duration);
     _schedulePauseExpiry();
     _changed();
   }

@@ -5,15 +5,19 @@ import 'dart:io';
 import 'package:ffi/ffi.dart';
 import 'package:win32/win32.dart';
 
+import 'package:courtboard/data/flutter_secure_secret_store.dart';
+
 /// Titkok (API-kulcsok) kulcs–érték tárolója.
 ///
 /// Minden művelet [SecretStoreException]-t dob, ha a mögöttes tároló nem
 /// érhető el; a hívó ilyenkor memóriában tartott kulcsokkal dolgozik tovább.
 abstract interface class SecretStore {
-  /// Az alkalmazás közös titoktárolója. Alapértelmezése a Windows
-  /// Hitelesítőadat-kezelője ([SecureSecretStore]); a tesztek
+  /// Az alkalmazás közös titoktárolója. Alapértelmezése (0.15.0-tól) a
+  /// `flutter_secure_storage`-re épülő [FlutterSecureSecretStore], tartalékként
+  /// és költöztetési forrásként a Windows Hitelesítőadat-kezelőjével
+  /// ([SecureSecretStore]) — lásd [LayeredSecretStore]. A tesztek
   /// [MemorySecretStore]-ra cserélik (lásd `test/flutter_test_config.dart`).
-  static SecretStore shared = SecureSecretStore();
+  static SecretStore shared = LayeredSecretStore.production();
 
   /// A [key] alatt tárolt érték, vagy `null`, ha nincs ilyen.
   Future<String?> read(String key);
@@ -38,6 +42,10 @@ class SecretStoreException implements Exception {
 }
 
 /// A Windows Hitelesítőadat-kezelőre (Credential Manager) épülő tároló.
+///
+/// A 0.9.0–0.14.0 verziók elsődleges tárolója; 0.15.0-tól a
+/// [LayeredSecretStore] tartaléka (ha a `flutter_secure_storage` nem működik)
+/// és az indításkori átköltöztetés forrása.
 ///
 /// Minden kulcs egy általános (generic) hitelesítő adat `Courtboard/<kulcs>`
 /// célnévvel, a felhasználó profiljához kötve: a Windows a DPAPI-val

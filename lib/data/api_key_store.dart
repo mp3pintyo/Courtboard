@@ -1,4 +1,5 @@
 import 'package:courtboard/data/api_key_id.dart';
+import 'package:courtboard/data/flutter_secure_secret_store.dart';
 import 'package:courtboard/data/local_state.dart';
 import 'package:courtboard/data/secret_store.dart';
 
@@ -8,6 +9,8 @@ class ApiKeyLoadResult {
     required this.keys,
     required this.state,
     required this.secureStorageAvailable,
+    this.usingFallbackStore = false,
+    this.migration,
   });
 
   /// A mentett (nem üres) kulcsok; a környezeti változókat felülírják.
@@ -20,6 +23,14 @@ class ApiKeyLoadResult {
   /// Hamis, ha a biztonságos tároló nem volt olvasható vagy írható: ilyenkor
   /// a kulcsok memóriában élnek, a régi JSON-kulcsok pedig érintetlenek.
   final bool secureStorageAvailable;
+
+  /// Igaz, ha az elsődleges tároló (`flutter_secure_storage`) hibája miatt a
+  /// kulcsok a tartalék Windows Hitelesítőadat-kezelőben élnek.
+  final bool usingFallbackStore;
+
+  /// A Hitelesítőadat-kezelőből való indításkori átköltöztetés eredménye
+  /// (`null`, ha a tároló nem költöztet).
+  final SecretMigrationReport? migration;
 }
 
 /// Az API-kulcsok betöltése, mentése és egyszeri migrációja a titkosítatlan
@@ -32,7 +43,19 @@ class ApiKeyStore {
 
   SecretStore get _store => _secrets ?? SecretStore.shared;
 
+  /// Igaz, ha a kulcsok éppen a tartalék tárolóban (Windows
+  /// Hitelesítőadat-kezelő) élnek, mert az elsődleges tároló hibázott.
+  bool get usingFallbackStore => switch (_store) {
+    final MigratingSecretStore store => store.usingFallback,
+    _ => false,
+  };
+
   /// Betölti a kulcsokat, és a [state]-ben talált régi kulcsokat átköltözteti.
+  ///
+  /// Először a [MigratingSecretStore] (az éles [LayeredSecretStore]) viszi át
+  /// a Hitelesítőadat-kezelőben tárolt kulcsokat az új tárolóba (lásd
+  /// [MigratingSecretStore.migrateLegacy]); a JSON-kulcsok ezután közvetlenül
+  /// az új tárolóba kerülnek.
   ///
   /// Migráció kulcsonként: írás a titoktárolóba → visszaolvasás → egyezés
   /// esetén a kulcs kikerül a JSON-ból (a [stateStore] atomikus mentésével).
@@ -45,6 +68,19 @@ class ApiKeyStore {
   }) async {
     final legacy = state.legacyApiKeys;
     final keys = <ApiKeyId, String>{};
+    final store = _store;
+    SecretMigrationReport? migration;
+    if (store is MigratingSecretStore) {
+      try {
+        migration = await store.migrateLegacy(
+          ApiKeyId.values.map((id) => id.secretName),
+        );
+      } on Object {
+        // A költöztetés hibája nem akadályozhatja a betöltést: a régi
+        // hitelesítő adatok érintetlenek, a réteg olvasáskor eléri őket.
+      }
+    }
+    bool fallback() => store is MigratingSecretStore && store.usingFallback;
     try {
       for (final id in ApiKeyId.values) {
         final value = (await _store.read(id.secretName))?.trim() ?? '';
@@ -55,6 +91,8 @@ class ApiKeyStore {
         keys: {...legacy},
         state: state,
         secureStorageAvailable: false,
+        usingFallbackStore: fallback(),
+        migration: migration,
       );
     }
     if (legacy.isEmpty) {
@@ -62,6 +100,8 @@ class ApiKeyStore {
         keys: keys,
         state: state,
         secureStorageAvailable: true,
+        usingFallbackStore: fallback(),
+        migration: migration,
       );
     }
 
@@ -93,6 +133,8 @@ class ApiKeyStore {
       keys: keys,
       state: result,
       secureStorageAvailable: available,
+      usingFallbackStore: fallback(),
+      migration: migration,
     );
   }
 
